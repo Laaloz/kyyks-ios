@@ -22,6 +22,8 @@ struct KyyksApp: App {
                             .tabItem { Label("Treeni", systemImage: "dumbbell") }
                         NutritionView(auth: auth)
                             .tabItem { Label("Ravinto", systemImage: "fork.knife") }
+                        BodyView(auth: auth)
+                            .tabItem { Label("Keho", systemImage: "figure") }
                     }
                 }
             }
