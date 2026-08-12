@@ -8,7 +8,7 @@ struct NutritionView: View {
     @State private var model = NutritionModel()
     @State private var showAddMeal = false
     @State private var selectedEntry: NutritionEntry?
-    @State private var startWithCamera = false
+    @State private var addMode: AddMealMode = .text
 
     var body: some View {
         NavigationStack {
@@ -54,7 +54,7 @@ struct NutritionView: View {
                         // Tyhjä päivä ohjaa suoraan lisäykseen — juuri silloin
                         // ohjaus on tarpeellisinta.
                         Button {
-                            startWithCamera = false
+                            addMode = .camera
                             showAddMeal = true
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
@@ -88,7 +88,7 @@ struct NutritionView: View {
                 // kameraa, jolloin teksti ja kuvakirjasto ovat valittavissa.
                 HStack(spacing: 10) {
                     Button {
-                        startWithCamera = true
+                        addMode = .camera
                         showAddMeal = true
                     } label: {
                         Label("Kuvaa ateria", systemImage: "camera.fill")
@@ -98,17 +98,29 @@ struct NutritionView: View {
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button {
-                        startWithCamera = false
-                        showAddMeal = true
+                    // Valikko listaa vain muut tavat — kamera ei toistu, koska
+                    // se on jo oma nappinsa vieressä.
+                    Menu {
+                        Button {
+                            addMode = .text
+                            showAddMeal = true
+                        } label: {
+                            Label("Kirjoita mitä söit", systemImage: "text.cursor")
+                        }
+                        Button {
+                            addMode = .library
+                            showAddMeal = true
+                        } label: {
+                            Label("Valitse kuva", systemImage: "photo.on.rectangle")
+                        }
                     } label: {
-                        Image(systemName: "square.and.pencil")
+                        Image(systemName: "ellipsis")
                             .font(.headline)
                             .frame(width: 44)
                             .padding(.vertical, 14)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityLabel("Lisää ateria kirjoittamalla")
+                    .accessibilityLabel("Muut tavat lisätä ateria")
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
@@ -124,7 +136,7 @@ struct NutritionView: View {
                 )
             }
             .sheet(isPresented: $showAddMeal) {
-                AddMealSheet(auth: auth, planDate: model.dateKey, autoOpenCamera: startWithCamera) {
+                AddMealSheet(auth: auth, planDate: model.dateKey, mode: addMode) {
                     Task { await model.refresh() }
                 }
             }

@@ -6,15 +6,18 @@ import SwiftUI
 struct AddMealSheet: View {
     let auth: AuthManager
     let planDate: String
-    /// Kuvaa-napista tultaessa kamera aukeaa suoraan — yksi napautus säästyy
-    /// siinä polussa, joka on nopein pöydässä.
-    var autoOpenCamera = false
+    /// Näkymä avataan aina tiettyyn tapaan lisätä. Kamera ja kuvakirjasto
+    /// aukeavat suoraan, teksti näyttää kirjoituskentän — samat vaihtoehdot
+    /// eivät toistu näkymän sisällä, koska valinta on jo tehty.
+    var mode: AddMealMode = .text
     let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var model = AddMealModel()
     @State private var pickerItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var showLibrary = false
+    @FocusState private var isQueryFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -54,11 +57,15 @@ struct AddMealSheet: View {
                 }
             }
             .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker { image in
-                    Task { await model.estimate(from: image) }
-                }
+                CameraPicker(
+                    onCapture: { image in Task { await model.estimate(from: image) } },
+                    // Kameran peruutus sulkee koko näkymän: käyttäjä perui
+                    // aikeensa, eikä häntä jätetä orpoon kirjoituskenttään.
+                    onCancel: { if model.estimate == nil { dismiss() } }
+                )
                 .ignoresSafeArea()
             }
+            .photosPicker(isPresented: $showLibrary, selection: $pickerItem, matching: .images)
             .onChange(of: pickerItem) { _, item in
                 guard let item else { return }
                 Task {
@@ -72,8 +79,12 @@ struct AddMealSheet: View {
         }
         .task {
             model.configure(auth: auth, planDate: planDate)
-            if autoOpenCamera && model.estimate == nil {
-                showCamera = true
+            if model.estimate == nil {
+                switch mode {
+                case .camera: showCamera = true
+                case .library: showLibrary = true
+                case .text: isQueryFocused = true
+                }
             }
             // Lämmityskutsu: serverless-funktio herää käyttäjän kuvatessa,
             // jolloin varsinainen arvio osuu lämpimään instanssiin.
@@ -92,22 +103,10 @@ struct AddMealSheet: View {
                 }
             }
         } else {
-            // Kuva ja teksti ovat tasavertaiset tavat: kuva on nopein lautasesta,
-            // teksti toimii jälkikäteen kirjatessa tai kun ruokaa ei enää ole.
-            Section("Kuvaa") {
-                Button {
-                    showCamera = true
-                } label: {
-                    Label("Kuvaa ateria", systemImage: "camera.fill")
-                }
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Label("Valitse kuva", systemImage: "photo.on.rectangle")
-                }
-            }
-
             Section {
                 HStack(spacing: 8) {
                     TextField("Esim. kaurapuuro ja banaani", text: $model.query)
+                        .focused($isQueryFocused)
                         .submitLabel(.search)
                         .onSubmit { Task { await model.estimateFromText() } }
                     Button {
@@ -120,9 +119,9 @@ struct AddMealSheet: View {
                     .disabled(model.query.trimmingCharacters(in: .whitespaces).count < 2)
                 }
             } header: {
-                Text("Tai kirjoita")
+                Text("Mitä söit?")
             } footer: {
-                Text("AI arvioi makrot kuvasta tai kuvauksesta. Voit korjata annoskoon ennen tallennusta.")
+                Text("AI arvioi makrot kuvauksesta. Voit korjata annoskoon ennen tallennusta.")
             }
         }
     }
@@ -334,6 +333,7 @@ private extension UIImage {
 /// UIKit-kamera SwiftUI-kääreessä (SwiftUI:ssa ei ole natiivia kamerakomponenttia).
 struct CameraPicker: UIViewControllerRepresentable {
     let onCapture: (UIImage) -> Void
+    var onCancel: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -346,15 +346,17 @@ struct CameraPicker: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIImagePickerController, context: Context) {}
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onCapture: onCapture, dismiss: { dismiss() })
+        Coordinator(onCapture: onCapture, onCancel: onCancel, dismiss: { dismiss() })
     }
 
     final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         private let onCapture: (UIImage) -> Void
+        private let onCancel: () -> Void
         private let dismiss: () -> Void
 
-        init(onCapture: @escaping (UIImage) -> Void, dismiss: @escaping () -> Void) {
+        init(onCapture: @escaping (UIImage) -> Void, onCancel: @escaping () -> Void, dismiss: @escaping () -> Void) {
             self.onCapture = onCapture
+            self.onCancel = onCancel
             self.dismiss = dismiss
         }
 
@@ -369,7 +371,14 @@ struct CameraPicker: UIViewControllerRepresentable {
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onCancel()
             dismiss()
         }
     }
+}
+
+/// Tapa lisätä ateria. Valinta tehdään ennen näkymän avaamista, jotta
+/// vaihtoehdot eivät toistu sen sisällä.
+enum AddMealMode {
+    case camera, library, text
 }
