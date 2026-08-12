@@ -20,7 +20,11 @@ struct APIClient {
     }
 
     func get(_ path: String) async throws -> Data {
-        var request = URLRequest(url: AppConfig.apiBaseURL.appending(path: path))
+        // URL(string:relativeTo:) säilyttää query-parametrit (appending(path:) enkoodaisi "?":n).
+        guard let url = URL(string: path, relativeTo: AppConfig.apiBaseURL) else {
+            throw APIError.transport
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         let token = try await auth.accessToken()
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

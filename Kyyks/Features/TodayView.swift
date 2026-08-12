@@ -105,7 +105,7 @@ final class TodayModel {
 
     private var api: APIClient?
     private var userId = ""
-    private let cacheKey = "app-state"
+    private let cacheKey = "mobile-today"
 
     func configure(auth: AuthManager, userId: String) {
         api = APIClient(auth: auth)
@@ -126,7 +126,7 @@ final class TodayModel {
     func refresh() async {
         guard let api else { return }
         do {
-            let data = try await api.get("/api/app-state")
+            let data = try await api.get("/api/mobile/today")
             await ResponseCache.shared.write(cacheKey, data: data)
             apply(data)
             errorMessage = nil
