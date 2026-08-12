@@ -1,23 +1,28 @@
-import PhotosUI
 import SwiftUI
 
-/// AI-kameralisäys: kuvaa ateria → Gemini arvioi ruoan ja makrot → käyttäjä
-/// tarkistaa annoskoon ja ateriapaikan → rivi tallentuu syödyksi merkittynä.
+/// Aterian vahvistusnäkymä: AI arvioi ruoan (kuvasta tai kuvauksesta),
+/// käyttäjä tarkistaa annoskoon ja ateriapaikan, ja rivi tallentuu syödyksi
+/// merkittynä. Syöte valitaan aina ennen tänne tuloa.
 struct AddMealSheet: View {
     let auth: AuthManager
     let planDate: String
-    /// Näkymä avataan aina tiettyyn tapaan lisätä. Kamera ja kuvakirjasto
-    /// aukeavat suoraan, teksti näyttää kirjoituskentän — samat vaihtoehdot
-    /// eivät toistu näkymän sisällä, koska valinta on jo tehty.
+    /// Mistä syöte tulee. Kamera ja kuvakirjasto aukeavat suoraan, teksti
+    /// arvioidaan initialQuerystä — näkymä itse ei kysy mitään, koska valinta
+    /// on jo tehty listassa.
     var mode: AddMealMode = .text
+    /// Listan kirjoituspalkista tullut kuvaus: arvio käynnistyy heti, eikä
+    /// käyttäjän tarvitse kirjoittaa samaa uudelleen.
+    var initialQuery = ""
+    /// Kamerasta tai kuvakirjastosta valittu kuva. Valitsin esitetään
+    /// listanäkymässä, ei täällä: sisäkkäinen esitys jäi luotettavasti
+    /// avautumatta, ja suoraan avautuva kamera on myös nopeampi.
+    var initialImage: UIImage?
+    /// Uusi yritys: listanäkymä avaa saman lähteen uudelleen.
+    var onRetry: (() -> Void)?
     let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var model = AddMealModel()
-    @State private var pickerItem: PhotosPickerItem?
-    @State private var showCamera = false
-    @State private var showLibrary = false
-    @FocusState private var isQueryFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -25,7 +30,7 @@ struct AddMealSheet: View {
                 if let estimate = model.estimate {
                     estimateSection(estimate)
                 } else {
-                    captureSection
+                    statusSection
                 }
 
                 if let error = model.errorMessage {
@@ -56,34 +61,15 @@ struct AddMealSheet: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showCamera) {
-                CameraPicker(
-                    onCapture: { image in Task { await model.estimate(from: image) } },
-                    // Kameran peruutus sulkee koko näkymän: käyttäjä perui
-                    // aikeensa, eikä häntä jätetä orpoon kirjoituskenttään.
-                    onCancel: { if model.estimate == nil { dismiss() } }
-                )
-                .ignoresSafeArea()
-            }
-            .photosPicker(isPresented: $showLibrary, selection: $pickerItem, matching: .images)
-            .onChange(of: pickerItem) { _, item in
-                guard let item else { return }
-                Task {
-                    if let data = try? await item.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        await model.estimate(from: image)
-                    }
-                    pickerItem = nil
-                }
-            }
         }
         .task {
             model.configure(auth: auth, planDate: planDate)
             if model.estimate == nil {
-                switch mode {
-                case .camera: showCamera = true
-                case .library: showLibrary = true
-                case .text: isQueryFocused = true
+                if let initialImage {
+                    await model.estimate(from: initialImage)
+                } else if model.query.isEmpty, !initialQuery.isEmpty {
+                    model.query = initialQuery
+                    await model.estimateFromText()
                 }
             }
             // Lämmityskutsu: serverless-funktio herää käyttäjän kuvatessa,
@@ -92,36 +78,15 @@ struct AddMealSheet: View {
         }
     }
 
-    @ViewBuilder
-    private var captureSection: some View {
-        if model.isEstimating {
-            Section {
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text(model.estimatingLabel)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } else {
-            Section {
-                HStack(spacing: 8) {
-                    TextField("Esim. kaurapuuro ja banaani", text: $model.query)
-                        .focused($isQueryFocused)
-                        .submitLabel(.search)
-                        .onSubmit { Task { await model.estimateFromText() } }
-                    Button {
-                        Task { await model.estimateFromText() }
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(model.query.trimmingCharacters(in: .whitespaces).count < 2)
-                }
-            } header: {
-                Text("Mitä söit?")
-            } footer: {
-                Text("AI arvioi makrot kuvauksesta. Voit korjata annoskoon ennen tallennusta.")
+    /// Näkymä on pelkkä arvion tila ja vahvistus: syöte tulee joko kamerasta,
+    /// kuvakirjastosta tai listan kirjoituspalkista. Ilman omaa syötekenttää
+    /// mikään ei myöskään ehdi välähtää ennen valitsimen avautumista.
+    private var statusSection: some View {
+        Section {
+            HStack(spacing: 12) {
+                ProgressView()
+                Text(model.isEstimating ? model.estimatingLabel : "Valmistellaan…")
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -171,7 +136,17 @@ struct AddMealSheet: View {
             }
 
             Section {
-                Button("Arvioi uudelleen") { model.reset() }
+                // Uusi yritys palaa samaan lähteeseen josta tultiin.
+                switch mode {
+                case .camera:
+                    Button("Kuvaa uudelleen") { onRetry?() }
+                case .library:
+                    Button("Valitse toinen kuva") { onRetry?() }
+                case .text:
+                    // Kuvausta muokataan listan kirjoituspalkissa, joka on
+                    // näkyvissä heti sulkemisen jälkeen.
+                    Button("Sulje ja kirjoita uudelleen") { dismiss() }
+                }
             }
         }
     }
@@ -330,15 +305,19 @@ private extension UIImage {
     }
 }
 
-/// UIKit-kamera SwiftUI-kääreessä (SwiftUI:ssa ei ole natiivia kamerakomponenttia).
-struct CameraPicker: UIViewControllerRepresentable {
+/// UIKit-kuvavalitsin SwiftUI-kääreessä. Sekä kamera että kuvakirjasto kulkevat
+/// tämän kautta: SwiftUI:n .photosPicker ei esittäydy luotettavasti toisen
+/// esitetyn näkymän päältä, mutta fullScreenCover + UIImagePickerController kyllä.
+struct ImagePicker: UIViewControllerRepresentable {
+    var sourceType: UIImagePickerController.SourceType = .camera
     let onCapture: (UIImage) -> Void
     var onCancel: () -> Void = {}
     @Environment(\.dismiss) private var dismiss
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        // Kameraa ei ole simulaattorissa eikä kaikilla laitteilla → kirjasto.
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(sourceType) ? sourceType : .photoLibrary
         picker.delegate = context.coordinator
         return picker
     }

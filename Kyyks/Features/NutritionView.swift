@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Ravinto-välilehti: päivän makrotilanne tavoitteeseen verrattuna ja
 /// ateriat ateriapaikoittain. Päivää voi selata eteen ja taakse.
@@ -9,6 +10,12 @@ struct NutritionView: View {
     @State private var showAddMeal = false
     @State private var selectedEntry: NutritionEntry?
     @State private var addMode: AddMealMode = .text
+    @State private var quickQuery = ""
+    @State private var pendingQuery = ""
+    @State private var showPicker = false
+    @State private var pickerSource: UIImagePickerController.SourceType = .camera
+    @State private var capturedImage: UIImage?
+    @FocusState private var isQuickFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -54,8 +61,7 @@ struct NutritionView: View {
                         // Tyhjä päivä ohjaa suoraan lisäykseen — juuri silloin
                         // ohjaus on tarpeellisinta.
                         Button {
-                            addMode = .camera
-                            showAddMeal = true
+                            openPicker(.camera)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("Ei kirjauksia tälle päivälle.")
@@ -86,42 +92,52 @@ struct NutritionView: View {
                 // Kuvaaminen on oma nappinsa ja avaa kameran suoraan — se on
                 // nopein polku pöydässä. Kirjoituskynä avaa saman näkymän ilman
                 // kameraa, jolloin teksti ja kuvakirjasto ovat valittavissa.
-                HStack(spacing: 10) {
-                    Button {
-                        addMode = .camera
-                        showAddMeal = true
-                    } label: {
-                        Label("Kuvaa ateria", systemImage: "camera.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.borderedProminent)
+                HStack(spacing: 8) {
+                    // Kirjoituskenttä suoraan listan alla: yleisin kirjaus alkaa
+                    // ilman navigointia — kirjoita ja lähetä. Kuvakkeet vievät
+                    // muihin tapoihin yhdellä napautuksella.
+                    TextField("Mitä söit?", text: $quickQuery)
+                        .focused($isQuickFocused)
+                        .submitLabel(.send)
+                        .onSubmit(submitQuickQuery)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(.fill.tertiary, in: Capsule())
 
-                    // Valikko listaa vain muut tavat — kamera ei toistu, koska
-                    // se on jo oma nappinsa vieressä.
-                    Menu {
-                        Button {
-                            addMode = .text
-                            showAddMeal = true
-                        } label: {
-                            Label("Kirjoita mitä söit", systemImage: "text.cursor")
+                    if canSubmitQuickQuery {
+                        Button(action: submitQuickQuery) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.title)
+                                .symbolRenderingMode(.hierarchical)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Arvioi kirjoitettu ateria")
+                        .transition(.scale.combined(with: .opacity))
+                    } else {
                         Button {
-                            addMode = .library
-                            showAddMeal = true
+                            openPicker(.photoLibrary)
                         } label: {
-                            Label("Valitse kuva", systemImage: "photo.on.rectangle")
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.title3)
+                                .frame(width: 32, height: 32)
                         }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.headline)
-                            .frame(width: 44)
-                            .padding(.vertical, 14)
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Valitse kuva kirjastosta")
+
+                        Button {
+                            openPicker(.camera)
+                        } label: {
+                            Image(systemName: "camera.fill")
+                                .font(.title3)
+                                .frame(width: 40, height: 40)
+                                .background(Color.accentColor, in: Circle())
+                                .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Kuvaa ateria")
                     }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Muut tavat lisätä ateria")
                 }
+                .animation(.snappy(duration: 0.2), value: canSubmitQuickQuery)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .background(.bar)
@@ -136,9 +152,36 @@ struct NutritionView: View {
                 )
             }
             .sheet(isPresented: $showAddMeal) {
-                AddMealSheet(auth: auth, planDate: model.dateKey, mode: addMode) {
-                    Task { await model.refresh() }
-                }
+                AddMealSheet(
+                    auth: auth,
+                    planDate: model.dateKey,
+                    mode: addMode,
+                    initialQuery: pendingQuery,
+                    initialImage: capturedImage,
+                    onRetry: {
+                        showAddMeal = false
+                        openPicker(pickerSource)
+                    },
+                    onAdded: { Task { await model.refresh() } }
+                )
+            }
+            // Valitsin esitetään listasta, ei vahvistusnäkymästä: sisäkkäinen
+            // esitys jäi avautumatta, ja näin kamera aukeaa heti napautuksesta.
+            .fullScreenCover(isPresented: $showPicker) {
+                ImagePicker(
+                    sourceType: pickerSource,
+                    onCapture: { image in capturedImage = image },
+                    onCancel: { capturedImage = nil }
+                )
+                .ignoresSafeArea()
+            }
+            .onChange(of: showPicker) { _, isShowing in
+                // Vahvistusnäkymä avataan vasta kun valitsin on sulkeutunut,
+                // jottei esitys osu kesken animaation.
+                guard !isShowing, capturedImage != nil else { return }
+                addMode = pickerSource == .camera ? .camera : .library
+                pendingQuery = ""
+                showAddMeal = true
             }
             .overlay { if model.isLoading && model.day == nil { ProgressView() } }
             .refreshable { await model.refresh() }
@@ -147,6 +190,28 @@ struct NutritionView: View {
             model.configure(auth: auth)
             await model.load()
         }
+    }
+
+    private var canSubmitQuickQuery: Bool {
+        quickQuery.trimmingCharacters(in: .whitespaces).count >= 2
+    }
+
+    /// Kirjoitettu kuvaus siirtyy vahvistusnäkymään, joka käynnistää arvion
+    /// heti — kenttä tyhjenee, jotta seuraavan voi kirjoittaa saman tien.
+    private func openPicker(_ source: UIImagePickerController.SourceType) {
+        capturedImage = nil
+        pickerSource = source
+        showPicker = true
+    }
+
+    private func submitQuickQuery() {
+        guard canSubmitQuickQuery else { return }
+        capturedImage = nil
+        pendingQuery = quickQuery.trimmingCharacters(in: .whitespaces)
+        quickQuery = ""
+        isQuickFocused = false
+        addMode = .text
+        showAddMeal = true
     }
 
     @ToolbarContentBuilder
