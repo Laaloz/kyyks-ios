@@ -10,6 +10,7 @@ struct WorkoutsListView: View {
     @State private var showStartSheet = false
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
+    @State private var showAddActivity = false
 
     struct StartedWorkout: Identifiable, Hashable {
         let id: String
@@ -64,6 +65,31 @@ struct WorkoutsListView: View {
                         Text("Ei treenejä lähipäiviltä")
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
+                // joten ne kirjataan ja näkyvät samalla välilehdellä.
+                Section("Muut suoritukset") {
+                    Button {
+                        showAddActivity = true
+                    } label: {
+                        Label("Lisää suoritus", systemImage: "plus.circle")
+                    }
+                    ForEach(model.recentActivities) { activity in
+                        HStack {
+                            Text(activity.activityType)
+                            Spacer()
+                            Text("\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddActivity) {
+                AddActivitySheet(auth: auth) {
+                    Task { await model.refresh() }
                 }
             }
             .navigationTitle("Treeni")
