@@ -153,19 +153,11 @@ private struct NutritionRow: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(entry.name)
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(2)
-                    // Syöty on normaalitila (92 % riveistä), joten merkki kertoo
-                    // vain poikkeuksen: rivi ei laske päivän makroihin.
-                    if !entry.isEaten {
-                        Image(systemName: "circle.dashed")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                            .accessibilityLabel("Ei merkitty syödyksi, ei laske makroihin")
-                    }
-                }
+                // Ei syöty-merkkiä: lisätty ateria on määritelmällisesti syöty
+                // (myös illalla kirjattu koko päivä), joten merkki olisi kohinaa.
+                Text(entry.name)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(entry.isFailedEstimate ? .red : .secondary)
