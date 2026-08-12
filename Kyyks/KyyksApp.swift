@@ -15,7 +15,12 @@ struct KyyksApp: App {
                 case .signedOut:
                     LoginView(auth: auth)
                 case .signedIn(let userId):
-                    TodayView(auth: auth, userId: userId)
+                    TabView {
+                        TodayView(auth: auth, userId: userId)
+                            .tabItem { Label("Tänään", systemImage: "sun.max") }
+                        WorkoutsListView(auth: auth, userId: userId)
+                            .tabItem { Label("Treeni", systemImage: "dumbbell") }
+                    }
                 }
             }
             .task { auth.bootstrap() }

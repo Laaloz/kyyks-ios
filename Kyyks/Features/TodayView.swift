@@ -26,11 +26,15 @@ struct TodayView: View {
 
                 Section("Päivän treeni") {
                     if let workout = model.todaysWorkout {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(workout.title).font(.headline)
-                            Text(statusLabel(workout.status))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                        NavigationLink {
+                            WorkoutView(auth: auth, workoutId: workout.id, workoutTitle: workout.title)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(workout.title).font(.headline)
+                                Text(statusLabel(workout.status))
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     } else {
                         Text("Ei ohjelmoitua treeniä tälle päivälle")
@@ -99,6 +103,7 @@ struct TodayView: View {
 final class TodayModel {
     private(set) var currentUser: UserProfile?
     private(set) var todaysWorkout: ScheduledWorkout?
+    private(set) var workouts: [ScheduledWorkout] = []
     private(set) var recentActivities: [ExtraActivity] = []
     private(set) var errorMessage: String?
     private(set) var isInitialLoad = false
@@ -146,6 +151,7 @@ final class TodayModel {
 
         let today = ISO8601DateFormatter.dateOnly.string(from: .now)
         let mine = snapshot.scheduledWorkouts?.filter { $0.athleteId == userId } ?? []
+        workouts = mine
         todaysWorkout = mine.first { $0.scheduledDate.hasPrefix(today) && $0.status != "cancelled" }
             ?? mine.last { $0.status == "in_progress" }
 
@@ -157,7 +163,7 @@ final class TodayModel {
     }
 }
 
-private extension ISO8601DateFormatter {
+extension ISO8601DateFormatter {
     static let dateOnly: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate]

@@ -20,14 +20,30 @@ struct APIClient {
     }
 
     func get(_ path: String) async throws -> Data {
+        try await request("GET", path, body: Optional<Int>.none)
+    }
+
+    func patch(_ path: String, body: some Encodable) async throws -> Data {
+        try await request("PATCH", path, body: body)
+    }
+
+    func post(_ path: String, body: some Encodable) async throws -> Data {
+        try await request("POST", path, body: body)
+    }
+
+    private func request(_ method: String, _ path: String, body: (some Encodable)?) async throws -> Data {
         // URL(string:relativeTo:) säilyttää query-parametrit (appending(path:) enkoodaisi "?":n).
         guard let url = URL(string: path, relativeTo: AppConfig.apiBaseURL) else {
             throw APIError.transport
         }
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         let token = try await auth.accessToken()
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(body)
+        }
 
         let clock = ContinuousClock()
         let start = clock.now
@@ -40,7 +56,7 @@ struct APIClient {
             throw APIError.transport
         }
 
-        Self.log.info("GET \(path, privacy: .public) → \(http.statusCode) \(String(format: "%.0f", ms)) ms, \(data.count) B")
+        Self.log.info("\(method, privacy: .public) \(path, privacy: .public) → \(http.statusCode) \(String(format: "%.0f", ms)) ms, \(data.count) B")
 
         guard (200 ..< 300).contains(http.statusCode) else {
             throw APIError.status(http.statusCode)
