@@ -8,6 +8,7 @@ struct TodayView: View {
 
     @State private var model = TodayModel()
     @State private var health = HealthManager()
+    @State private var showAddActivity = false
 
     var body: some View {
         NavigationStack {
@@ -85,9 +86,13 @@ struct TodayView: View {
                     }
                 }
 
-                if !model.recentActivities.isEmpty {
-                    Section("Viimeisimmät aktiviteetit") {
-                        ForEach(model.recentActivities) { activity in
+                Section("Suoritukset") {
+                    Button {
+                        showAddActivity = true
+                    } label: {
+                        Label("Lisää suoritus", systemImage: "plus.circle")
+                    }
+                    ForEach(model.recentActivities) { activity in
                             HStack {
                                 Text(activity.activityType)
                                 Spacer()
@@ -95,7 +100,6 @@ struct TodayView: View {
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                                     .monospacedDigit()
-                            }
                         }
                     }
                 }
@@ -118,6 +122,11 @@ struct TodayView: View {
                     Task { await signOut() }
                 }
                 .font(.footnote)
+            }
+        }
+        .sheet(isPresented: $showAddActivity) {
+            AddActivitySheet(auth: auth) {
+                Task { await model.refresh() }
             }
         }
         .task {
