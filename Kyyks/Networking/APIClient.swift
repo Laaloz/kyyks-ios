@@ -1,0 +1,58 @@
+import Foundation
+import OSLog
+
+/// Ohut clientti Kyyksin Next.js-API:in. Jokainen kutsu mitataan ja lokitetaan
+/// (Console.app / Xcode: subsystem "fit.rooki.kyyks", category "api") —
+/// hitaat reitit havaitaan heti eikä arvailla.
+struct APIClient {
+    private let auth: AuthManager
+    private let session: URLSession
+    private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "api")
+
+    init(auth: AuthManager) {
+        self.auth = auth
+        let config = URLSessionConfiguration.default
+        // Oma SWR-välimuisti hoitaa cachen; URLCache pois häiritsemästä mittausta.
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.timeoutIntervalForRequest = 15
+        self.session = URLSession(configuration: config)
+    }
+
+    func get(_ path: String) async throws -> Data {
+        var request = URLRequest(url: AppConfig.apiBaseURL.appending(path: path))
+        request.httpMethod = "GET"
+        let token = try await auth.accessToken()
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let clock = ContinuousClock()
+        let start = clock.now
+        let (data, response) = try await session.data(for: request)
+        let elapsed = start.duration(to: clock.now)
+        let ms = Double(elapsed.components.seconds) * 1000
+            + Double(elapsed.components.attoseconds) / 1e15
+
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.transport
+        }
+
+        Self.log.info("GET \(path, privacy: .public) → \(http.statusCode) \(String(format: "%.0f", ms)) ms, \(data.count) B")
+
+        guard (200 ..< 300).contains(http.statusCode) else {
+            throw APIError.status(http.statusCode)
+        }
+        return data
+    }
+}
+
+enum APIError: Error, LocalizedError {
+    case transport
+    case status(Int)
+
+    var errorDescription: String? {
+        switch self {
+        case .transport: "Verkkovirhe"
+        case .status(let code): "Palvelin vastasi virheellä (\(code))"
+        }
+    }
+}
