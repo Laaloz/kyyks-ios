@@ -53,6 +53,16 @@ struct WorkoutView: View {
                 }
             }
 
+            if model.isStructureSyncing {
+                Section {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text("Päivitetään liikkeitä…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             if model.isEditable {
                 Section {
                     Button {
@@ -60,6 +70,7 @@ struct WorkoutView: View {
                     } label: {
                         Label("Lisää liike", systemImage: "plus.circle")
                     }
+                    .disabled(model.isStructureSyncing)
                 }
             }
 
@@ -374,60 +385,80 @@ private struct SetRow: View {
     let onToggle: () -> Void
     let onEdit: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
-        HStack(spacing: 12) {
-            // Kuittaus ja muokkaus ovat erilliset kosketusalueet: vasen puoli
-            // kuittaa, oikean puolen lukema avaa toistojen/kuorman muokkauksen.
-            Button(action: onToggle) {
-                HStack(spacing: 12) {
-                    Image(systemName: log.done ? "checkmark.circle.fill" : "circle")
-                        .font(.title3)
-                        .foregroundStyle(log.done ? Color.green : Color.secondary)
-                        .contentTransition(.symbolEffect(.replace))
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(log.setLabel)
-                            .font(.subheadline.weight(.medium))
-                        Text(targetText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
+        // Saavutettavuuskooissa rivi taittuu pystyyn, ettei kirjauschip
+        // ahtaudu tekstin päälle.
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) {
+                toggleArea
+                editChip
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Sarja \(log.setLabel), tavoite \(targetText)")
-            .accessibilityValue(log.done ? "Kuitattu" : "Kuittaamatta")
-            .accessibilityHint(log.done ? "Poista kuittaus kaksoisnapauttamalla" : "Kuittaa sarja kaksoisnapauttamalla")
-
-            Button(action: onEdit) {
-                Group {
-                    if let reps = log.actualReps {
-                        Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
-                            .foregroundStyle(log.done ? Color.primary : Color.secondary)
-                    } else {
-                        Text("Kirjaa")
-                            .foregroundStyle(.tint)
-                    }
-                }
-                .font(.subheadline)
-                .monospacedDigit()
-                .padding(.vertical, 8)
-                .padding(.horizontal, 10)
-                .frame(minHeight: 44)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
+        } else {
+            HStack(spacing: 12) {
+                toggleArea
+                editChip
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                log.actualReps.map { "Toteuma \(Int($0)) toistoa, \(formatLoad(log.actualLoad))" }
-                    ?? "Kirjaa toistot ja kuorma"
-            )
-            .accessibilityHint("Avaa toistojen ja kuorman muokkauksen")
+            .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
         }
-        .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
+    }
+
+    // Kuittaus ja muokkaus ovat erilliset kosketusalueet: vasen puoli
+    // kuittaa, oikean puolen lukema avaa toistojen/kuorman muokkauksen.
+    private var toggleArea: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 12) {
+                Image(systemName: log.done ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(log.done ? Color.green : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(log.setLabel)
+                        .font(.subheadline.weight(.medium))
+                    Text(targetText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Sarja \(log.setLabel), tavoite \(targetText)")
+        .accessibilityValue(log.done ? "Kuitattu" : "Kuittaamatta")
+        .accessibilityHint(log.done ? "Poista kuittaus kaksoisnapauttamalla" : "Kuittaa sarja kaksoisnapauttamalla")
+    }
+
+    private var editChip: some View {
+        Button(action: onEdit) {
+            Group {
+                if let reps = log.actualReps {
+                    Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
+                        .foregroundStyle(log.done ? Color.primary : Color.secondary)
+                } else {
+                    Text("Kirjaa")
+                        .foregroundStyle(.tint)
+                }
+            }
+            .font(.subheadline)
+            .monospacedDigit()
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 44)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(
+            log.actualReps.map { "Toteuma \(Int($0)) toistoa, \(formatLoad(log.actualLoad))" }
+                ?? "Kirjaa toistot ja kuorma"
+        )
+        .accessibilityHint("Avaa toistojen ja kuorman muokkauksen")
     }
 
     private var targetText: String {
@@ -455,6 +486,7 @@ final class WorkoutModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     private(set) var savedNoteBody = ""
+    private(set) var isStructureSyncing = false
     var noteDraft = ""
     private var noteUpdatedAt: String?
 
@@ -515,6 +547,11 @@ final class WorkoutModel {
     func configure(auth: AuthManager, workoutId: String) {
         api = APIClient(auth: auth)
         self.workoutId = workoutId
+    }
+
+    /// Vain testeille: lokien asetus ilman verkkoa.
+    func setLogsForTesting(_ logs: [WorkoutSetLog]) {
+        setLogs = logs
     }
 
     func load() async {
@@ -651,7 +688,9 @@ final class WorkoutModel {
 
     private func structureAction(_ payload: [String: String], revertTo previous: [WorkoutSetLog]? = nil) {
         guard let api else { return }
+        isStructureSyncing = true
         Task {
+            defer { isStructureSyncing = false }
             do {
                 _ = try await api.post("/api/workouts/\(workoutId)/exercise-structure", body: payload)
                 await refresh()

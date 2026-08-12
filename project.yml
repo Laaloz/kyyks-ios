@@ -15,6 +15,16 @@ packages:
     from: 2.0.0
 
 targets:
+  KyyksTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: Kyyks
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: true
   Kyyks:
     type: application
     platform: iOS
