@@ -7,6 +7,7 @@ struct TodayView: View {
     let userId: String
 
     @State private var model = TodayModel()
+    @State private var health = HealthManager()
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,43 @@ struct TodayView: View {
                     } else {
                         Text("Ei ohjelmoitua treeniä tälle päivälle")
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                if health.availability != .unavailable {
+                    Section("Apple Health") {
+                        switch health.availability {
+                        case .authorized:
+                            HStack {
+                                Label("Askeleet tänään", systemImage: "figure.walk")
+                                Spacer()
+                                Text(health.todaySteps.map { "\($0)" } ?? "—")
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
+                            if health.isSyncing {
+                                HStack(spacing: 10) {
+                                    ProgressView()
+                                    Text("Haetaan suorituksia…").foregroundStyle(.secondary)
+                                }
+                            } else if let message = health.lastSyncMessage {
+                                Text(message)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                        case .notDetermined:
+                            Button {
+                                Task { await connectHealth() }
+                            } label: {
+                                Label("Yhdistä Apple Health", systemImage: "heart.text.square")
+                            }
+                        case .denied:
+                            Text("Apple Health ei ole käytössä. Voit sallia lukuoikeuden Asetuksista.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        case .unavailable:
+                            EmptyView()
+                        }
                     }
                 }
 
@@ -85,7 +123,30 @@ struct TodayView: View {
         .task {
             model.configure(auth: auth, userId: userId)
             await model.load()
+            // Lupaa ei kysytä käynnistyksessä: käyttäjä painaa itse "Yhdistä".
+            // Jos oikeus on jo annettu, kysely onnistuu ja data päivittyy.
+            if health.availability == .notDetermined {
+                await health.requestAuthorization()
+            }
+            if health.availability == .authorized {
+                await refreshHealth()
+            }
         }
+    }
+
+    private func connectHealth() async {
+        await health.requestAuthorization()
+        if health.availability == .authorized {
+            await refreshHealth()
+        }
+    }
+
+    /// Askeleet ja suoritusten tuonti rinnakkain — kumpikaan ei odota toista.
+    private func refreshHealth() async {
+        async let steps: Void = health.refreshTodaySteps()
+        async let sync: Void = health.syncWorkouts(using: APIClient(auth: auth))
+        _ = await (steps, sync)
+        await model.refresh()
     }
 
     private func signOut() async {

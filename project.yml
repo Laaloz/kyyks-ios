@@ -45,9 +45,15 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         # Dev-vaihe: API-kutsut http://localhost:3000 vaativat ATS-poikkeuksen.
         INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: true
+    entitlements:
+      path: Kyyks/Kyyks.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
     info:
       path: Kyyks/Info.plist
       properties:
+        NSHealthShareUsageDescription: Apple Healthin tietoja luetaan, jotta askeleesi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Kyyksissä ilman käsin kirjaamista.
         NSCameraUsageDescription: Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.
         NSPhotoLibraryUsageDescription: Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.
         SupabaseURL: $(KYYKS_SUPABASE_URL)
