@@ -23,19 +23,19 @@ struct NutritionView: View {
                     macroSummary
                 }
 
-                ForEach(MealTag.allCases, id: \.self) { tag in
-                    let entries = model.entries(for: tag)
-                    if !entries.isEmpty {
-                        Section {
+                // Kaikki ateriat yhtenä osiona: erilliset osiot veivät välistyksineen
+                // yli kolmanneksen ruudusta. Ateriapaikka erottuu rivin omasta
+                // otsikosta, joten päivä mahtuu nyt kerralla näkyviin.
+                Section {
+                    ForEach(MealTag.allCases, id: \.self) { tag in
+                        let entries = model.entries(for: tag)
+                        if !entries.isEmpty {
+                            MealGroupHeader(
+                                label: tag.label,
+                                kcal: entries.reduce(0) { $0 + $1.macros.kcal }
+                            )
                             ForEach(entries) { entry in
                                 NutritionRow(entry: entry)
-                            }
-                        } header: {
-                            HStack {
-                                Text(tag.label)
-                                Spacer()
-                                Text("\(Int(entries.reduce(0) { $0 + $1.macros.kcal })) kcal")
-                                    .monospacedDigit()
                             }
                         }
                     }
@@ -189,32 +189,61 @@ struct NutritionView: View {
     }
 }
 
+/// Ateriapaikan erotin listan sisällä — kevyempi kuin oma Section, mutta
+/// erottaa ryhmät selvästi ja näyttää ryhmän kaloriosuuden.
+private struct MealGroupHeader: View {
+    let label: String
+    let kcal: Double
+
+    var body: some View {
+        HStack {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .kerning(0.6)
+            Spacer()
+            Text("\(Int(kcal)) kcal")
+                .font(.caption2)
+                .monospacedDigit()
+        }
+        .foregroundStyle(.secondary)
+        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 2, trailing: 16))
+        .listRowSeparator(.hidden)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 private struct NutritionRow: View {
     let entry: NutritionEntry
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 // Ei syöty-merkkiä: lisätty ateria on määritelmällisesti syöty
                 // (myös illalla kirjattu koko päivä), joten merkki olisi kohinaa.
+                // Nimi yhdelle riville: pitkä AI-nimi kasvatti rivin kolminkertaiseksi.
                 Text(entry.name)
                     .font(.subheadline.weight(.medium))
-                    .lineLimit(2)
+                    .lineLimit(1)
                 Text(subtitle)
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(entry.isFailedEstimate ? .red : .secondary)
                     .monospacedDigit()
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
             if entry.isPendingEstimate {
                 ProgressView()
             } else {
-                Text("\(Int(entry.macros.kcal)) kcal")
-                    .font(.subheadline)
+                Text("\(Int(entry.macros.kcal))")
+                    .font(.subheadline.weight(.medium))
                     .monospacedDigit()
             }
         }
+        // Listin oletusmarginaali on ~11 pt ylä- ja alapuolella; rivi on kaksi
+        // tiivistä tekstiriviä, joten puolet siitä riittää.
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(entry.name), \(subtitle), \(Int(entry.macros.kcal)) kilokaloria")
     }
 
     private var subtitle: String {
