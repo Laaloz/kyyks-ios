@@ -48,6 +48,8 @@ targets:
     info:
       path: Kyyks/Info.plist
       properties:
+        NSCameraUsageDescription: Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.
+        NSPhotoLibraryUsageDescription: Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.
         SupabaseURL: $(KYYKS_SUPABASE_URL)
         SupabaseAnonKey: $(KYYKS_SUPABASE_ANON_KEY)
         APIBaseURL: $(KYYKS_API_BASE_URL)

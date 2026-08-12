@@ -6,6 +6,7 @@ struct NutritionView: View {
     let auth: AuthManager
 
     @State private var model = NutritionModel()
+    @State private var showAddMeal = false
 
     var body: some View {
         NavigationStack {
@@ -50,6 +51,20 @@ struct NutritionView: View {
             .navigationTitle("Ravinto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { dateToolbar }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showAddMeal = true
+                    } label: {
+                        Label("Lisää ateria", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showAddMeal) {
+                AddMealSheet(auth: auth, planDate: model.dateKey) {
+                    Task { await model.refresh() }
+                }
+            }
             .overlay { if model.isLoading && model.day == nil { ProgressView() } }
             .refreshable { await model.refresh() }
         }
@@ -216,7 +231,7 @@ final class NutritionModel {
         return Int((target.kcal - totals.kcal).rounded())
     }
 
-    private var dateKey: String {
+    var dateKey: String {
         // Paikallinen päiväavain — sama muoto kuin webin plan_date.
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"

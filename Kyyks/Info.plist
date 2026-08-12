@@ -25,6 +25,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.</string>
 	<key>SupabaseAnonKey</key>
 	<string>$(KYYKS_SUPABASE_ANON_KEY)</string>
 	<key>SupabaseURL</key>

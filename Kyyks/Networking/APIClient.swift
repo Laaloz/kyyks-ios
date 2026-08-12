@@ -15,6 +15,8 @@ struct APIClient {
         // Oma SWR-välimuisti hoitaa cachen; URLCache pois häiritsemästä mittausta.
         config.urlCache = nil
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        // Oletus riittää tavallisille reiteille; AI-arvio pyytää oman rajansa
+        // (Gemini + Open Food Facts -varahaku voi kestää kymmeniä sekunteja).
         config.timeoutIntervalForRequest = 15
         self.session = URLSession(configuration: config)
     }
@@ -27,8 +29,8 @@ struct APIClient {
         try await request("PATCH", path, body: body)
     }
 
-    func post(_ path: String, body: some Encodable) async throws -> Data {
-        try await request("POST", path, body: body)
+    func post(_ path: String, body: some Encodable, timeout: TimeInterval? = nil) async throws -> Data {
+        try await request("POST", path, body: body, timeout: timeout)
     }
 
     func put(_ path: String, body: some Encodable) async throws -> Data {
@@ -43,13 +45,21 @@ struct APIClient {
         try await request("DELETE", path, body: Optional<Int>.none)
     }
 
-    private func request(_ method: String, _ path: String, body: (some Encodable)?) async throws -> Data {
+    private func request(
+        _ method: String,
+        _ path: String,
+        body: (some Encodable)?,
+        timeout: TimeInterval? = nil
+    ) async throws -> Data {
         // URL(string:relativeTo:) säilyttää query-parametrit (appending(path:) enkoodaisi "?":n).
         guard let url = URL(string: path, relativeTo: AppConfig.apiBaseURL) else {
             throw APIError.transport
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
         let token = try await auth.accessToken()
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let body {
