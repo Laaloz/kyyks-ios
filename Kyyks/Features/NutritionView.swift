@@ -43,22 +43,49 @@ struct NutritionView: View {
 
                 if model.day?.entries.isEmpty ?? false {
                     Section {
-                        Text("Ei kirjauksia tälle päivälle.")
-                            .foregroundStyle(.secondary)
+                        // Tyhjä päivä ohjaa suoraan lisäykseen — juuri silloin
+                        // ohjaus on tarpeellisinta.
+                        Button {
+                            showAddMeal = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Ei kirjauksia tälle päivälle.")
+                                    .foregroundStyle(.secondary)
+                                Label("Lisää ensimmäinen ateria", systemImage: "camera.fill")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 4)
+                        }
                     }
                 }
+
+                // Alanapin alle jää tilaa, ettei viimeinen rivi jää sen alle.
+                Section {
+                    Color.clear
+                        .frame(height: 44)
+                        .listRowBackground(Color.clear)
+                }
+                .listSectionSpacing(0)
             }
             .navigationTitle("Ravinto")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { dateToolbar }
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showAddMeal = true
-                    } label: {
-                        Label("Lisää ateria", systemImage: "plus")
-                    }
+            .safeAreaInset(edge: .bottom) {
+                // Tabin tärkein toiminto peukalon ulottuville; samalla yläpalkin
+                // "+" katosi päivänuolen vierestä, jossa se aiheutti vääriä osumia.
+                Button {
+                    showAddMeal = true
+                } label: {
+                    Label("Lisää ateria", systemImage: "camera.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                 }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .background(.bar)
             }
             .sheet(isPresented: $showAddMeal) {
                 AddMealSheet(auth: auth, planDate: model.dateKey) {
