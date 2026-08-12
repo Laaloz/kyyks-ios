@@ -1,10 +1,28 @@
 import Foundation
 
-/// /api/mobile/workouts/{id} -vastaus: treeni + sessio + sarjalokit.
+/// /api/mobile/workouts/{id} -vastaus: treeni + sessio + sarjalokit + muistiinpano.
 struct WorkoutDetail: Decodable {
     let workout: ScheduledWorkout
     let session: WorkoutSession?
     let setLogs: [WorkoutSetLog]
+    let note: WorkoutNote?
+}
+
+struct WorkoutNote: Decodable {
+    let body: String
+    let updatedAt: String
+}
+
+/// /api/exercises/search -vastaus liikevalitsimeen.
+struct ExerciseSearchResponse: Decodable {
+    let exercises: [ExerciseSearchResult]
+}
+
+struct ExerciseSearchResult: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let category: String?
+    let equipment: String?
 }
 
 struct WorkoutSession: Decodable {

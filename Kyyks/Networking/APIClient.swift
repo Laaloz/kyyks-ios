@@ -31,6 +31,18 @@ struct APIClient {
         try await request("POST", path, body: body)
     }
 
+    func put(_ path: String, body: some Encodable) async throws -> Data {
+        try await request("PUT", path, body: body)
+    }
+
+    func post(_ path: String) async throws -> Data {
+        try await request("POST", path, body: Optional<Int>.none)
+    }
+
+    func delete(_ path: String) async throws -> Data {
+        try await request("DELETE", path, body: Optional<Int>.none)
+    }
+
     private func request(_ method: String, _ path: String, body: (some Encodable)?) async throws -> Data {
         // URL(string:relativeTo:) säilyttää query-parametrit (appending(path:) enkoodaisi "?":n).
         guard let url = URL(string: path, relativeTo: AppConfig.apiBaseURL) else {

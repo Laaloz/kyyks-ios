@@ -29,6 +29,10 @@ actor ResponseCache {
         try? data.write(to: fileURL(for: key), options: .atomic)
     }
 
+    func remove(_ key: String) {
+        try? FileManager.default.removeItem(at: fileURL(for: key))
+    }
+
     /// Kirjautumisen vaihtuessa vanhan käyttäjän data pois levyltä.
     func clear() {
         try? FileManager.default.removeItem(at: directory)

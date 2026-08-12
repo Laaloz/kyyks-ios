@@ -34,6 +34,9 @@ struct ScheduledWorkout: Decodable, Identifiable {
     let scheduledDate: String
     let status: String
     let completedAt: String?
+    // Vain /api/mobile/workouts/{id} palauttaa tämän; tarvitaan optimistiseen
+    // lukitukseen (expectedUpdatedAt) valmiiksi merkinnässä.
+    let updatedAt: String?
 }
 
 struct ExtraActivity: Decodable, Identifiable {
