@@ -75,15 +75,20 @@ struct AddMealSheet: View {
         }
     }
 
+    @ViewBuilder
     private var captureSection: some View {
-        Section {
-            if model.isEstimating {
+        if model.isEstimating {
+            Section {
                 HStack(spacing: 12) {
                     ProgressView()
-                    Text("Tunnistetaan ateriaa…")
+                    Text(model.estimatingLabel)
                         .foregroundStyle(.secondary)
                 }
-            } else {
+            }
+        } else {
+            // Kuva ja teksti ovat tasavertaiset tavat: kuva on nopein lautasesta,
+            // teksti toimii jälkikäteen kirjatessa tai kun ruokaa ei enää ole.
+            Section("Kuvaa") {
                 Button {
                     showCamera = true
                 } label: {
@@ -93,8 +98,26 @@ struct AddMealSheet: View {
                     Label("Valitse kuva", systemImage: "photo.on.rectangle")
                 }
             }
-        } footer: {
-            Text("AI tunnistaa ruoan kuvasta ja arvioi makrot. Voit korjata annoskoon ennen tallennusta.")
+
+            Section {
+                HStack(spacing: 8) {
+                    TextField("Esim. kaurapuuro ja banaani", text: $model.query)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await model.estimateFromText() } }
+                    Button {
+                        Task { await model.estimateFromText() }
+                    } label: {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title2)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.query.trimmingCharacters(in: .whitespaces).count < 2)
+                }
+            } header: {
+                Text("Tai kirjoita")
+            } footer: {
+                Text("AI arvioi makrot kuvasta tai kuvauksesta. Voit korjata annoskoon ennen tallennusta.")
+            }
         }
     }
 
@@ -143,7 +166,7 @@ struct AddMealSheet: View {
             }
 
             Section {
-                Button("Kuvaa uudelleen") { model.reset() }
+                Button("Arvioi uudelleen") { model.reset() }
             }
         }
     }
@@ -168,6 +191,8 @@ final class AddMealModel {
     private(set) var errorMessage: String?
     var grams: Double = 0
     var mealTag: MealTag = .suggestion()
+    var query = ""
+    private(set) var estimatingLabel = "Tunnistetaan ateriaa…"
 
     private var api: APIClient?
     private var planDate = ""
@@ -186,9 +211,32 @@ final class AddMealModel {
         errorMessage = nil
     }
 
+    /// Tekstiarvio: sama endpoint, query-kenttä kuvan sijaan.
+    func estimateFromText() async {
+        guard let api else { return }
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard term.count >= 2 else { return }
+
+        isEstimating = true
+        estimatingLabel = "Arvioidaan makroja…"
+        errorMessage = nil
+        defer { isEstimating = false }
+
+        do {
+            struct Body: Encodable { let query: String }
+            let data = try await api.post("/api/nutrition/ai-estimate", body: Body(query: term), timeout: 60)
+            let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
+            estimate = response.estimate
+            grams = response.estimate.grams
+        } catch {
+            errorMessage = "Arviota ei saatu — tarkenna kuvausta tai kokeile kuvaa."
+        }
+    }
+
     func estimate(from image: UIImage) async {
         guard let api else { return }
         isEstimating = true
+        estimatingLabel = "Tunnistetaan ateriaa…"
         errorMessage = nil
         defer { isEstimating = false }
 

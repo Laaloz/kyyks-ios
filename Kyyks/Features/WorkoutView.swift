@@ -144,7 +144,13 @@ struct WorkoutView: View {
         }
         .sheet(item: $editingLog) { log in
             SetEditSheet(log: log) { reps, load in
-                model.updateSet(logId: log.id, reps: reps, load: load)
+                // Kirjaus merkitsee sarjan tehdyksi → lepoajastin käynnistyy
+                // samoin kuin kuittauksesta.
+                if let rest = model.updateSet(logId: log.id, reps: reps, load: load) {
+                    withAnimation(.snappy) {
+                        restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
+                    }
+                }
             }
             .presentationDetents([.height(320)])
             .presentationDragIndicator(.visible)

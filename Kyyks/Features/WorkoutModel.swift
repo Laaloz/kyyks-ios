@@ -102,13 +102,29 @@ final class WorkoutModel {
         }
     }
 
-    /// Toistojen/kuorman tallennus: optimistinen kuten kuittaus.
-    func updateSet(logId: String, reps: Double?, load: Double?) {
-        guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return }
+    /// Toteuman kirjaaminen merkitsee sarjan tehdyksi: jos toistot tai kuorma on
+    /// syötetty, sarja on tehty. Erillinen kuittaus jäi kannassa tekemättä 84
+    /// kertaa valmiiksi merkityissä treeneissä (mm. maastaveto 4 × 120 kg), eli
+    /// se oli pelkkä virhelähde. Kuittausruutu jää nopeaksi poluksi tavoitteen
+    /// mukaiselle sarjalle ja kuittauksen perumiseen.
+    /// Palauttaa lepoajan, jos sarja siirtyi tehdyksi.
+    @discardableResult
+    func updateSet(logId: String, reps: Double?, load: Double?) -> (restSeconds: Int, exerciseName: String)? {
+        guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return nil }
         let previous = setLogs[index]
         setLogs[index].actualReps = reps
         setLogs[index].actualLoad = load
+
+        let becameDone = (reps != nil || load != nil) && !previous.done
+        if becameDone {
+            setLogs[index].done = true
+        }
         sync(setLogs[index], revertTo: previous)
+
+        // Sama sääntö kuin kuittauksessa: viimeisestä sarjasta ei lepoa.
+        guard becameDone, !setLogs.allSatisfy(\.done) else { return nil }
+        let rest = Int(previous.targetRestSeconds ?? 90)
+        return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }
 
     /// Optimistinen kuittaus: paikallinen tila heti, synkka taustalla,
