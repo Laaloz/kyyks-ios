@@ -157,11 +157,13 @@ private struct NutritionRow: View {
                     Text(entry.name)
                         .font(.subheadline.weight(.medium))
                         .lineLimit(2)
-                    if entry.isEaten {
-                        Image(systemName: "checkmark.circle.fill")
+                    // Syöty on normaalitila (92 % riveistä), joten merkki kertoo
+                    // vain poikkeuksen: rivi ei laske päivän makroihin.
+                    if !entry.isEaten {
+                        Image(systemName: "circle.dashed")
                             .font(.caption)
-                            .foregroundStyle(.green)
-                            .accessibilityLabel("Syöty")
+                            .foregroundStyle(.orange)
+                            .accessibilityLabel("Ei merkitty syödyksi, ei laske makroihin")
                     }
                 }
                 Text(subtitle)
