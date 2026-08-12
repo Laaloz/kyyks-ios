@@ -1,12 +1,20 @@
 import SwiftUI
 
-/// Treeni-välilehti: käynnissä oleva, tulevat ja tehdyt treenit lähipäiviltä.
-/// Sama /api/mobile/today-data ja välimuisti kuin Tänään-näkymässä.
+/// Treeni-välilehti: käynnissä oleva, tulevat ja tehdyt treenit lähipäiviltä,
+/// sekä uuden treenin aloitus ohjelmasta.
 struct WorkoutsListView: View {
     let auth: AuthManager
     let userId: String
 
     @State private var model = TodayModel()
+    @State private var showStartSheet = false
+    @State private var startedWorkout: StartedWorkout?
+    @State private var autoCancelledNotice: String?
+
+    struct StartedWorkout: Identifiable, Hashable {
+        let id: String
+        let title: String
+    }
 
     private var inProgress: [ScheduledWorkout] { model.workouts.filter { $0.status == "in_progress" } }
     private var completed: [ScheduledWorkout] { model.workouts.filter { $0.status == "completed" } }
@@ -20,6 +28,14 @@ struct WorkoutsListView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let autoCancelledNotice {
+                    Section {
+                        Label("Keskeytettiin: \(autoCancelledNotice)", systemImage: "info.circle")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 if !inProgress.isEmpty {
                     Section("Käynnissä") {
                         ForEach(inProgress) { workoutRow($0) }
@@ -43,7 +59,26 @@ struct WorkoutsListView: View {
                 }
             }
             .navigationTitle("Treeni")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showStartSheet = true
+                    } label: {
+                        Label("Aloita treeni", systemImage: "plus")
+                    }
+                }
+            }
             .refreshable { await model.refresh() }
+            .navigationDestination(item: $startedWorkout) { started in
+                WorkoutView(auth: auth, workoutId: started.id, workoutTitle: started.title)
+            }
+            .sheet(isPresented: $showStartSheet) {
+                StartWorkoutSheet(auth: auth) { workoutId, title, autoCancelled in
+                    autoCancelledNotice = autoCancelled
+                    startedWorkout = StartedWorkout(id: workoutId, title: title)
+                    Task { await model.refresh() }
+                }
+            }
         }
         .task {
             model.configure(auth: auth, userId: userId)
@@ -66,6 +101,7 @@ struct WorkoutsListView: View {
                 if workout.status == "completed" {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
+                        .accessibilityLabel("Tehty")
                 }
             }
         }

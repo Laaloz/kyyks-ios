@@ -13,6 +13,30 @@ struct WorkoutNote: Decodable {
     let updatedAt: String
 }
 
+/// /api/mobile/programs -vastaus treeninaloitusvalitsimeen.
+struct ProgramsResponse: Decodable {
+    let programs: [Program]
+}
+
+struct Program: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let workouts: [ProgramWorkoutSummary]
+}
+
+struct ProgramWorkoutSummary: Decodable, Identifiable {
+    let id: String
+    let name: String
+    let exerciseCount: Int
+}
+
+/// /api/workouts/start -vastaus.
+struct StartWorkoutResponse: Decodable {
+    let scheduledWorkoutId: String
+    /// Palvelin peruu käynnissä olevan treenin, jos uusi aloitetaan.
+    let autoCancelledWorkoutTitle: String?
+}
+
 /// /api/exercises/search -vastaus liikevalitsimeen.
 struct ExerciseSearchResponse: Decodable {
     let exercises: [ExerciseSearchResult]
