@@ -11,6 +11,7 @@ struct WorkoutsListView: View {
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
     @State private var showAddActivity = false
+    @State private var showAllCompleted = false
 
     struct StartedWorkout: Identifiable, Hashable {
         let id: String
@@ -56,17 +57,7 @@ struct WorkoutsListView: View {
                     }
                 }
                 if !completed.isEmpty {
-                    Section("Tehdyt") {
-                        ForEach(completed) { workoutRow($0) }
-                    }
                 }
-                if model.workouts.isEmpty {
-                    Section {
-                        Text("Ei treenejä lähipäiviltä")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
                 // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
                 // joten ne kirjataan ja näkyvät samalla välilehdellä.
                 Section("Muut suoritukset") {
@@ -86,6 +77,28 @@ struct WorkoutsListView: View {
                         }
                     }
                 }
+
+                if !completed.isEmpty {
+                    Section("Tehdyt") {
+                        // Historia viimeisenä ja rajattuna: 14 vrk:n treenit
+                        // työnsivät muut suoritukset ruudullisen päähän.
+                        ForEach(showAllCompleted ? completed : Array(completed.prefix(4))) { workoutRow($0) }
+                        if completed.count > 4 {
+                            Button(showAllCompleted ? "Näytä vähemmän" : "Näytä kaikki (\(completed.count))") {
+                                withAnimation(.snappy) { showAllCompleted.toggle() }
+                            }
+                            .font(.subheadline)
+                        }
+                    }
+                }
+
+                if model.workouts.isEmpty {
+                    Section {
+                        Text("Ei treenejä lähipäiviltä")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
             }
             .sheet(isPresented: $showAddActivity) {
                 AddActivitySheet(auth: auth) {
