@@ -9,6 +9,7 @@ struct BodyView: View {
 
     @State private var model = BodyModel()
     @State private var showAdd = false
+    @State private var selectedDate: Date?
 
     var body: some View {
         NavigationStack {
@@ -47,6 +48,52 @@ struct BodyView: View {
                             LineMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
                                 .interpolationMethod(.monotone)
                                 .lineStyle(StrokeStyle(lineWidth: 2))
+
+                            // Valittu kohta: pystyviiva, korostettu piste ja
+                            // lukema — muuten käyrästä ei näe mikä paino oli milloin.
+                            if let selected = model.point(nearest: selectedDate) {
+                                RuleMark(x: .value("Valittu", selected.date))
+                                    .foregroundStyle(.secondary.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                PointMark(
+                                    x: .value("Valittu", selected.date),
+                                    y: .value("Paino", selected.value)
+                                )
+                                .symbolSize(90)
+                                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .disabled)) {
+                                    VStack(spacing: 1) {
+                                        Text(selected.value, format: .number.precision(.fractionLength(1)))
+                                            .font(.subheadline.weight(.semibold))
+                                            .monospacedDigit()
+                                        Text(selected.date, format: .dateTime.day().month())
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                                }
+                            }
+                        }
+                        // chartXSelection ei saa kosketusta Listin sisällä, koska
+                        // listan vieritysele vie sen. Oma ele plot-alueen päällä
+                        // toimii sekä napautuksella että vetämällä.
+                        .chartOverlay { proxy in
+                            GeometryReader { geometry in
+                                Rectangle()
+                                    .fill(.clear)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                guard let plotFrame = proxy.plotFrame else { return }
+                                                let x = value.location.x - geometry[plotFrame].origin.x
+                                                if let date: Date = proxy.value(atX: x) {
+                                                    selectedDate = date
+                                                }
+                                            }
+                                    )
+                            }
                         }
                         .chartYScale(domain: model.weightDomain)
                         .frame(height: 180)
@@ -133,10 +180,14 @@ struct BodyMeasurement: Decodable, Identifiable {
         ISO8601DateFormatter.flexible.date(from: measuredAt) ?? .now
     }
 
+    /// Pituus näkyy vain kun se on rivin ainoa mitta — muuten se toistuisi
+    /// joka rivillä turhaan, koska pituus ei käytännössä muutu. Ilman tätä
+    /// pelkän pituuden rivit näyttivät tyhjiltä.
     var summary: String {
         var parts: [String] = []
         if let weightKg { parts.append("\(String(format: "%.1f", weightKg).replacingOccurrences(of: ".", with: ",")) kg") }
         if let waistCm { parts.append("\(Int(waistCm)) cm") }
+        if parts.isEmpty, let heightCm { parts.append("Pituus \(Int(heightCm)) cm") }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }
@@ -177,6 +228,15 @@ final class BodyModel {
         guard let min = values.min(), let max = values.max() else { return 0 ... 1 }
         let padding = Swift.max((max - min) * 0.25, 0.5)
         return (min - padding) ... (max + padding)
+    }
+
+    /// Lähin mittaus valittuun kohtaan. Kaaviossa on harvoja pisteitä, joten
+    /// kosketus osuu harvoin tarkalleen mittauspäivään.
+    func point(nearest date: Date?) -> WeightPoint? {
+        guard let date else { return nil }
+        return weightSeries.min {
+            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+        }
     }
 
     var weightChange: Double? { change(\.weightKg) }
