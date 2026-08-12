@@ -7,6 +7,8 @@ struct NutritionView: View {
 
     @State private var model = NutritionModel()
     @State private var showAddMeal = false
+    @State private var selectedEntry: NutritionEntry?
+    @State private var startWithCamera = false
 
     var body: some View {
         NavigationStack {
@@ -30,7 +32,19 @@ struct NutritionView: View {
                 Section {
                     ForEach(MealTag.allCases, id: \.self) { tag in
                         ForEach(model.entries(for: tag)) { entry in
-                            NutritionRow(entry: entry, mealLabel: tag.label)
+                            Button {
+                                selectedEntry = entry
+                            } label: {
+                                NutritionRow(entry: entry, mealLabel: tag.label)
+                            }
+                            .buttonStyle(.plain)
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    model.deleteEntry(entry)
+                                } label: {
+                                    Label("Poista", systemImage: "trash")
+                                }
+                            }
                         }
                     }
                 }
@@ -40,6 +54,7 @@ struct NutritionView: View {
                         // Tyhjä päivä ohjaa suoraan lisäykseen — juuri silloin
                         // ohjaus on tarpeellisinta.
                         Button {
+                            startWithCamera = false
                             showAddMeal = true
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
@@ -68,21 +83,48 @@ struct NutritionView: View {
             .safeAreaInset(edge: .bottom) {
                 // Tabin tärkein toiminto peukalon ulottuville; samalla yläpalkin
                 // "+" katosi päivänuolen vierestä, jossa se aiheutti vääriä osumia.
-                Button {
-                    showAddMeal = true
-                } label: {
-                    Label("Lisää ateria", systemImage: "camera.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                // Kuvaaminen on oma nappinsa ja avaa kameran suoraan — se on
+                // nopein polku pöydässä. Kirjoituskynä avaa saman näkymän ilman
+                // kameraa, jolloin teksti ja kuvakirjasto ovat valittavissa.
+                HStack(spacing: 10) {
+                    Button {
+                        startWithCamera = true
+                        showAddMeal = true
+                    } label: {
+                        Label("Kuvaa ateria", systemImage: "camera.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        startWithCamera = false
+                        showAddMeal = true
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.headline)
+                            .frame(width: 44)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Lisää ateria kirjoittamalla")
                 }
-                .buttonStyle(.borderedProminent)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .background(.bar)
             }
+            .sheet(item: $selectedEntry) { entry in
+                MealDetailSheet(
+                    entry: entry,
+                    onSave: { grams, servings, tag in
+                        await model.updateEntry(entry, grams: grams, servings: servings, mealTag: tag)
+                    },
+                    onDelete: { model.deleteEntry(entry) }
+                )
+            }
             .sheet(isPresented: $showAddMeal) {
-                AddMealSheet(auth: auth, planDate: model.dateKey) {
+                AddMealSheet(auth: auth, planDate: model.dateKey, autoOpenCamera: startWithCamera) {
                     Task { await model.refresh() }
                 }
             }
@@ -225,7 +267,8 @@ private struct NutritionRow: View {
         var parts: [String] = [mealLabel]
         if entry.kind == "food", let grams = entry.grams, grams > 0 {
             parts.append("\(Int(grams)) g")
-        } else if entry.kind == "recipe" {
+        } else if entry.kind == "recipe", entry.servings != 1 {
+            // Yksi annos on oletus eikä kerro mitään — näytetään vain poikkeus.
             let servings = entry.servings
             let text = servings.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(servings)) : String(format: "%.1f", servings)
             parts.append("\(text) annosta")
@@ -307,6 +350,49 @@ final class NutritionModel {
             if day == nil {
                 errorMessage = "Ravintotietojen haku epäonnistui."
             }
+        }
+    }
+
+    /// Optimistinen poisto: rivi katoaa heti ja päivän summat päivittyvät,
+    /// pyyntö kulkee taustalla. Virheessä rivi palautuu ja syy kerrotaan.
+    func deleteEntry(_ entry: NutritionEntry) {
+        guard let api, let current = day else { return }
+        let previous = current
+        day = NutritionDay(
+            date: current.date,
+            target: current.target,
+            entries: current.entries.filter { $0.id != entry.id },
+            totals: current.totals
+        )
+
+        Task {
+            do {
+                _ = try await api.delete("/api/day-meal-plans/\(entry.id)")
+                await refresh()
+            } catch {
+                day = previous
+                errorMessage = "Aterian poisto epäonnistui — yritä uudelleen."
+            }
+        }
+    }
+
+    /// Annoskoon ja ateriapaikan korjaus. Makrot lasketaan palvelimella,
+    /// joten tuore data haetaan tallennuksen jälkeen.
+    func updateEntry(_ entry: NutritionEntry, grams: Double?, servings: Double?, mealTag: MealTag) async {
+        guard let api else { return }
+        struct Body: Encodable {
+            let grams: Double?
+            let servings: Double?
+            let mealTag: String
+        }
+        do {
+            _ = try await api.patch(
+                "/api/day-meal-plans/\(entry.id)",
+                body: Body(grams: grams, servings: servings, mealTag: mealTag.rawValue)
+            )
+            await refresh()
+        } catch {
+            errorMessage = "Muutoksen tallennus epäonnistui."
         }
     }
 

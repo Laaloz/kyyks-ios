@@ -6,6 +6,9 @@ import SwiftUI
 struct AddMealSheet: View {
     let auth: AuthManager
     let planDate: String
+    /// Kuvaa-napista tultaessa kamera aukeaa suoraan — yksi napautus säästyy
+    /// siinä polussa, joka on nopein pöydässä.
+    var autoOpenCamera = false
     let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -69,6 +72,9 @@ struct AddMealSheet: View {
         }
         .task {
             model.configure(auth: auth, planDate: planDate)
+            if autoOpenCamera && model.estimate == nil {
+                showCamera = true
+            }
             // Lämmityskutsu: serverless-funktio herää käyttäjän kuvatessa,
             // jolloin varsinainen arvio osuu lämpimään instanssiin.
             await model.warmUp()
