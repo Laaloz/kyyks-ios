@@ -102,10 +102,10 @@ struct BodyView: View {
                 }
 
                 Section("Historia") {
-                    if model.measurements.isEmpty && !model.isLoading {
+                    if model.trackedMeasurements.isEmpty && !model.isLoading {
                         Text("Ei mittauksia vielä.").foregroundStyle(.secondary)
                     }
-                    ForEach(model.measurements) { entry in
+                    ForEach(model.trackedMeasurements) { entry in
                         HStack {
                             Text(entry.measuredDate, format: .dateTime.day().month().year())
                                 .font(.subheadline)
@@ -180,14 +180,14 @@ struct BodyMeasurement: Decodable, Identifiable {
         ISO8601DateFormatter.flexible.date(from: measuredAt) ?? .now
     }
 
-    /// Pituus näkyy vain kun se on rivin ainoa mitta — muuten se toistuisi
-    /// joka rivillä turhaan, koska pituus ei käytännössä muutu. Ilman tätä
-    /// pelkän pituuden rivit näyttivät tyhjiltä.
+    /// Onko rivillä seurattavaa mittaa. Pelkän pituuden rivit ovat
+    /// profiilipäivityksiä, ei mittauksia — ne näkyivät historiassa tyhjinä.
+    var hasTrackedMetric: Bool { weightKg != nil || waistCm != nil }
+
     var summary: String {
         var parts: [String] = []
         if let weightKg { parts.append("\(String(format: "%.1f", weightKg).replacingOccurrences(of: ".", with: ",")) kg") }
         if let waistCm { parts.append("\(Int(waistCm)) cm") }
-        if parts.isEmpty, let heightCm { parts.append("Pituus \(Int(heightCm)) cm") }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }
@@ -211,6 +211,11 @@ final class BodyModel {
 
     private var api: APIClient?
     private let cacheKey = "mobile-measurements"
+
+    /// Historiaan vain rivit joilla on painoa tai vyötäröä.
+    var trackedMeasurements: [BodyMeasurement] {
+        measurements.filter(\.hasTrackedMetric)
+    }
 
     /// Uusin ensin -järjestyksessä; kaavio tarvitsee aikajärjestyksen.
     var weightSeries: [WeightPoint] {

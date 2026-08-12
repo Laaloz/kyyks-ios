@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Mittauksen kirjaus. Kentät esitäytetään viimeisimmästä mittauksesta, koska
-/// pituus harvoin muuttuu ja paino liikkuu yleensä vähän — pieni korjaus on
-/// nopeampi kuin luvun kirjoittaminen alusta.
+/// Mittauksen kirjaus: paino ja vyötärö. Pituus on kertaluontoinen
+/// profiilitieto eikä seurattava mitta, joten se ei ole täällä — toistuva
+/// kirjaus tuotti vain historiarivejä joissa ei ollut mitään seurattavaa.
+/// Kentät esitäytetään viimeisimmästä, koska mitat liikkuvat vähän.
 struct AddMeasurementSheet: View {
     let auth: AuthManager
     let latest: BodyMeasurement?
@@ -11,7 +12,6 @@ struct AddMeasurementSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var weightText: String
     @State private var waistText: String
-    @State private var heightText: String
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -21,11 +21,10 @@ struct AddMeasurementSheet: View {
         self.onSaved = onSaved
         _weightText = State(initialValue: Self.format(latest?.weightKg))
         _waistText = State(initialValue: Self.format(latest?.waistCm))
-        _heightText = State(initialValue: Self.format(latest?.heightCm))
     }
 
     private var hasAnyValue: Bool {
-        [weightText, waistText, heightText].contains { Self.parse($0) != nil }
+        [weightText, waistText].contains { Self.parse($0) != nil }
     }
 
     var body: some View {
@@ -34,7 +33,6 @@ struct AddMeasurementSheet: View {
                 Section {
                     field("Paino", text: $weightText, unit: "kg")
                     field("Vyötärö", text: $waistText, unit: "cm")
-                    field("Pituus", text: $heightText, unit: "cm")
                 } footer: {
                     Text("Tyhjäksi jätettyä mittaa ei kirjata. Paino päivittyy myös ravintolaskennan pohjaksi.")
                 }
@@ -79,14 +77,12 @@ struct AddMeasurementSheet: View {
         struct Body: Encodable {
             let weightKg: Double?
             let waistCm: Double?
-            let heightCm: Double?
         }
 
         do {
             _ = try await APIClient(auth: auth).post("/api/mobile/measurements", body: Body(
                 weightKg: Self.parse(weightText),
-                waistCm: Self.parse(waistText),
-                heightCm: Self.parse(heightText)
+                waistCm: Self.parse(waistText)
             ))
             onSaved()
             dismiss()
