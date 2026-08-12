@@ -150,16 +150,20 @@ struct WorkoutView: View {
             switch confirmation {
             case .complete:
                 Button("Merkitse valmiiksi") {
+                    // Treeni päättyy — käynnissä oleva lepoajastin sammuu.
+                    restTimer.stop()
                     Task { await model.completeWorkout() }
                 }
             case .cancel:
                 Button("Keskeytä treeni", role: .destructive) {
+                    restTimer.stop()
                     Task {
                         if await model.cancelWorkout() { dismiss() }
                     }
                 }
             case .delete:
                 Button("Poista treeni", role: .destructive) {
+                    restTimer.stop()
                     Task {
                         if await model.deleteWorkout() { dismiss() }
                     }
@@ -604,9 +608,8 @@ final class WorkoutModel {
         sync(setLogs[index], revertTo: previous)
 
         guard setLogs[index].done else { return nil }
-        // Viimeisen sarjan jälkeen lepoa ei tarvita.
-        let isLastRemaining = setLogs.allSatisfy(\.done)
-        guard !isLastRemaining else { return nil }
+        // Ajastin käynnistyy aina kuittauksesta — ennustettavin käytös.
+        // Valmiiksi merkintä sammuttaa käynnissä olevan levon (näkymässä).
         let rest = Int(previous.targetRestSeconds ?? 90)
         return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }
