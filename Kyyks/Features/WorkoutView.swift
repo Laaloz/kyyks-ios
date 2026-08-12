@@ -7,6 +7,9 @@ struct WorkoutView: View {
     let auth: AuthManager
     let workoutId: String
     let workoutTitle: String
+    /// Keskeytys ja poisto suoritetaan kutsujan mallissa, jotta pyyntö jatkuu
+    /// vaikka näkymä suljetaan heti — ja lista voi poistaa rivin optimistisesti.
+    var onFinished: ((WorkoutEndAction, String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var model = WorkoutModel()
@@ -81,11 +84,21 @@ struct WorkoutView: View {
                     Button {
                         confirmation = .complete
                     } label: {
-                        Text("Merkitse valmiiksi")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 4)
+                        Group {
+                            if model.isCompleting {
+                                HStack(spacing: 8) {
+                                    ProgressView().tint(.white)
+                                    Text("Merkitään valmiiksi…")
+                                }
+                            } else {
+                                Text("Merkitse valmiiksi")
+                            }
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                     }
+                    .disabled(model.isCompleting)
                     .buttonStyle(.borderedProminent)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
@@ -157,16 +170,14 @@ struct WorkoutView: View {
             case .cancel:
                 Button("Keskeytä treeni", role: .destructive) {
                     restTimer.stop()
-                    Task {
-                        if await model.cancelWorkout() { dismiss() }
-                    }
+                    onFinished?(.cancelled, workoutId)
+                    dismiss()
                 }
             case .delete:
                 Button("Poista treeni", role: .destructive) {
                     restTimer.stop()
-                    Task {
-                        if await model.deleteWorkout() { dismiss() }
-                    }
+                    onFinished?(.deleted, workoutId)
+                    dismiss()
                 }
             case nil:
                 EmptyView()
@@ -346,6 +357,12 @@ struct WorkoutView: View {
     }
 }
 
+/// Miten treeni päätettiin — keskeytys säilyttää kirjaukset, poisto ei.
+enum WorkoutEndAction {
+    case cancelled
+    case deleted
+}
+
 enum ExercisePickerMode: Identifiable {
     case replace(templateExerciseId: String, currentName: String)
     case add
@@ -491,6 +508,7 @@ final class WorkoutModel {
     private(set) var errorMessage: String?
     private(set) var savedNoteBody = ""
     private(set) var isStructureSyncing = false
+    private(set) var isCompleting = false
     var noteDraft = ""
     private var noteUpdatedAt: String?
 
@@ -617,36 +635,14 @@ final class WorkoutModel {
 
     func completeWorkout() async {
         guard let api, let updatedAt = workout?.updatedAt else { return }
+        isCompleting = true
+        defer { isCompleting = false }
         do {
             struct Body: Encodable { let expectedUpdatedAt: String }
             _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: updatedAt))
             await refresh()
         } catch {
             errorMessage = "Valmiiksi merkintä epäonnistui — päivitä näkymä ja yritä uudelleen."
-        }
-    }
-
-    func cancelWorkout() async -> Bool {
-        guard let api else { return false }
-        do {
-            _ = try await api.post("/api/workouts/\(workoutId)/cancel")
-            await ResponseCache.shared.remove(cacheKey)
-            return true
-        } catch {
-            errorMessage = "Treenin keskeytys epäonnistui."
-            return false
-        }
-    }
-
-    func deleteWorkout() async -> Bool {
-        guard let api else { return false }
-        do {
-            _ = try await api.delete("/api/workouts/\(workoutId)")
-            await ResponseCache.shared.remove(cacheKey)
-            return true
-        } catch {
-            errorMessage = "Treenin poisto epäonnistui."
-            return false
         }
     }
 

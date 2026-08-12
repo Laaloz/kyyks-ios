@@ -28,6 +28,14 @@ struct WorkoutsListView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let error = model.errorMessage {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 if let autoCancelledNotice {
                     Section {
                         Label("Keskeytettiin: \(autoCancelledNotice)", systemImage: "info.circle")
@@ -70,7 +78,15 @@ struct WorkoutsListView: View {
             }
             .refreshable { await model.refresh() }
             .navigationDestination(item: $startedWorkout) { started in
-                WorkoutView(auth: auth, workoutId: started.id, workoutTitle: started.title)
+                WorkoutView(
+                    auth: auth,
+                    workoutId: started.id,
+                    workoutTitle: started.title,
+                    onFinished: { action, id in
+                        model.finishWorkout(action, workoutId: id)
+                        startedWorkout = nil
+                    }
+                )
             }
             .sheet(isPresented: $showStartSheet) {
                 StartWorkoutSheet(auth: auth) { workoutId, title, autoCancelled in
@@ -88,7 +104,12 @@ struct WorkoutsListView: View {
 
     private func workoutRow(_ workout: ScheduledWorkout) -> some View {
         NavigationLink {
-            WorkoutView(auth: auth, workoutId: workout.id, workoutTitle: workout.title)
+            WorkoutView(
+                auth: auth,
+                workoutId: workout.id,
+                workoutTitle: workout.title,
+                onFinished: { action, id in model.finishWorkout(action, workoutId: id) }
+            )
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {

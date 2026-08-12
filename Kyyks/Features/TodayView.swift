@@ -27,7 +27,12 @@ struct TodayView: View {
                 Section("Päivän treeni") {
                     if let workout = model.todaysWorkout {
                         NavigationLink {
-                            WorkoutView(auth: auth, workoutId: workout.id, workoutTitle: workout.title)
+                            WorkoutView(
+                                auth: auth,
+                                workoutId: workout.id,
+                                workoutTitle: workout.title,
+                                onFinished: { action, id in model.finishWorkout(action, workoutId: id) }
+                            )
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(workout.title).font(.headline)
@@ -126,6 +131,35 @@ final class TodayModel {
         }
         await refresh()
         isInitialLoad = false
+    }
+
+    /// Keskeytys/poisto optimistisesti: rivi katoaa heti, pyyntö jatkuu taustalla
+    /// (tämä malli elää näkymää pidempään). Virheessä rivi palautuu ja syy kerrotaan.
+    func finishWorkout(_ action: WorkoutEndAction, workoutId: String) {
+        guard let api else { return }
+        let previousWorkouts = workouts
+        let previousToday = todaysWorkout
+        workouts.removeAll { $0.id == workoutId }
+        if todaysWorkout?.id == workoutId { todaysWorkout = nil }
+
+        Task {
+            do {
+                switch action {
+                case .cancelled:
+                    _ = try await api.post("/api/workouts/\(workoutId)/cancel")
+                case .deleted:
+                    _ = try await api.delete("/api/workouts/\(workoutId)")
+                }
+                await ResponseCache.shared.remove("workout-\(workoutId)")
+                await refresh()
+            } catch {
+                workouts = previousWorkouts
+                todaysWorkout = previousToday
+                errorMessage = action == .deleted
+                    ? "Treenin poisto epäonnistui — yritä uudelleen."
+                    : "Treenin keskeytys epäonnistui — yritä uudelleen."
+            }
+        }
     }
 
     func refresh() async {
