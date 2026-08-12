@@ -9,6 +9,7 @@ struct WorkoutView: View {
     let workoutTitle: String
 
     @State private var model = WorkoutModel()
+    @State private var editingLog: WorkoutSetLog?
 
     private var exerciseGroups: [(name: String, logs: [WorkoutSetLog])] {
         var order: [String] = []
@@ -42,9 +43,11 @@ struct WorkoutView: View {
             ForEach(exerciseGroups, id: \.logs.first!.id) { group in
                 Section {
                     ForEach(group.logs) { log in
-                        SetRow(log: log) {
-                            model.toggleDone(logId: log.id)
-                        }
+                        SetRow(
+                            log: log,
+                            onToggle: { model.toggleDone(logId: log.id) },
+                            onEdit: { editingLog = log }
+                        )
                     }
                 } header: {
                     HStack {
@@ -71,42 +74,65 @@ struct WorkoutView: View {
             model.configure(auth: auth, workoutId: workoutId)
             await model.load()
         }
+        .sheet(item: $editingLog) { log in
+            SetEditSheet(log: log) { reps, load in
+                model.updateSet(logId: log.id, reps: reps, load: load)
+            }
+            .presentationDetents([.height(320)])
+            .presentationDragIndicator(.visible)
+        }
     }
 }
 
 private struct SetRow: View {
     let log: WorkoutSetLog
     let onToggle: () -> Void
+    let onEdit: () -> Void
 
     var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 12) {
-                Image(systemName: log.done ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(log.done ? Color.green : Color.secondary)
-                    .contentTransition(.symbolEffect(.replace))
+        HStack(spacing: 12) {
+            // Kuittaus ja muokkaus ovat erilliset kosketusalueet: vasen puoli
+            // kuittaa, oikean puolen lukema avaa toistojen/kuorman muokkauksen.
+            Button(action: onToggle) {
+                HStack(spacing: 12) {
+                    Image(systemName: log.done ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(log.done ? Color.green : Color.secondary)
+                        .contentTransition(.symbolEffect(.replace))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(log.setLabel)
-                        .font(.subheadline.weight(.medium))
-                    Text(targetText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(log.setLabel)
+                            .font(.subheadline.weight(.medium))
+                        Text(targetText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+
+                    Spacer(minLength: 0)
                 }
-
-                Spacer()
-
-                if let reps = log.actualReps {
-                    Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
-                        .font(.subheadline)
-                        .monospacedDigit()
-                        .foregroundStyle(log.done ? .primary : .secondary)
-                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Button(action: onEdit) {
+                Group {
+                    if let reps = log.actualReps {
+                        Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
+                            .foregroundStyle(log.done ? Color.primary : Color.secondary)
+                    } else {
+                        Text("Kirjaa")
+                            .foregroundStyle(.tint)
+                    }
+                }
+                .font(.subheadline)
+                .monospacedDigit()
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
     }
 
@@ -167,6 +193,15 @@ final class WorkoutModel {
         }
     }
 
+    /// Toistojen/kuorman tallennus: optimistinen kuten kuittaus.
+    func updateSet(logId: String, reps: Double?, load: Double?) {
+        guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return }
+        let previous = setLogs[index]
+        setLogs[index].actualReps = reps
+        setLogs[index].actualLoad = load
+        sync(setLogs[index], revertTo: previous)
+    }
+
     /// Optimistinen kuittaus: paikallinen tila heti, synkka taustalla,
     /// virheessä tila palautetaan. Kuitattaessa toteuma esitäytetään
     /// tavoitteesta, jos käyttäjä ei ole syöttänyt omaa.
@@ -179,8 +214,11 @@ final class WorkoutModel {
             if setLogs[index].actualReps == nil { setLogs[index].actualReps = previous.targetReps }
             if setLogs[index].actualLoad == nil { setLogs[index].actualLoad = previous.targetLoad }
         }
-        let updated = setLogs[index]
+        sync(setLogs[index], revertTo: previous)
+    }
 
+    private func sync(_ updated: WorkoutSetLog, revertTo previous: WorkoutSetLog) {
+        guard let api else { return }
         Task {
             do {
                 struct SetPatch: Encodable {
@@ -200,10 +238,10 @@ final class WorkoutModel {
                     )])
                 )
             } catch {
-                if let revertIndex = setLogs.firstIndex(where: { $0.id == logId }) {
+                if let revertIndex = setLogs.firstIndex(where: { $0.id == updated.id }) {
                     setLogs[revertIndex] = previous
                 }
-                errorMessage = "Kuittaus ei tallentunut — yritä uudelleen."
+                errorMessage = "Tallennus epäonnistui — yritä uudelleen."
             }
         }
     }
