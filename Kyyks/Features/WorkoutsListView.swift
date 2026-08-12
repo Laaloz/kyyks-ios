@@ -104,16 +104,31 @@ struct WorkoutsListView: View {
                 AddActivitySheet(auth: auth) {
                     Task { await model.refresh() }
                 }
+
+                Section {
+                    Color.clear
+                        .frame(height: 44)
+                        .listRowBackground(Color.clear)
+                }
+                .listSectionSpacing(0)
             }
             .navigationTitle("Treeni")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showStartSheet = true
-                    } label: {
-                        Label("Aloita treeni", systemImage: "plus")
-                    }
+            .safeAreaInset(edge: .bottom) {
+                // Treenin aloitus on tämän välilehden ensisijainen toiminto,
+                // joten se on peukalon ulottuvilla — ei yläkulman "+"-napissa,
+                // jossa se näytti toissijaisemmalta kuin listan "Lisää suoritus".
+                Button {
+                    showStartSheet = true
+                } label: {
+                    Label("Aloita treeni", systemImage: "figure.strengthtraining.traditional")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                 }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .background(.bar)
             }
             .refreshable { await model.refresh() }
             .navigationDestination(item: $startedWorkout) { started in
