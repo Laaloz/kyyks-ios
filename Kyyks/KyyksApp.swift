@@ -20,6 +20,8 @@ struct KyyksApp: App {
                             .tabItem { Label("Tänään", systemImage: "sun.max") }
                         WorkoutsListView(auth: auth, userId: userId)
                             .tabItem { Label("Treeni", systemImage: "dumbbell") }
+                        NutritionView(auth: auth)
+                            .tabItem { Label("Ravinto", systemImage: "fork.knife") }
                     }
                 }
             }
