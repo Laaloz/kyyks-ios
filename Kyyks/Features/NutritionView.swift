@@ -23,20 +23,14 @@ struct NutritionView: View {
                     macroSummary
                 }
 
-                // Kaikki ateriat yhtenä osiona: erilliset osiot veivät välistyksineen
-                // yli kolmanneksen ruudusta. Ateriapaikka erottuu rivin omasta
-                // otsikosta, joten päivä mahtuu nyt kerralla näkyviin.
+                // Ei erillisiä ateriaotsikoita: Listin rivikorkeus on vähintään
+                // ~44 pt, joten kompaktikin otsikko söi sen verran ruutua jokaista
+                // ateriaa kohden. Ateriapaikka on nyt rivin omalla tietorivillä,
+                // ja rivit pysyvät ateriajärjestyksessä.
                 Section {
                     ForEach(MealTag.allCases, id: \.self) { tag in
-                        let entries = model.entries(for: tag)
-                        if !entries.isEmpty {
-                            MealGroupHeader(
-                                label: tag.label,
-                                kcal: entries.reduce(0) { $0 + $1.macros.kcal }
-                            )
-                            ForEach(entries) { entry in
-                                NutritionRow(entry: entry)
-                            }
+                        ForEach(model.entries(for: tag)) { entry in
+                            NutritionRow(entry: entry, mealLabel: tag.label)
                         }
                     }
                 }
@@ -189,31 +183,9 @@ struct NutritionView: View {
     }
 }
 
-/// Ateriapaikan erotin listan sisällä — kevyempi kuin oma Section, mutta
-/// erottaa ryhmät selvästi ja näyttää ryhmän kaloriosuuden.
-private struct MealGroupHeader: View {
-    let label: String
-    let kcal: Double
-
-    var body: some View {
-        HStack {
-            Text(label.uppercased())
-                .font(.caption2.weight(.semibold))
-                .kerning(0.6)
-            Spacer()
-            Text("\(Int(kcal)) kcal")
-                .font(.caption2)
-                .monospacedDigit()
-        }
-        .foregroundStyle(.secondary)
-        .listRowInsets(EdgeInsets(top: 10, leading: 16, bottom: 2, trailing: 16))
-        .listRowSeparator(.hidden)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
 private struct NutritionRow: View {
     let entry: NutritionEntry
+    let mealLabel: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -247,9 +219,10 @@ private struct NutritionRow: View {
     }
 
     private var subtitle: String {
-        if entry.isPendingEstimate { return "Arvioidaan…" }
-        if entry.isFailedEstimate { return "Arvio ei onnistunut" }
-        var parts: [String] = []
+        if entry.isPendingEstimate { return "\(mealLabel) · Arvioidaan…" }
+        if entry.isFailedEstimate { return "\(mealLabel) · Arvio ei onnistunut" }
+        // Ateriapaikka ensin: se korvaa poistetun ryhmäotsikon.
+        var parts: [String] = [mealLabel]
         if entry.kind == "food", let grams = entry.grams, grams > 0 {
             parts.append("\(Int(grams)) g")
         } else if entry.kind == "recipe" {
