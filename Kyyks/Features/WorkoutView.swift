@@ -608,8 +608,9 @@ final class WorkoutModel {
         sync(setLogs[index], revertTo: previous)
 
         guard setLogs[index].done else { return nil }
-        // Ajastin käynnistyy aina kuittauksesta — ennustettavin käytös.
-        // Valmiiksi merkintä sammuttaa käynnissä olevan levon (näkymässä).
+        // Viimeisen sarjan jälkeen lepoa ei tarvita — treeni on ohi.
+        // Muuten ajastin käynnistyy aina; treenin päättäminen sammuttaa sen.
+        guard !setLogs.allSatisfy(\.done) else { return nil }
         let rest = Int(previous.targetRestSeconds ?? 90)
         return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }
