@@ -73,7 +73,10 @@ struct ProfileView: View {
                         in: Self.birthDateRange,
                         displayedComponents: .date
                     )
-                    if let age = profile.age {
+                    // Ikä vain kun se on johdettu syntymäajasta: ilman
+                    // syntymäaikaa näkyvä luku olisi ristiriidassa valitsimen
+                    // kanssa eikä kertoisi mistä se tulee.
+                    if hasBirthDate, let age = profile.age {
                         LabeledContent("Ikä") {
                             Text("\(age) v")
                                 .foregroundStyle(.secondary)
@@ -162,8 +165,9 @@ struct ProfileView: View {
 
         let stored = profile.birthDate.flatMap { Self.isoDay.date(from: $0) }
         hasBirthDate = stored != nil
-        // Ilman kirjattua syntymäaikaa valitsin avautuu haarukan yläpäähän.
-        let fallback = Self.birthDateRange.upperBound
+        // Ilman kirjattua syntymäaikaa valitsin avautuu tavanomaiseen
+        // aikuisikään; haarukan pää (13 v) olisi lähes aina väärässä.
+        let fallback = Calendar.current.date(byAdding: .year, value: -30, to: .now) ?? .now
         if birthDate != (stored ?? fallback) {
             ignoreNextBirthDateChange = true
             birthDate = stored ?? fallback
