@@ -48,6 +48,11 @@ struct BodyView: View {
                             LineMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
                                 .interpolationMethod(.monotone)
                                 .lineStyle(StrokeStyle(lineWidth: 2))
+                            // Pisteet näyttävät missä mittaus on oikeasti tehty
+                            // — pehmennetty viiva niiden välissä on tulkintaa —
+                            // ja kertovat mistä kohtaa kannattaa napauttaa.
+                            PointMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
+                                .symbolSize(28)
 
                             // Valittu kohta: pystyviiva, korostettu piste ja
                             // lukema — muuten käyrästä ei näe mikä paino oli milloin.
