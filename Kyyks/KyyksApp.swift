@@ -4,6 +4,9 @@ import SwiftUI
 struct KyyksApp: App {
     @State private var auth = AuthManager()
     @State private var today = TodayModel()
+    @State private var selectedTab = Tab.today
+
+    private enum Tab { case today, workouts, nutrition, body }
 
     var body: some Scene {
         WindowGroup {
@@ -19,18 +22,28 @@ struct KyyksApp: App {
                     // Tänään ja Treeni näyttävät samaa dataa samasta reitistä.
                     // Yhteinen malli: yksi haku kahden sijaan, ja toisessa
                     // välilehdessä tehty kirjaus näkyy heti toisessakin.
-                    TabView {
-                        TodayView(auth: auth, userId: userId, model: today)
-                            .tabItem { Label("Tänään", systemImage: "sun.max") }
+                    TabView(selection: $selectedTab) {
+                        TodayView(auth: auth, userId: userId, model: today) {
+                            selectedTab = .workouts
+                        }
+                        .tabItem { Label("Tänään", systemImage: "sun.max") }
+                        .tag(Tab.today)
                         WorkoutsListView(auth: auth, userId: userId, model: today)
                             .tabItem { Label("Treeni", systemImage: "dumbbell") }
+                            .tag(Tab.workouts)
                         NutritionView(auth: auth)
                             .tabItem { Label("Ravinto", systemImage: "fork.knife") }
+                            .tag(Tab.nutrition)
                         BodyView(auth: auth)
                             .tabItem { Label("Keho", systemImage: "figure") }
+                            .tag(Tab.body)
                     }
                 }
             }
+            // Käyttöliittymä on suomeksi, joten päivämäärät ja viikonpäivät
+            // muotoillaan suomeksi riippumatta laitteen kielestä — muuten
+            // riveillä luki "Tuesday, Aug 11" suomenkielisen tekstin seassa.
+            .environment(\.locale, Locale(identifier: "fi_FI"))
             .task { auth.bootstrap() }
         }
     }

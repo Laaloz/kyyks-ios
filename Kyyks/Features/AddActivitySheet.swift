@@ -4,16 +4,31 @@ import SwiftUI
 /// ja painosta, ellei käyttäjä anna omaa lukemaa — sama logiikka kuin webissä.
 struct AddActivitySheet: View {
     let auth: AuthManager
+    /// Muokattava suoritus, tai nil kun kirjataan uusi.
+    var existing: ExtraActivity?
     let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var activityType: ExtraActivityType = .run
-    @State private var durationText = "30"
-    @State private var kcalText = ""
-    @State private var occurredAt = Date.now
-    @State private var notes = ""
+    @State private var activityType: ExtraActivityType
+    @State private var durationText: String
+    @State private var kcalText: String
+    @State private var occurredAt: Date
+    @State private var notes: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+
+    init(auth: AuthManager, existing: ExtraActivity? = nil, onAdded: @escaping () -> Void) {
+        self.auth = auth
+        self.existing = existing
+        self.onAdded = onAdded
+        _activityType = State(initialValue: existing.flatMap { ExtraActivityType(rawValue: $0.activityType) } ?? .run)
+        _durationText = State(initialValue: existing.map { String(Int($0.durationMinutes)) } ?? "30")
+        // Kalorit esitäytetään kirjatulla arvolla: tyhjänä palvelin laskisi
+        // arvion uudelleen ja korvaisi käyttäjän oman lukeman.
+        _kcalText = State(initialValue: existing.map { String(Int($0.estimatedKcal)) } ?? "")
+        _occurredAt = State(initialValue: existing.flatMap { ExerciseProgress.parseDate($0.occurredAt) } ?? .now)
+        _notes = State(initialValue: existing?.notes ?? "")
+    }
 
     private var durationMinutes: Double? {
         let value = Double(durationText.replacingOccurrences(of: ",", with: "."))
@@ -73,7 +88,7 @@ struct AddActivitySheet: View {
                     }
                 }
             }
-            .navigationTitle("Lisää suoritus")
+            .navigationTitle(existing == nil ? "Lisää suoritus" : "Muokkaa suoritusta")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -100,14 +115,20 @@ struct AddActivitySheet: View {
             let notes: String?
         }
 
+        let client = APIClient(auth: auth)
         do {
-            _ = try await APIClient(auth: auth).post("/api/extra-activities", body: Body(
+            let body = Body(
                 activityType: activityType.rawValue,
                 durationMinutes: minutes,
                 manualKcal: Double(kcalText).flatMap { $0 > 0 ? $0 : nil },
                 occurredAt: ISO8601DateFormatter().string(from: occurredAt),
                 notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes
-            ))
+            )
+            if let existing {
+                _ = try await client.patch("/api/extra-activities/\(existing.id)", body: body)
+            } else {
+                _ = try await client.post("/api/extra-activities", body: body)
+            }
             onAdded()
             dismiss()
         } catch {

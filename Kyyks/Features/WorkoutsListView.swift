@@ -10,7 +10,45 @@ struct WorkoutsListView: View {
     @State private var showStartSheet = false
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
-    @State private var showAddActivity = false
+    /// Yksi sheet-tila kahden sijaan: samaan näkymään kiinnitetyistä
+    /// .sheet-modifiereista vain jälkimmäinen jää voimaan, jolloin muokkaus
+    /// ei auennut lainkaan.
+    @State private var activitySheet: ActivitySheet?
+
+    /// Poistettava rivi. Sekä suoritus että treeni katoavat lopullisesti, joten
+    /// molemmat kysyvät saman varmistuksen — ero olisi vain hämännyt.
+    @State private var pendingDelete: PendingDelete?
+
+    private enum PendingDelete: Identifiable {
+        case activity(ExtraActivity)
+        case workout(ScheduledWorkout)
+
+        var id: String {
+            switch self {
+            case .activity(let activity): "a-\(activity.id)"
+            case .workout(let workout): "w-\(workout.id)"
+            }
+        }
+
+        var name: String {
+            switch self {
+            case .activity(let activity): ExtraActivityType.label(for: activity.activityType)
+            case .workout(let workout): workout.title
+            }
+        }
+    }
+
+    private enum ActivitySheet: Identifiable {
+        case new
+        case edit(ExtraActivity)
+
+        var id: String {
+            switch self {
+            case .new: "new"
+            case .edit(let activity): activity.id
+            }
+        }
+    }
     @State private var showAllCompleted = false
     @State private var showAllActivities = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -78,11 +116,26 @@ struct WorkoutsListView: View {
                 // joten ne kirjataan ja näkyvät samalla välilehdellä.
                 Section("Muut suoritukset") {
                     Button {
-                        showAddActivity = true
+                        activitySheet = .new
                     } label: {
                         Label("Lisää suoritus", systemImage: "plus.circle")
                     }
-                    ForEach(visibleActivities) { activityRow($0) }
+                    ForEach(visibleActivities) { activity in
+                        Button {
+                            activitySheet = .edit(activity)
+                        } label: {
+                            activityRow(activity)
+                                // Ilman tätä .plain-napin osumakohde rajautuu
+                                // tekstiin, eikä rivin napautus avannut mitään.
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            Button("Poista", role: .destructive) {
+                                pendingDelete = .activity(activity)
+                            }
+                        }
+                    }
                     if model.activities.count > Self.activityPreviewCount {
                         expandButton(
                             isExpanded: showAllActivities,
@@ -123,8 +176,28 @@ struct WorkoutsListView: View {
                 }
                 .listSectionSpacing(0)
             }
-            .sheet(isPresented: $showAddActivity) {
-                AddActivitySheet(auth: auth) {
+            .confirmationDialog(
+                pendingDelete.map { "Poistetaanko \($0.name)?" } ?? "",
+                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Poista", role: .destructive) {
+                    switch pendingDelete {
+                    case .activity(let activity): model.deleteActivity(activity)
+                    case .workout(let workout): model.finishWorkout(.deleted, workoutId: workout.id)
+                    case nil: break
+                    }
+                    pendingDelete = nil
+                }
+                Button("Peruuta", role: .cancel) { pendingDelete = nil }
+            } message: {
+                Text("Kirjaus poistetaan pysyvästi.")
+            }
+            .sheet(item: $activitySheet) { sheet in
+                AddActivitySheet(
+                    auth: auth,
+                    existing: { if case .edit(let activity) = sheet { activity } else { nil } }()
+                ) {
                     Task { await model.refresh() }
                 }
             }
@@ -250,6 +323,8 @@ struct WorkoutsListView: View {
     private func formatDate(_ isoDate: String) -> String {
         let input = ISO8601DateFormatter.dateOnly
         guard let date = input.date(from: String(isoDate.prefix(10))) else { return isoDate }
-        return date.formatted(.dateTime.weekday(.wide).day().month())
+        // Locale annetaan eksplisiittisesti: suora formatted() ei näe SwiftUI:n
+        // ympäristön localea, joten päivät tulivat englanniksi suomen seasta.
+        return date.formatted(.dateTime.weekday(.wide).day().month().locale(Locale(identifier: "fi_FI")))
     }
 }

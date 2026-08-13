@@ -7,16 +7,18 @@ struct AppStateSnapshot: Decodable {
     var users: [UserProfile]?
     var scheduledWorkouts: [ScheduledWorkout]?
     var extraActivities: [ExtraActivity]?
+    var measurementReminder: MeasurementReminder?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         users = try container.decodeIfPresent(LossyArray<UserProfile>.self, forKey: .users)?.elements
         scheduledWorkouts = try container.decodeIfPresent(LossyArray<ScheduledWorkout>.self, forKey: .scheduledWorkouts)?.elements
         extraActivities = try container.decodeIfPresent(LossyArray<ExtraActivity>.self, forKey: .extraActivities)?.elements
+        measurementReminder = try? container.decodeIfPresent(MeasurementReminder.self, forKey: .measurementReminder)
     }
 
     private enum CodingKeys: String, CodingKey {
-        case users, scheduledWorkouts, extraActivities
+        case users, scheduledWorkouts, extraActivities, measurementReminder
     }
 }
 
@@ -46,6 +48,8 @@ struct ExtraActivity: Decodable, Identifiable {
     let durationMinutes: Double
     let estimatedKcal: Double
     let occurredAt: String
+    /// Vain muokkausta varten; listoissa ei näytetä.
+    let notes: String?
 }
 
 /// Kääre, joka pudottaa dekoodaukseen kaatuvat alkiot hiljaa pois sen sijaan,

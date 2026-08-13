@@ -7,27 +7,47 @@ struct TodayView: View {
     let userId: String
     /// Jaettu Treeni-välilehden kanssa: sama data, yksi haku.
     let model: TodayModel
+    /// Vaihtaa Treeni-välilehdelle: treenin aloitus on siellä, eikä samaa
+    /// toimintoa kannata kahdentaa.
+    let onOpenWorkouts: () -> Void
 
     @State private var health = HealthManager()
+    @State private var showAddMeasurement = false
 
     var body: some View {
         NavigationStack {
             List {
                 if let user = model.currentUser {
                     Section {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Hei, \(user.fullName)")
-                                .font(.title2.bold())
-                            Text(user.email)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Date.now, format: .dateTime.weekday(.wide).day().month(.wide))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
+                            Text(user.fullName)
+                                .font(.title2.bold())
                         }
                         .padding(.vertical, 4)
+                        .accessibilityElement(children: .combine)
                     }
                 }
 
-                Section("Päivän treeni") {
-                    if let workout = model.todaysWorkout {
+                if let reminder = model.measurementReminder, reminder.isVisible {
+                    Section("Viikon mittaus") {
+                        // Muistutus on toimintakehotus, joten kirjaus tehdään
+                        // tästä eikä toisen välilehden kautta.
+                        Button {
+                            showAddMeasurement = true
+                        } label: {
+                            Label(reminder.prompt, systemImage: "figure")
+                        }
+                    }
+                }
+
+                Section("Treeni") {
+                    // Käynnissä oleva treeni on ainoa päiväkohtainen asia jolla
+                    // on merkitystä: ohjelmoituja päiväkohtaisia treenejä ei
+                    // enää käytetä, joten muuten ohjataan Treeni-välilehdelle.
+                    if let workout = model.inProgressWorkout {
                         NavigationLink {
                             WorkoutView(
                                 auth: auth,
@@ -36,16 +56,18 @@ struct TodayView: View {
                                 onFinished: { action, id in model.finishWorkout(action, workoutId: id) }
                             )
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(workout.title).font(.headline)
-                                Text(statusLabel(workout.status))
+                                Text("Kesken")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
                         }
-                    } else {
-                        Text("Ei ohjelmoitua treeniä tälle päivälle")
-                            .foregroundStyle(.secondary)
+                    }
+                    Button {
+                        onOpenWorkouts()
+                    } label: {
+                        Label("Siirry treeneihin", systemImage: "dumbbell")
                     }
                 }
 
@@ -88,17 +110,25 @@ struct TodayView: View {
 
                 // Vain kooste: kirjaus tehdään Treeni-välilehdellä, jossa muukin
                 // treeni on — samaa asiaa ei kirjata kahdesta paikasta.
-                if !model.recentActivities.isEmpty {
-                    Section("Viimeisimmät suoritukset") {
-                        ForEach(model.recentActivities) { activity in
+                if !model.recentEntries.isEmpty {
+                    Section("Viimeisimmät") {
+                        ForEach(model.recentEntries) { entry in
                             HStack {
-                                Text(ExtraActivityType.label(for: activity.activityType))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.title)
+                                    Text(entry.date, format: .dateTime.weekday(.abbreviated).day().month())
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                                 Spacer()
-                                Text("\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                                if let detail = entry.detail {
+                                    Text(detail)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
                             }
+                            .accessibilityElement(children: .combine)
                         }
                     }
                 }
@@ -116,6 +146,11 @@ struct TodayView: View {
                 }
             }
             .refreshable { await model.refresh() }
+            .sheet(isPresented: $showAddMeasurement) {
+                AddMeasurementSheet(auth: auth, latest: nil) {
+                    Task { await model.refresh() }
+                }
+            }
             .toolbar {
                 // Uloskirjautuminen siirtyi profiiliin: yläkulma on tilin
                 // hallinnan paikka, ja siellä ovat myös pituus, ikä ja
@@ -158,21 +193,13 @@ struct TodayView: View {
         await model.refresh()
     }
 
-    private func statusLabel(_ status: String) -> String {
-        switch status {
-        case "in_progress": "Käynnissä"
-        case "completed": "Tehty"
-        case "cancelled": "Peruttu"
-        default: status
-        }
-    }
 }
 
 @Observable
 @MainActor
 final class TodayModel {
     private(set) var currentUser: UserProfile?
-    private(set) var todaysWorkout: ScheduledWorkout?
+    private(set) var measurementReminder: MeasurementReminder?
     private(set) var workouts: [ScheduledWorkout] = []
     /// Kaikki oheisaktiviteetit uusin ensin. Näkymät rajaavat itse sen mitä
     /// näyttävät — Tänään näyttää muutaman, Treeni koko listan pyydettäessä.
@@ -210,9 +237,7 @@ final class TodayModel {
     func finishWorkout(_ action: WorkoutEndAction, workoutId: String) {
         guard let api else { return }
         let previousWorkouts = workouts
-        let previousToday = todaysWorkout
         workouts.removeAll { $0.id == workoutId }
-        if todaysWorkout?.id == workoutId { todaysWorkout = nil }
 
         Task {
             do {
@@ -226,10 +251,26 @@ final class TodayModel {
                 await refresh()
             } catch {
                 workouts = previousWorkouts
-                todaysWorkout = previousToday
                 errorMessage = action == .deleted
                     ? "Treenin poisto epäonnistui — yritä uudelleen."
                     : "Treenin keskeytys epäonnistui — yritä uudelleen."
+            }
+        }
+    }
+
+    /// Suorituksen poisto optimistisesti: rivi katoaa heti, virheessä palautuu.
+    func deleteActivity(_ activity: ExtraActivity) {
+        guard let api else { return }
+        let previous = activities
+        activities.removeAll { $0.id == activity.id }
+
+        Task {
+            do {
+                _ = try await api.delete("/api/extra-activities/\(activity.id)")
+                await refresh()
+            } catch {
+                activities = previous
+                errorMessage = "Suorituksen poisto epäonnistui — yritä uudelleen."
             }
         }
     }
@@ -255,18 +296,67 @@ final class TodayModel {
         }
         currentUser = snapshot.users?.first { $0.id == userId }
 
-        let today = ISO8601DateFormatter.dateOnly.string(from: .now)
-        let mine = snapshot.scheduledWorkouts?.filter { $0.athleteId == userId } ?? []
-        workouts = mine
-        todaysWorkout = mine.first { $0.scheduledDate.hasPrefix(today) && $0.status != "cancelled" }
-            ?? mine.last { $0.status == "in_progress" }
+        workouts = snapshot.scheduledWorkouts?.filter { $0.athleteId == userId } ?? []
+        measurementReminder = snapshot.measurementReminder
 
         activities = (snapshot.extraActivities ?? [])
             .filter { $0.athleteId == userId }
             .sorted { $0.occurredAt > $1.occurredAt }
     }
 
-    var recentActivities: [ExtraActivity] { Array(activities.prefix(5)) }
+    var inProgressWorkout: ScheduledWorkout? { workouts.first { $0.status == "in_progress" } }
+
+    /// Tehdyt treenit ja oheissuoritukset samassa aikajärjestyksessä: molemmat
+    /// ovat tehtyä treeniä, ja erillisinä listoina järjestys katosi.
+    var recentEntries: [TodayEntry] {
+        let workoutEntries = workouts
+            .filter { $0.status == "completed" }
+            .compactMap { workout -> TodayEntry? in
+                guard let date = ISO8601DateFormatter.dateOnly.date(from: String(workout.scheduledDate.prefix(10)))
+                else { return nil }
+                return TodayEntry(id: "w-\(workout.id)", title: workout.title, detail: nil, date: date)
+            }
+
+        let activityEntries = activities.compactMap { activity -> TodayEntry? in
+            guard let date = ExerciseProgress.parseDate(activity.occurredAt) else { return nil }
+            return TodayEntry(
+                id: "a-\(activity.id)",
+                title: ExtraActivityType.label(for: activity.activityType),
+                detail: "\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal",
+                date: date
+            )
+        }
+
+        return (workoutEntries + activityEntries)
+            .sorted { $0.date > $1.date }
+            .prefix(4)
+            .map { $0 }
+    }
+}
+
+struct TodayEntry: Identifiable {
+    let id: String
+    let title: String
+    let detail: String?
+    let date: Date
+}
+
+/// Viikkomuistutus palvelimelta: ikkuna on pe klo 6 → su (Europe/Helsinki), ja
+/// palvelin kertoo kumpi mitta puuttuu tältä viikolta.
+struct MeasurementReminder: Decodable {
+    let isWindowOpen: Bool
+    let weightDue: Bool
+    let waistDue: Bool
+
+    var isVisible: Bool { isWindowOpen && (weightDue || waistDue) }
+
+    var prompt: String {
+        switch (weightDue, waistDue) {
+        case (true, true): "Kirjaa paino ja vyötärö"
+        case (true, false): "Kirjaa paino"
+        default: "Kirjaa vyötärö"
+        }
+    }
 }
 
 extension ISO8601DateFormatter {

@@ -110,6 +110,16 @@ struct ProfileView: View {
                     }
                 }
 
+                Section("Muistutukset") {
+                    // Muistutus ilmestyy Tänään-välilehdelle pe klo 6 → su.
+                    // Sen on oltava kytkettävissä pois samasta paikasta kuin
+                    // muutkin omat asetukset.
+                    Toggle("Viikoittainen mittausmuistutus", isOn: Binding(
+                        get: { model.profile?.weeklyMeasurementReminders ?? true },
+                        set: { newValue in Task { await model.setWeeklyReminders(newValue) } }
+                    ))
+                }
+
                 Section("Tili") {
                     Button("Kirjaudu ulos") {
                         Task { await signOut() }
@@ -245,6 +255,7 @@ struct MobileProfile: Decodable {
     let age: Int?
     let birthDate: String?
     let sex: String?
+    let weeklyMeasurementReminders: Bool?
     let missingForMacros: [String]
 }
 
@@ -252,6 +263,10 @@ private struct ProfilePatch: Encodable {
     let heightCm: Double?
     let birthDate: String?
     let sex: String?
+}
+
+private struct ReminderPatch: Encodable {
+    let weeklyMeasurementReminders: Bool
 }
 
 @Observable
@@ -303,6 +318,20 @@ final class ProfileModel {
             errorMessage = nil
         } catch {
             errorMessage = "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
+        }
+    }
+
+    /// Kytkin tallentuu heti: erillinen "tallenna" asetuksen päälle olisi
+    /// ylimääräinen vaihe, jonka unohtaminen jättäisi asetuksen väärään tilaan.
+    func setWeeklyReminders(_ isOn: Bool) async {
+        guard let api else { return }
+        do {
+            _ = try await api.patch("/api/mobile/profile", body: ReminderPatch(weeklyMeasurementReminders: isOn))
+            await refresh()
+            errorMessage = nil
+        } catch {
+            errorMessage = "Asetuksen tallennus epäonnistui."
+            await refresh()
         }
     }
 
