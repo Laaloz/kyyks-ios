@@ -14,6 +14,7 @@ struct WorkoutsListView: View {
     /// .sheet-modifiereista vain jälkimmäinen jää voimaan, jolloin muokkaus
     /// ei auennut lainkaan.
     @State private var activitySheet: ActivitySheet?
+    @State private var showCreateProgram = false
 
     /// Poistettava rivi. Sekä suoritus että treeni katoavat lopullisesti, joten
     /// molemmat kysyvät saman varmistuksen — ero olisi vain hämännyt.
@@ -109,6 +110,14 @@ struct WorkoutsListView: View {
                         ExerciseProgressListView(auth: auth)
                     } label: {
                         Label("Kehitys liikkeittäin", systemImage: "chart.line.uptrend.xyaxis")
+                    }
+                    // Ohjelman luonti oli vain "Aloita treeni" -sheetin sisällä,
+                    // eli sinne pääsi vain aloittamalla treenin — väärä paikka
+                    // toiminnolle, jota itsenäinen treenaaja tarvitsee ensin.
+                    Button {
+                        showCreateProgram = true
+                    } label: {
+                        Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
                     }
                 }
 
@@ -237,6 +246,13 @@ struct WorkoutsListView: View {
                     startedWorkout = StartedWorkout(id: workoutId, title: title)
                     Task { await model.refresh() }
                 }
+            }
+        }
+        // Kiinnitetty NavigationStackiin eikä listaan: samaan näkymään
+        // kasatuista sheeteistä vain viimeinen jää voimaan.
+        .sheet(isPresented: $showCreateProgram) {
+            CreateProgramView(auth: auth, userId: userId) {
+                Task { await model.refresh() }
             }
         }
         .task {
