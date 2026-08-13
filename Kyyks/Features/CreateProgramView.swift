@@ -11,6 +11,8 @@ struct CreateProgramView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = CreateProgramModel()
     @State private var draft: ProgramDraft?
+    /// Muokattavan ohjelman id. nil = uusi ohjelma.
+    @State private var editingProgramId: String?
 
     var body: some View {
         NavigationStack {
@@ -23,7 +25,7 @@ struct CreateProgramView: View {
                         errorMessage: model.errorMessage
                     ) {
                         Task {
-                            if await model.save(draft: draft, athleteId: userId) {
+                            if await model.save(draft: draft, athleteId: userId, programId: editingProgramId) {
                                 onCreated()
                                 dismiss()
                             }
@@ -33,14 +35,19 @@ struct CreateProgramView: View {
                     templatePicker
                 }
             }
-            .navigationTitle(draft == nil ? "Uusi ohjelma" : "Muokkaa")
+            .navigationTitle(draft == nil ? "Oma ohjelma" : (editingProgramId == nil ? "Uusi ohjelma" : "Muokkaa ohjelmaa"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Peru") {
                         // Pohjavalinnasta palataan taaksepäin, ei ulos: väärän
                         // pohjan valinta ei saa heittää alkuun asti.
-                        if draft == nil { dismiss() } else { draft = nil }
+                        if draft == nil {
+                            dismiss()
+                        } else {
+                            draft = nil
+                            editingProgramId = nil
+                        }
                     }
                 }
             }
@@ -56,6 +63,35 @@ struct CreateProgramView: View {
             if let error = model.errorMessage, draft == nil {
                 Section {
                     Text(error).font(.footnote).foregroundStyle(.red)
+                }
+            }
+
+            // Nykyinen ohjelma ensin: useimmiten tänne tullaan muokkaamaan
+            // olemassa olevaa, ei aloittamaan alusta.
+            if let active = model.activeProgram {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(active.title).font(.headline)
+                        Text(active.workouts.map(\.name).joined(separator: " · "))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                    .accessibilityElement(children: .combine)
+
+                    Button {
+                        editingProgramId = active.id
+                        draft = .from(active)
+                    } label: {
+                        Label("Muokkaa ohjelmaa", systemImage: "pencil")
+                    }
+                } header: {
+                    Text("Nykyinen ohjelma")
+                } footer: {
+                    // Luonnos kantaa yhden tavoitteen per liike, joten
+                    // sarjakohtaiset erot tasoittuvat tallennuksessa. Parempi
+                    // kertoa se etukäteen kuin antaa sen yllättää.
+                    Text("Muokkaus säilyttää ohjelman ja tehdyt treenit. Kaikki liikkeen sarjat saavat saman tavoitteen, ja käynnissä olevaan treeniin muutokset eivät vaikuta.")
                 }
             }
 
@@ -259,6 +295,7 @@ private struct ExerciseTargetEditor: View {
 @MainActor
 final class CreateProgramModel {
     private(set) var templates: [ProgramTemplate] = []
+    private(set) var activeProgram: ActiveProgram?
     private(set) var isLoading = false
     private(set) var isSaving = false
     private(set) var errorMessage: String?
@@ -278,8 +315,13 @@ final class CreateProgramModel {
             isLoading = true
         }
         defer { isLoading = false }
+
+        // Pohjat ja nykyinen ohjelma rinnakkain: kumpikaan ei odota toista.
+        async let templatesData = api.get("/api/mobile/program-templates")
+        async let programsData = api.get("/api/mobile/programs")
+
         do {
-            let data = try await api.get("/api/mobile/program-templates")
+            let data = try await templatesData
             await ResponseCache.shared.write(cacheKey, data: data)
             apply(data)
             errorMessage = nil
@@ -288,14 +330,26 @@ final class CreateProgramModel {
                 errorMessage = "Ohjelmapohjien haku epäonnistui. Voit silti aloittaa tyhjästä."
             }
         }
+
+        if let data = try? await programsData,
+           let decoded = try? JSONDecoder().decode(ActiveProgramsResponse.self, from: data) {
+            activeProgram = decoded.programs.first
+        }
     }
 
-    func save(draft: ProgramDraft, athleteId: String) async -> Bool {
+    /// Uusi ohjelma POST:lla, olemassa olevan muokkaus PATCH:lla — muokkaus ei
+    /// saa arkistoida ohjelmaa eikä katkaista sen historiaa.
+    func save(draft: ProgramDraft, athleteId: String, programId: String?) async -> Bool {
         guard let api else { return false }
         isSaving = true
         defer { isSaving = false }
         do {
-            _ = try await api.post("/api/programs", body: CreateProgramRequest(draft: draft, athleteId: athleteId))
+            let body = CreateProgramRequest(draft: draft, athleteId: athleteId)
+            if let programId {
+                _ = try await api.patch("/api/programs/\(programId)", body: body)
+            } else {
+                _ = try await api.post("/api/programs", body: body)
+            }
             errorMessage = nil
             return true
         } catch {
