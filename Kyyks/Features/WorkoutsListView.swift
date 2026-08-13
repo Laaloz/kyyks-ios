@@ -56,8 +56,6 @@ struct WorkoutsListView: View {
                         ForEach(upcoming) { workoutRow($0) }
                     }
                 }
-                if !completed.isEmpty {
-                }
                 // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
                 // joten ne kirjataan ja näkyvät samalla välilehdellä.
                 Section("Muut suoritukset") {
@@ -75,6 +73,16 @@ struct WorkoutsListView: View {
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
+                    }
+                }
+
+                // Kehitys katsoo koko historiaa, joten se on lähellä tehtyjä
+                // treenejä — ei kilpailemassa aloituksen kanssa.
+                Section {
+                    NavigationLink {
+                        ExerciseProgressListView(auth: auth)
+                    } label: {
+                        Label("Kehitys liikkeittäin", systemImage: "chart.line.uptrend.xyaxis")
                     }
                 }
 
@@ -99,18 +107,19 @@ struct WorkoutsListView: View {
                     }
                 }
 
-            }
-            .sheet(isPresented: $showAddActivity) {
-                AddActivitySheet(auth: auth) {
-                    Task { await model.refresh() }
-                }
-
+                // Tilaa alareunan "Aloita treeni" -napin alle, jottei viimeinen
+                // rivi jää sen taakse.
                 Section {
                     Color.clear
                         .frame(height: 44)
                         .listRowBackground(Color.clear)
                 }
                 .listSectionSpacing(0)
+            }
+            .sheet(isPresented: $showAddActivity) {
+                AddActivitySheet(auth: auth) {
+                    Task { await model.refresh() }
+                }
             }
             .navigationTitle("Treeni")
             .safeAreaInset(edge: .bottom) {
