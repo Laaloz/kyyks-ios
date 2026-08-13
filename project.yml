@@ -53,7 +53,7 @@ targets:
     info:
       path: Kyyks/Info.plist
       properties:
-        NSHealthShareUsageDescription: Apple Healthin tietoja luetaan, jotta askeleesi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Kyyksissä ilman käsin kirjaamista.
+        NSHealthShareUsageDescription: Apple Healthin tietoja luetaan, jotta askeleesi, unesi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Kyyksissä ilman käsin kirjaamista.
         NSCameraUsageDescription: Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.
         NSPhotoLibraryUsageDescription: Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.
         SupabaseURL: $(KYYKS_SUPABASE_URL)

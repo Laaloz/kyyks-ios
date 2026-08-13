@@ -82,6 +82,18 @@ struct TodayView: View {
                                     .monospacedDigit()
                                     .foregroundStyle(.secondary)
                             }
+                            // Uni näkyy vasta kun sitä on kirjattu: tyhjä rivi
+                            // kertoisi vain ettei lähdettä ole.
+                            if let sleep = health.averageSleepSeconds {
+                                HStack {
+                                    Label("Yöuni, 7 vrk ka.", systemImage: "bed.double")
+                                    Spacer()
+                                    Text(Self.formatDuration(sleep))
+                                        .monospacedDigit()
+                                        .foregroundStyle(.secondary)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
                             if health.isSyncing {
                                 HStack(spacing: 10) {
                                     ProgressView()
@@ -185,12 +197,21 @@ struct TodayView: View {
         }
     }
 
-    /// Askeleet ja suoritusten tuonti rinnakkain — kumpikaan ei odota toista.
+    /// Askeleet, uni ja suoritusten tuonti rinnakkain — mikään ei odota toista.
     private func refreshHealth() async {
         async let steps: Void = health.refreshTodaySteps()
+        async let sleep: Void = health.refreshAverageSleep()
         async let sync: Void = health.syncWorkouts(using: APIClient(auth: auth))
-        _ = await (steps, sync)
+        _ = await (steps, sleep, sync)
         await model.refresh()
+    }
+
+    /// "7 h 12 min" — tunnit ja minuutit, ei sekunteja.
+    static func formatDuration(_ seconds: Double) -> String {
+        let totalMinutes = Int((seconds / 60).rounded())
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        return hours > 0 ? "\(hours) h \(minutes) min" : "\(minutes) min"
     }
 
 }
