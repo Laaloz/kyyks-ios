@@ -110,6 +110,24 @@ struct ProfileView: View {
                     }
                 }
 
+                Section {
+                    // iOS ei anna sovelluksen muuttaa eikä kysyä uudelleen
+                    // Health-oikeuksia: kerran vastattu lupakysely ei toistu.
+                    // Ilman tätä riviä käyttäjällä ei ollut mitään polkua
+                    // perumiseen tai myöhempään sallimiseen.
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Label("Apple Healthin oikeudet", systemImage: "heart.text.square")
+                    }
+                } header: {
+                    Text("Apple Health")
+                } footer: {
+                    Text("Askeleet, uni ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Oikeudet myönnetään ja perutaan iOS:n asetuksista — sovellus ei voi muuttaa niitä.")
+                }
+
                 Section("Muistutukset") {
                     // Muistutus ilmestyy Tänään-välilehdelle pe klo 6 → su.
                     // Sen on oltava kytkettävissä pois samasta paikasta kuin
