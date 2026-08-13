@@ -45,6 +45,11 @@ struct APIClient {
         try await request("DELETE", path, body: Optional<Int>.none)
     }
 
+    /// DELETE rungolla: tilin poisto vaatii vahvistuksen pyynnön mukana.
+    func delete(_ path: String, body: some Encodable) async throws -> Data {
+        try await request("DELETE", path, body: body)
+    }
+
     private func request(
         _ method: String,
         _ path: String,

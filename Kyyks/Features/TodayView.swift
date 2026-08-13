@@ -116,10 +116,16 @@ struct TodayView: View {
             }
             .refreshable { await model.refresh() }
             .toolbar {
-                Button("Kirjaudu ulos") {
-                    Task { await signOut() }
+                // Uloskirjautuminen siirtyi profiiliin: yläkulma on tilin
+                // hallinnan paikka, ja siellä ovat myös pituus, ikä ja
+                // sukupuoli, joita ilman makrolaskenta ei toimi.
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        ProfileView(auth: auth)
+                    } label: {
+                        Label("Profiili", systemImage: "person.crop.circle")
+                    }
                 }
-                .font(.footnote)
             }
         }
         .task {
@@ -149,11 +155,6 @@ struct TodayView: View {
         async let sync: Void = health.syncWorkouts(using: APIClient(auth: auth))
         _ = await (steps, sync)
         await model.refresh()
-    }
-
-    private func signOut() async {
-        await ResponseCache.shared.clear()
-        await auth.signOut()
     }
 
     private func statusLabel(_ status: String) -> String {
