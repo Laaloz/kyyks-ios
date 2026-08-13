@@ -4,6 +4,7 @@ import SwiftUI
 struct KyyksApp: App {
     @State private var auth = AuthManager()
     @State private var today = TodayModel()
+    @State private var programs = ProgramsModel()
     @State private var selectedTab = Tab.today
 
     private enum Tab { case today, workouts, nutrition, body }
@@ -28,7 +29,7 @@ struct KyyksApp: App {
                         }
                         .tabItem { Label("Tänään", systemImage: "sun.max") }
                         .tag(Tab.today)
-                        WorkoutsListView(auth: auth, userId: userId, model: today)
+                        WorkoutsListView(auth: auth, userId: userId, model: today, programs: programs)
                             .tabItem { Label("Treeni", systemImage: "dumbbell") }
                             .tag(Tab.workouts)
                         NutritionView(auth: auth)

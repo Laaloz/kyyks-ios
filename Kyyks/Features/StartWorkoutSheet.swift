@@ -5,12 +5,11 @@ import SwiftUI
 struct StartWorkoutSheet: View {
     let auth: AuthManager
     let userId: String
+    let programs: ProgramsModel
     /// Palauttaa aloitetun treenin id:n ja nimen, jotta kutsuja voi avata sen suoraan.
     let onStarted: (_ workoutId: String, _ title: String, _ autoCancelled: String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var programs: [Program] = []
-    @State private var isLoading = true
     @State private var startingWorkoutId: String?
     @State private var errorMessage: String?
     @State private var showCreateProgram = false
@@ -26,7 +25,7 @@ struct StartWorkoutSheet: View {
                     }
                 }
 
-                ForEach(programs) { program in
+                ForEach(programs.programs) { program in
                     Section(program.title) {
                         ForEach(program.workouts) { workout in
                             Button {
@@ -56,19 +55,19 @@ struct StartWorkoutSheet: View {
                 // Itsenäisellä treenaajalla ei ole valmentajaa joka tekisi
                 // ohjelman, joten luonti on täällä. Näkyy myös kun ohjelma on
                 // olemassa: ohjelma vaihtuu ajan myötä.
-                if !isLoading {
+                if !programs.isLoading {
                     Section {
                         Button {
                             showCreateProgram = true
                         } label: {
                             Label(
-                                programs.isEmpty ? "Luo ensimmäinen ohjelma" : "Uusi ohjelma",
+                                programs.programs.isEmpty ? "Luo ensimmäinen ohjelma" : "Uusi ohjelma",
                                 systemImage: "plus.circle"
                             )
                         }
                     } footer: {
                         Text(
-                            programs.isEmpty
+                            programs.programs.isEmpty
                                 ? "Valitse valmis pohja tai aloita tyhjästä. Treenit ilmestyvät tähän heti tallennuksen jälkeen."
                                 : "Uusi ohjelma tulee käyttöön heti, ja nykyinen ohjelma arkistoidaan. Tehdyt treenit säilyvät."
                         )
@@ -77,28 +76,21 @@ struct StartWorkoutSheet: View {
             }
             .navigationTitle("Aloita treeni")
             .navigationBarTitleDisplayMode(.inline)
-            .overlay { if isLoading && programs.isEmpty { ProgressView() } }
+            .overlay { if programs.isLoading && programs.programs.isEmpty { ProgressView() } }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Peru") { dismiss() }
                 }
             }
-            .task { await load() }
+            .task {
+                programs.configure(auth: auth)
+                await programs.loadIfNeeded()
+            }
             .sheet(isPresented: $showCreateProgram) {
-                CreateProgramView(auth: auth, userId: userId) {
-                    Task { await load() }
+                CreateProgramView(auth: auth, userId: userId, programs: programs) {
+                    Task { await programs.refresh() }
                 }
             }
-        }
-    }
-
-    private func load() async {
-        defer { isLoading = false }
-        do {
-            let data = try await APIClient(auth: auth).get("/api/mobile/programs")
-            programs = (try? JSONDecoder().decode(ProgramsResponse.self, from: data))?.programs ?? []
-        } catch {
-            errorMessage = "Ohjelmien haku epäonnistui."
         }
     }
 

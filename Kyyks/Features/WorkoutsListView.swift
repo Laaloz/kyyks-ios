@@ -7,6 +7,7 @@ struct WorkoutsListView: View {
     let userId: String
     /// Jaettu Tänään-välilehden kanssa: sama data, yksi haku.
     let model: TodayModel
+    let programs: ProgramsModel
     @State private var showStartSheet = false
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
@@ -241,7 +242,7 @@ struct WorkoutsListView: View {
                 )
             }
             .sheet(isPresented: $showStartSheet) {
-                StartWorkoutSheet(auth: auth, userId: userId) { workoutId, title, autoCancelled in
+                StartWorkoutSheet(auth: auth, userId: userId, programs: programs) { workoutId, title, autoCancelled in
                     autoCancelledNotice = autoCancelled
                     startedWorkout = StartedWorkout(id: workoutId, title: title)
                     Task { await model.refresh() }
@@ -251,13 +252,18 @@ struct WorkoutsListView: View {
         // Kiinnitetty NavigationStackiin eikä listaan: samaan näkymään
         // kasatuista sheeteistä vain viimeinen jää voimaan.
         .sheet(isPresented: $showCreateProgram) {
-            CreateProgramView(auth: auth, userId: userId) {
-                Task { await model.refresh() }
+            CreateProgramView(auth: auth, userId: userId, programs: programs) {
+                Task { await programs.refresh() }
             }
         }
         .task {
             model.configure(auth: auth, userId: userId)
-            await model.loadIfNeeded()
+            programs.configure(auth: auth)
+            // Ohjelmat välimuistiin jo välilehdellä: muuten "Oma ohjelma"
+            // avautuu tyhjänä ja nykyinen ohjelma ilmestyy viiveellä.
+            async let workouts: Void = model.loadIfNeeded()
+            async let plans: Void = programs.loadIfNeeded()
+            _ = await (workouts, plans)
         }
     }
 

@@ -6,6 +6,9 @@ import SwiftUI
 struct CreateProgramView: View {
     let auth: AuthManager
     let userId: String
+    /// Jaettu aloitusvalitsimen kanssa: nykyinen ohjelma on välimuistissa,
+    /// joten se on ruudulla heti eikä vasta verkkokutsun jälkeen.
+    let programs: ProgramsModel
     let onCreated: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -54,6 +57,7 @@ struct CreateProgramView: View {
         }
         .task {
             model.configure(auth: auth)
+            programs.configure(auth: auth)
             await model.load()
         }
     }
@@ -68,7 +72,7 @@ struct CreateProgramView: View {
 
             // Nykyinen ohjelma ensin: useimmiten tänne tullaan muokkaamaan
             // olemassa olevaa, ei aloittamaan alusta.
-            if let active = model.activeProgram {
+            if let active = programs.activeProgram {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(active.title).font(.headline)
@@ -332,7 +336,6 @@ private struct ExerciseTargetEditor: View {
 @MainActor
 final class CreateProgramModel {
     private(set) var templates: [ProgramTemplate] = []
-    private(set) var activeProgram: ActiveProgram?
     private(set) var isLoading = false
     private(set) var isSaving = false
     private(set) var errorMessage: String?
@@ -352,13 +355,8 @@ final class CreateProgramModel {
             isLoading = true
         }
         defer { isLoading = false }
-
-        // Pohjat ja nykyinen ohjelma rinnakkain: kumpikaan ei odota toista.
-        async let templatesData = api.get("/api/mobile/program-templates")
-        async let programsData = api.get("/api/mobile/programs")
-
         do {
-            let data = try await templatesData
+            let data = try await api.get("/api/mobile/program-templates")
             await ResponseCache.shared.write(cacheKey, data: data)
             apply(data)
             errorMessage = nil
@@ -366,11 +364,6 @@ final class CreateProgramModel {
             if templates.isEmpty {
                 errorMessage = "Ohjelmapohjien haku epäonnistui. Voit silti aloittaa tyhjästä."
             }
-        }
-
-        if let data = try? await programsData,
-           let decoded = try? JSONDecoder().decode(ActiveProgramsResponse.self, from: data) {
-            activeProgram = decoded.programs.first
         }
     }
 

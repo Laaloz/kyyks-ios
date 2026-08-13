@@ -13,7 +13,8 @@ struct WorkoutNote: Decodable {
     let updatedAt: String
 }
 
-/// /api/mobile/programs -vastaus treeninaloitusvalitsimeen.
+/// /api/mobile/programs -vastaus: sama data sekä treenin aloitukseen että
+/// ohjelman muokkaukseen — liikkeet tulevat samasta JSONB-sarakkeesta.
 struct ProgramsResponse: Decodable {
     let programs: [Program]
 }
@@ -27,7 +28,10 @@ struct Program: Decodable, Identifiable {
 struct ProgramWorkoutSummary: Decodable, Identifiable {
     let id: String
     let name: String
+    let splitType: String?
     let exerciseCount: Int
+    /// Vain muokkaus tarvitsee; aloitus pärjää liikemäärällä.
+    let exercises: [ProgramTemplate.TemplateExercise]?
 }
 
 /// /api/workouts/start -vastaus.

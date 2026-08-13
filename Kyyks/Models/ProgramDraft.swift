@@ -28,26 +28,6 @@ struct ProgramTemplatesResponse: Decodable {
     let templates: [ProgramTemplate]
 }
 
-struct ActiveProgramsResponse: Decodable {
-    let programs: [ActiveProgram]
-}
-
-/// Aktiivinen ohjelma mobiilireitiltä. Sama rakenne kuin pohjassa, jotta
-/// muokkaus ja luonti käyttävät samaa luonnosta ja samaa editoria.
-struct ActiveProgram: Decodable, Identifiable {
-    let id: String
-    let title: String
-    let workouts: [ProgramWorkoutSummary]
-
-    struct ProgramWorkoutSummary: Decodable, Identifiable {
-        let id: String
-        let name: String
-        let splitType: String?
-        let exerciseCount: Int
-        let exercises: [ProgramTemplate.TemplateExercise]?
-    }
-}
-
 /// Muokattava luonnos. Pohja täyttää tämän, tyhjästä aloittava rakentaa itse —
 /// kumpikin päätyy samaan rakenteeseen, joten tallennuspolku on yksi.
 struct ProgramDraft {
@@ -64,7 +44,7 @@ struct ProgramDraft {
     }
 
     /// Olemassa olevasta ohjelmasta: muokkaus alkaa nykyisestä sisällöstä.
-    static func from(_ program: ActiveProgram) -> ProgramDraft {
+    static func from(_ program: Program) -> ProgramDraft {
         ProgramDraft(
             title: program.title,
             workouts: program.workouts.map { workout in
