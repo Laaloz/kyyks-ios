@@ -4,6 +4,7 @@ import SwiftUI
 /// Palvelin luo sarjalokit ja peruu mahdollisen käynnissä olevan treenin.
 struct StartWorkoutSheet: View {
     let auth: AuthManager
+    let userId: String
     /// Palauttaa aloitetun treenin id:n ja nimen, jotta kutsuja voi avata sen suoraan.
     let onStarted: (_ workoutId: String, _ title: String, _ autoCancelled: String?) -> Void
 
@@ -12,6 +13,7 @@ struct StartWorkoutSheet: View {
     @State private var isLoading = true
     @State private var startingWorkoutId: String?
     @State private var errorMessage: String?
+    @State private var showCreateProgram = false
 
     var body: some View {
         NavigationStack {
@@ -51,10 +53,25 @@ struct StartWorkoutSheet: View {
                     }
                 }
 
-                if programs.isEmpty && !isLoading {
+                // Itsenäisellä treenaajalla ei ole valmentajaa joka tekisi
+                // ohjelman, joten luonti on täällä. Näkyy myös kun ohjelma on
+                // olemassa: ohjelma vaihtuu ajan myötä.
+                if !isLoading {
                     Section {
-                        Text("Ei aktiivisia ohjelmia. Luo ohjelma webissä, niin treenit ilmestyvät tähän.")
-                            .foregroundStyle(.secondary)
+                        Button {
+                            showCreateProgram = true
+                        } label: {
+                            Label(
+                                programs.isEmpty ? "Luo ensimmäinen ohjelma" : "Uusi ohjelma",
+                                systemImage: "plus.circle"
+                            )
+                        }
+                    } footer: {
+                        Text(
+                            programs.isEmpty
+                                ? "Valitse valmis pohja tai aloita tyhjästä. Treenit ilmestyvät tähän heti tallennuksen jälkeen."
+                                : "Uusi ohjelma tulee käyttöön heti, ja nykyinen ohjelma arkistoidaan. Tehdyt treenit säilyvät."
+                        )
                     }
                 }
             }
@@ -67,6 +84,11 @@ struct StartWorkoutSheet: View {
                 }
             }
             .task { await load() }
+            .sheet(isPresented: $showCreateProgram) {
+                CreateProgramView(auth: auth, userId: userId) {
+                    Task { await load() }
+                }
+            }
         }
     }
 

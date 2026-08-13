@@ -162,7 +162,7 @@ struct WorkoutsListView: View {
 
                 if model.workouts.isEmpty {
                     Section {
-                        Text("Ei treenejä lähipäiviltä")
+                        Text("Ei treenejä lähipäiviltä. Aloita treeni alta — jos ohjelmaa ei vielä ole, voit luoda sen samalla.")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -232,7 +232,7 @@ struct WorkoutsListView: View {
                 )
             }
             .sheet(isPresented: $showStartSheet) {
-                StartWorkoutSheet(auth: auth) { workoutId, title, autoCancelled in
+                StartWorkoutSheet(auth: auth, userId: userId) { workoutId, title, autoCancelled in
                     autoCancelledNotice = autoCancelled
                     startedWorkout = StartedWorkout(id: workoutId, title: title)
                     Task { await model.refresh() }
