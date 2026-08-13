@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct KyyksApp: App {
     @State private var auth = AuthManager()
+    @State private var today = TodayModel()
 
     var body: some Scene {
         WindowGroup {
@@ -15,10 +16,13 @@ struct KyyksApp: App {
                 case .signedOut:
                     LoginView(auth: auth)
                 case .signedIn(let userId):
+                    // Tänään ja Treeni näyttävät samaa dataa samasta reitistä.
+                    // Yhteinen malli: yksi haku kahden sijaan, ja toisessa
+                    // välilehdessä tehty kirjaus näkyy heti toisessakin.
                     TabView {
-                        TodayView(auth: auth, userId: userId)
+                        TodayView(auth: auth, userId: userId, model: today)
                             .tabItem { Label("Tänään", systemImage: "sun.max") }
-                        WorkoutsListView(auth: auth, userId: userId)
+                        WorkoutsListView(auth: auth, userId: userId, model: today)
                             .tabItem { Label("Treeni", systemImage: "dumbbell") }
                         NutritionView(auth: auth)
                             .tabItem { Label("Ravinto", systemImage: "fork.knife") }

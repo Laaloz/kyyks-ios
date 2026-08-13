@@ -5,8 +5,9 @@ import SwiftUI
 struct TodayView: View {
     let auth: AuthManager
     let userId: String
+    /// Jaettu Treeni-välilehden kanssa: sama data, yksi haku.
+    let model: TodayModel
 
-    @State private var model = TodayModel()
     @State private var health = HealthManager()
 
     var body: some View {
@@ -130,7 +131,7 @@ struct TodayView: View {
         }
         .task {
             model.configure(auth: auth, userId: userId)
-            await model.load()
+            await model.loadIfNeeded()
             // Lupaa ei kysytä käynnistyksessä: käyttäjä painaa itse "Yhdistä".
             // Jos oikeus on jo annettu, kysely onnistuu ja data päivittyy.
             if health.availability == .notDetermined {
@@ -181,15 +182,20 @@ final class TodayModel {
 
     private var api: APIClient?
     private var userId = ""
+    private var hasLoaded = false
     private let cacheKey = "mobile-today"
 
     func configure(auth: AuthManager, userId: String) {
-        api = APIClient(auth: auth)
+        if api == nil { api = APIClient(auth: auth) }
         self.userId = userId
     }
 
-    /// SWR: 1) välimuisti ruudulle heti, 2) verkko taustalla.
-    func load() async {
+    /// SWR: 1) välimuisti ruudulle heti, 2) verkko taustalla. Malli on jaettu
+    /// kahden välilehden kesken, joten lataus tehdään vain kerran — muuten
+    /// sama reitti haettaisiin kahdesti käynnistyksessä.
+    func loadIfNeeded() async {
+        guard !hasLoaded else { return }
+        hasLoaded = true
         if let cached = await ResponseCache.shared.read(cacheKey) {
             apply(cached)
         } else {

@@ -5,8 +5,8 @@ import SwiftUI
 struct WorkoutsListView: View {
     let auth: AuthManager
     let userId: String
-
-    @State private var model = TodayModel()
+    /// Jaettu Tänään-välilehden kanssa: sama data, yksi haku.
+    let model: TodayModel
     @State private var showStartSheet = false
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
@@ -168,7 +168,7 @@ struct WorkoutsListView: View {
         }
         .task {
             model.configure(auth: auth, userId: userId)
-            await model.load()
+            await model.loadIfNeeded()
         }
     }
 
