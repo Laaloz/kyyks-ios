@@ -119,6 +119,12 @@ struct AddActivitySheet: View {
 /// Palvelimen lajikatalogi (lib/extra-activities.ts). MET-kertoimet ja
 /// kalorilaskenta ovat palvelimella; täällä tarvitaan vain avaimet ja nimet.
 enum ExtraActivityType: String, CaseIterable, Identifiable {
+    /// Suomenkielinen nimi tallennetulle avaimelle. Palvelin palauttaa avaimen
+    /// ("run"), jota ei näytetä käyttäjälle sellaisenaan.
+    static func label(for rawValue: String) -> String {
+        ExtraActivityType(rawValue: rawValue)?.label ?? rawValue
+    }
+
     case run, walk, cycle, indoor_cycle, treadmill, stair_climber, elliptical
     case mtb, downhill_ski, disc_golf, skate, paddle, swim, climb, hike, row
     case ski, yoga, hiit, combat, dance, mobility, other

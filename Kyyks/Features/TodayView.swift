@@ -91,7 +91,7 @@ struct TodayView: View {
                     Section("Viimeisimmät suoritukset") {
                         ForEach(model.recentActivities) { activity in
                             HStack {
-                                Text(activity.activityType)
+                                Text(ExtraActivityType.label(for: activity.activityType))
                                 Spacer()
                                 Text("\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal")
                                     .font(.footnote)
@@ -173,7 +173,9 @@ final class TodayModel {
     private(set) var currentUser: UserProfile?
     private(set) var todaysWorkout: ScheduledWorkout?
     private(set) var workouts: [ScheduledWorkout] = []
-    private(set) var recentActivities: [ExtraActivity] = []
+    /// Kaikki oheisaktiviteetit uusin ensin. Näkymät rajaavat itse sen mitä
+    /// näyttävät — Tänään näyttää muutaman, Treeni koko listan pyydettäessä.
+    private(set) var activities: [ExtraActivity] = []
     private(set) var errorMessage: String?
     private(set) var isInitialLoad = false
 
@@ -253,12 +255,12 @@ final class TodayModel {
         todaysWorkout = mine.first { $0.scheduledDate.hasPrefix(today) && $0.status != "cancelled" }
             ?? mine.last { $0.status == "in_progress" }
 
-        recentActivities = (snapshot.extraActivities ?? [])
+        activities = (snapshot.extraActivities ?? [])
             .filter { $0.athleteId == userId }
             .sorted { $0.occurredAt > $1.occurredAt }
-            .prefix(5)
-            .map { $0 }
     }
+
+    var recentActivities: [ExtraActivity] { Array(activities.prefix(5)) }
 }
 
 extension ISO8601DateFormatter {

@@ -12,6 +12,13 @@ struct WorkoutsListView: View {
     @State private var autoCancelledNotice: String?
     @State private var showAddActivity = false
     @State private var showAllCompleted = false
+    @State private var showAllActivities = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Lokit rajataan oletuksena: 20 suoritusta ja 20 treeniä tekisivät
+    /// välilehdestä yhden pitkän vierityksen, jossa muut osiot katoavat.
+    private static let activityPreviewCount = 3
+    private static let completedPreviewCount = 4
 
     struct StartedWorkout: Identifiable, Hashable {
         let id: String
@@ -56,28 +63,9 @@ struct WorkoutsListView: View {
                         ForEach(upcoming) { workoutRow($0) }
                     }
                 }
-                // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
-                // joten ne kirjataan ja näkyvät samalla välilehdellä.
-                Section("Muut suoritukset") {
-                    Button {
-                        showAddActivity = true
-                    } label: {
-                        Label("Lisää suoritus", systemImage: "plus.circle")
-                    }
-                    ForEach(model.recentActivities) { activity in
-                        HStack {
-                            Text(activity.activityType)
-                            Spacer()
-                            Text("\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
-                    }
-                }
-
-                // Kehitys katsoo koko historiaa, joten se on lähellä tehtyjä
-                // treenejä — ei kilpailemassa aloituksen kanssa.
+                // Kehitys ennen lokeja: se on kiinteä kohde, jota etsitään
+                // nimellä. Lokien välissä sen paikka liikkuu sitä mukaa kun
+                // suorituksia ja treenejä kertyy, eikä sitä enää löydä.
                 Section {
                     NavigationLink {
                         ExerciseProgressListView(auth: auth)
@@ -86,16 +74,35 @@ struct WorkoutsListView: View {
                     }
                 }
 
+                // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
+                // joten ne kirjataan ja näkyvät samalla välilehdellä.
+                Section("Muut suoritukset") {
+                    Button {
+                        showAddActivity = true
+                    } label: {
+                        Label("Lisää suoritus", systemImage: "plus.circle")
+                    }
+                    ForEach(visibleActivities) { activityRow($0) }
+                    if model.activities.count > Self.activityPreviewCount {
+                        expandButton(
+                            isExpanded: showAllActivities,
+                            total: model.activities.count,
+                            expandedLabel: "suoritusta"
+                        ) { showAllActivities.toggle() }
+                    }
+                }
+
                 if !completed.isEmpty {
                     Section("Tehdyt") {
                         // Historia viimeisenä ja rajattuna: 14 vrk:n treenit
                         // työnsivät muut suoritukset ruudullisen päähän.
-                        ForEach(showAllCompleted ? completed : Array(completed.prefix(4))) { workoutRow($0) }
-                        if completed.count > 4 {
-                            Button(showAllCompleted ? "Näytä vähemmän" : "Näytä kaikki (\(completed.count))") {
-                                withAnimation(.snappy) { showAllCompleted.toggle() }
-                            }
-                            .font(.subheadline)
+                        ForEach(showAllCompleted ? completed : Array(completed.prefix(Self.completedPreviewCount))) { workoutRow($0) }
+                        if completed.count > Self.completedPreviewCount {
+                            expandButton(
+                                isExpanded: showAllCompleted,
+                                total: completed.count,
+                                expandedLabel: "treeniä"
+                            ) { showAllCompleted.toggle() }
                         }
                     }
                 }
@@ -165,6 +172,50 @@ struct WorkoutsListView: View {
         }
     }
 
+    private var visibleActivities: [ExtraActivity] {
+        showAllActivities ? model.activities : Array(model.activities.prefix(Self.activityPreviewCount))
+    }
+
+    private func expandButton(
+        isExpanded: Bool,
+        total: Int,
+        expandedLabel: String,
+        toggle: @escaping () -> Void
+    ) -> some View {
+        Button(isExpanded ? "Näytä vähemmän" : "Näytä kaikki (\(total))") {
+            withAnimation(.snappy) { toggle() }
+        }
+        .font(.subheadline)
+        .accessibilityLabel(isExpanded ? "Näytä vähemmän" : "Näytä kaikki \(total) \(expandedLabel)")
+    }
+
+    private func activityRow(_ activity: ExtraActivity) -> some View {
+        let detail = "\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal"
+        let name = ExtraActivityType.label(for: activity.activityType)
+        return VStack(alignment: .leading, spacing: 2) {
+            // Suurilla tekstikoilla rinnakkain ei mahdu: vierekkäinen asettelu
+            // typisti sekä lajin että lukemat.
+            if dynamicTypeSize.isAccessibilitySize {
+                Text(name)
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            } else {
+                HStack {
+                    Text(name)
+                    Spacer()
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name), \(Int(activity.durationMinutes)) minuuttia, \(Int(activity.estimatedKcal)) kilokaloria")
+    }
+
     private func workoutRow(_ workout: ScheduledWorkout) -> some View {
         NavigationLink {
             WorkoutView(
@@ -174,20 +225,25 @@ struct WorkoutsListView: View {
                 onFinished: { action, id in model.finishWorkout(action, workoutId: id) }
             )
         } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(workout.title).font(.subheadline.weight(.medium))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(workout.title).font(.subheadline.weight(.medium))
+                HStack(spacing: 6) {
                     Text(formatDate(workout.scheduledDate))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    // Merkintä vain poikkeukselle: "Tehdyt"-osiossa jokainen
+                    // rivi on tehty, joten check ei kantanut informaatiota.
+                    // Kesken jäänyt sen sijaan erottuu.
+                    if workout.status == "in_progress" {
+                        Text("Kesken")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1)
+                            .background(.tint.opacity(0.15), in: Capsule())
+                    }
                 }
-                Spacer()
-                if workout.status == "completed" {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                        .accessibilityLabel("Tehty")
-                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
+            .accessibilityElement(children: .combine)
         }
     }
 
