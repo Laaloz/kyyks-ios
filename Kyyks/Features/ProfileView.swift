@@ -67,12 +67,23 @@ struct ProfileView: View {
                     }
                     // Syntymäaika eikä ikä: ikä vanhenee itsestään, ja
                     // unohtunut päivitys vääristäisi makrolaskennan hiljaa.
-                    DatePicker(
-                        "Syntymäaika",
-                        selection: $birthDate,
-                        in: Self.birthDateRange,
-                        displayedComponents: .date
-                    )
+                    if hasBirthDate {
+                        DatePicker(
+                            "Syntymäaika",
+                            selection: $birthDate,
+                            in: Self.birthDateRange,
+                            displayedComponents: .date
+                        )
+                    } else {
+                        // Tyhjä tila omana toimintonaan: pelkkä valitsin
+                        // oletusarvolla ei kertoisi onko tieto kirjattu, eikä
+                        // oletuspäivää saisi tallennettua (arvo ei muutu).
+                        Button {
+                            hasBirthDate = true
+                        } label: {
+                            Label("Lisää syntymäaika", systemImage: "calendar.badge.plus")
+                        }
+                    }
                     // Ikä vain kun se on johdettu syntymäajasta: ilman
                     // syntymäaikaa näkyvä luku olisi ristiriidassa valitsimen
                     // kanssa eikä kertoisi mistä se tulee.
