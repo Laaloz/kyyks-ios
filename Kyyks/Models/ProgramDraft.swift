@@ -122,8 +122,10 @@ struct ProgramDraft {
 
     struct DraftExercise: Identifiable {
         let id = UUID()
-        let exerciseId: String
-        let name: String
+        // Vaihdettavissa: liikkeen korvaaminen säilyttää paikan ja tavoitteet,
+        // eikä vaadi poistoa ja uudelleenlisäystä.
+        var exerciseId: String
+        var name: String
         var setCount: Int
         var repsMin: Int
         var repsMax: Int

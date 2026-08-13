@@ -159,6 +159,12 @@ private struct ProgramDraftEditor: View {
                 }
             }
 
+            Section {
+                Text("Liikkeen voi vaihtaa toiseen avaamalla sen. Järjestystä muutetaan Järjestä-tilassa.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Ohjelman nimi") {
                 TextField("Nimi", text: $draft.title)
             }
@@ -170,7 +176,10 @@ private struct ProgramDraftEditor: View {
 
                     ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { exerciseIndex, exercise in
                         NavigationLink {
-                            ExerciseTargetEditor(exercise: $draft.workouts[index].exercises[exerciseIndex])
+                            ExerciseTargetEditor(
+                                auth: auth,
+                                exercise: $draft.workouts[index].exercises[exerciseIndex]
+                            )
                         } label: {
                             HStack {
                                 Text(exercise.name).lineLimit(1)
@@ -185,6 +194,10 @@ private struct ProgramDraftEditor: View {
                     }
                     .onDelete { offsets in
                         draft.workouts[index].exercises.remove(atOffsets: offsets)
+                    }
+                    // Järjestys on osa ohjelmaa: peruliike ennen eristävää.
+                    .onMove { offsets, destination in
+                        draft.workouts[index].exercises.move(fromOffsets: offsets, toOffset: destination)
                     }
 
                     Button {
@@ -246,6 +259,11 @@ private struct ProgramDraftEditor: View {
             .padding(.bottom, 8)
             .background(.bar)
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                EditButton()
+            }
+        }
         .sheet(item: $picker) { target in
             ExercisePickerSheet(auth: auth, mode: .add) { result in
                 draft.workouts[target.workoutIndex].exercises.append(
@@ -265,10 +283,23 @@ private struct ProgramDraftEditor: View {
 
 /// Sarjat, toistohaarukka ja lepoaika yhdelle liikkeelle.
 private struct ExerciseTargetEditor: View {
+    let auth: AuthManager
     @Binding var exercise: ProgramDraft.DraftExercise
+
+    @State private var showPicker = false
 
     var body: some View {
         List {
+            Section {
+                Button {
+                    showPicker = true
+                } label: {
+                    Label("Vaihda liike", systemImage: "arrow.triangle.2.circlepath")
+                }
+            } footer: {
+                Text("Vaihto säilyttää paikan ohjelmassa sekä sarjat ja toistot.")
+            }
+
             Section("Sarjat") {
                 Stepper("\(exercise.setCount) sarjaa", value: $exercise.setCount, in: 1 ... 10)
             }
@@ -288,6 +319,12 @@ private struct ExerciseTargetEditor: View {
         }
         .navigationTitle(exercise.name)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showPicker) {
+            ExercisePickerSheet(auth: auth, mode: .replace(templateExerciseId: exercise.exerciseId, currentName: exercise.name)) { result in
+                exercise.exerciseId = result.id
+                exercise.name = result.name
+            }
+        }
     }
 }
 
