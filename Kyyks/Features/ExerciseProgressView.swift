@@ -239,7 +239,9 @@ struct ExerciseProgressDetailView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 PointMark(x: .value("Valittu", selected.day), y: .value("e1RM", selected.value))
                     .symbolSize(90)
-                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .disabled)) {
+                    // y: .fit pitää kuplan kaavion sisällä — .disabled leikkasi
+                    // lukeman pois, kun valittu piste oli käyrän huipulla.
+                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
                         VStack(spacing: 1) {
                             Text("\(formatKg(selected.value)) kg")
                                 .font(.subheadline.weight(.semibold))

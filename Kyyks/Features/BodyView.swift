@@ -60,7 +60,9 @@ struct BodyView: View {
                                     y: .value("Paino", selected.value)
                                 )
                                 .symbolSize(90)
-                                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .disabled)) {
+                                // y: .fit pitää kuplan kaavion sisällä — .disabled
+                                // leikkasi lukeman pois käyrän huipulla.
+                                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
                                     VStack(spacing: 1) {
                                         Text(selected.value, format: .number.precision(.fractionLength(1)))
                                             .font(.subheadline.weight(.semibold))
