@@ -13,6 +13,20 @@ struct ProgramDraftEditor: View {
     let onSave: (_ activate: Bool) -> Void
 
     @State private var picker: PickerTarget?
+    /// Kumpaa tallennusvaihtoehtoa painettiin — spinneri kuuluu siihen nappiin.
+    @State private var pendingActivate: Bool?
+
+    private var primaryLabel: String {
+        if isSaving && pendingActivate == !isEditingActiveProgram {
+            return "Tallennetaan…"
+        }
+        return isEditingActiveProgram ? "Tallenna" : "Tallenna ja ota käyttöön"
+    }
+
+    private func save(activate: Bool) {
+        pendingActivate = activate
+        onSave(activate)
+    }
 
     private struct PickerTarget: Identifiable {
         let workoutIndex: Int
@@ -112,15 +126,16 @@ struct ProgramDraftEditor: View {
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
                 Button {
-                    onSave(!isEditingActiveProgram)
+                    save(activate: !isEditingActiveProgram)
                 } label: {
-                    Group {
-                        if isSaving {
-                            ProgressView()
-                        } else {
-                            Text(isEditingActiveProgram ? "Tallenna" : "Tallenna ja ota käyttöön")
-                                .font(.headline)
+                    HStack(spacing: 8) {
+                        // Spinneri siinä napissa jota painettiin: tallennus voi
+                        // olla kaksi pyyntöä (sisältö + käyttöönotto), eikä
+                        // painallus saa näyttää siltä ettei mitään tapahtunut.
+                        if isSaving && pendingActivate == !isEditingActiveProgram {
+                            ProgressView().tint(.white)
                         }
+                        Text(primaryLabel).font(.headline)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -131,14 +146,26 @@ struct ProgramDraftEditor: View {
                 // Valmistelu etukäteen: ohjelma tallentuu koskematta siihen,
                 // mitä juuri nyt treenataan.
                 if !isEditingActiveProgram {
-                    Button("Tallenna ottamatta käyttöön") { onSave(false) }
-                        .font(.subheadline)
-                        .disabled(!draft.isSavable || isSaving)
+                    Button {
+                        save(activate: false)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isSaving && pendingActivate == false {
+                                ProgressView()
+                            }
+                            Text(isSaving && pendingActivate == false ? "Tallennetaan…" : "Tallenna ottamatta käyttöön")
+                        }
+                    }
+                    .font(.subheadline)
+                    .disabled(!draft.isSavable || isSaving)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
             .background(.bar)
+        }
+        .onChange(of: isSaving) { _, saving in
+            if !saving { pendingActivate = nil }
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
