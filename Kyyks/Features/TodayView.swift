@@ -197,12 +197,16 @@ struct TodayView: View {
         }
     }
 
-    /// Askeleet, uni ja suoritusten tuonti rinnakkain — mikään ei odota toista.
+    /// Askeleet, uni sekä suoritusten ja painon tuonti rinnakkain — mikään ei
+    /// odota toista. Paino tuodaan täältä eikä Keho-välilehdeltä, jotta
+    /// HealthManager pysyy yhtenä: Keho lukee valmiit rivit API:sta.
     private func refreshHealth() async {
+        let api = APIClient(auth: auth)
         async let steps: Void = health.refreshTodaySteps()
         async let sleep: Void = health.refreshAverageSleep()
-        async let sync: Void = health.syncWorkouts(using: APIClient(auth: auth))
-        _ = await (steps, sleep, sync)
+        async let workouts: Void = health.syncWorkouts(using: api)
+        async let weight: Void = health.syncWeight(using: api)
+        _ = await (steps, sleep, workouts, weight)
         await model.refresh()
     }
 }

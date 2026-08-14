@@ -2,12 +2,13 @@ import HealthKit
 import Observation
 import OSLog
 
-/// Apple Health -luku: päivän askeleet ja muissa sovelluksissa tehdyt
-/// suoritukset. Kirjoitusoikeutta ei pyydetä — Kyyks vain lukee.
+/// Apple Health -luku: päivän askeleet, uni, muissa sovelluksissa tehdyt
+/// suoritukset ja paino. Kirjoitusoikeutta ei pyydetä — Kyyks vain lukee.
 ///
-/// Suoritukset tuodaan oheisaktiviteeteiksi olemassa olevan API:n kautta.
-/// Duplikaatit estetään palvelimella (external_id = HKWorkout.uuid), joten
-/// synkan voi ajaa huoletta uudelleen.
+/// Suoritukset tuodaan oheisaktiviteeteiksi ja painot mittaushistoriaan
+/// olemassa olevien API-reittien kautta. Duplikaatit estetään palvelimella
+/// (external_id = HealthKitin näytteen UUID), joten synkan voi ajaa huoletta
+/// uudelleen joka avauksella.
 @Observable
 @MainActor
 final class HealthManager {
@@ -25,7 +26,19 @@ final class HealthManager {
     /// mistä tahansa lähteestä.
     private(set) var averageSleepSeconds: Double?
     private(set) var isSyncing = false
-    private(set) var lastSyncMessage: String?
+    /// Tuonnin tulokset erillisinä lukuina eikä yhtenä viestinä: suoritukset ja
+    /// paino synkataan rinnakkain, ja yhteinen viestikenttä tarkoitti että
+    /// nopeampi ehti pyyhkiä hitaamman tuloksen.
+    private(set) var lastWorkoutImportCount = 0
+    private(set) var lastWeightImportCount = 0
+
+    var lastSyncMessage: String? {
+        let parts = [
+            lastWorkoutImportCount > 0 ? "\(lastWorkoutImportCount) suoritusta" : nil,
+            lastWeightImportCount > 0 ? "\(lastWeightImportCount) punnitusta" : nil,
+        ].compactMap { $0 }
+        return parts.isEmpty ? nil : "Tuotiin \(parts.joined(separator: " ja ")) Apple Healthista."
+    }
 
     private let store = HKHealthStore()
     /// HealthKitin kyselyt vastaavat omassa säikeessään, joten loki ei voi olla
@@ -42,6 +55,9 @@ final class HealthManager {
         }
         if let sleep = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) {
             types.insert(sleep)
+        }
+        if let bodyMass = HKQuantityType.quantityType(forIdentifier: .bodyMass) {
+            types.insert(bodyMass)
         }
         return types
     }
@@ -218,9 +234,98 @@ final class HealthManager {
             }
         }
 
-        lastSyncMessage = imported > 0
-            ? "Tuotiin \(imported) suoritusta Apple Healthista."
-            : nil
+        lastWorkoutImportCount = imported
+    }
+
+    // MARK: - Paino
+
+    /// Yksi punnitus HealthKitistä. Oma tyyppi HKQuantitySamplen sijaan, jotta
+    /// valintasääntö on yksikkötestattavissa ilman HealthKit-oliota.
+    struct WeightSample: Equatable {
+        let id: String
+        let date: Date
+        let kilograms: Double
+    }
+
+    /// Päivän viimeinen punnitus, päivä kerrallaan.
+    ///
+    /// Älyvaaka ja käyttäjä voivat kirjata saman päivän useaan kertaan (aamu,
+    /// ilta, useampi astuminen vaa'alle). Kaikkien tuominen täyttäisi
+    /// painohistorian kohinalla, joka ei kerro kehityksestä mitään — päivän
+    /// viimeinen on myös vakiintunein arvo.
+    static func latestPerDay(_ samples: [WeightSample], calendar: Calendar = .current) -> [WeightSample] {
+        var byDay: [Date: WeightSample] = [:]
+        for sample in samples {
+            let day = calendar.startOfDay(for: sample.date)
+            if let existing = byDay[day], existing.date >= sample.date {
+                continue
+            }
+            byDay[day] = sample
+        }
+        return byDay.values.sorted { $0.date < $1.date }
+    }
+
+    /// Tuo viimeisten `days` päivän painot. Älyvaaka kirjoittaa painon Healthiin
+    /// joka aamu ilman että käyttäjä tekee mitään, joten tämä on useimmille
+    /// tiheämpää dataa kuin käsin kirjaaminen tuottaisi.
+    func syncWeight(days: Int = 30, using api: APIClient) async {
+        guard availability == .authorized else { return }
+        guard let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return }
+
+        let samples = Self.latestPerDay(await fetchWeightSamples(since: start))
+        guard !samples.isEmpty else { return }
+
+        struct Sample: Encodable {
+            let externalId: String
+            let weightKg: Double
+            let measuredAt: String
+        }
+        struct Body: Encodable { let samples: [Sample] }
+        struct Response: Decodable { let imported: Int }
+
+        do {
+            let data = try await api.post("/api/mobile/measurements/import", body: Body(
+                samples: samples.map { sample in
+                    Sample(
+                        externalId: sample.id,
+                        // Punnituksen tarkkuus on 0,1 kg; enempi desimaali on
+                        // vaa'an kohinaa eikä muutosta painossa.
+                        weightKg: (sample.kilograms * 10).rounded() / 10,
+                        measuredAt: ISO8601DateFormatter().string(from: sample.date)
+                    )
+                }
+            ))
+            lastWeightImportCount = (try? JSONDecoder().decode(Response.self, from: data))?.imported ?? 0
+        } catch {
+            Self.log.error("Painon tuonti epäonnistui: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func fetchWeightSamples(since start: Date) async -> [WeightSample] {
+        guard let bodyMass = HKQuantityType.quantityType(forIdentifier: .bodyMass) else { return [] }
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(
+                sampleType: bodyMass,
+                predicate: HKQuery.predicateForSamples(withStart: start, end: .now),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            ) { _, samples, error in
+                if let error {
+                    Self.log.error("Painojen haku epäonnistui: \(error.localizedDescription, privacy: .public)")
+                }
+                let quantities = (samples as? [HKQuantitySample]) ?? []
+                continuation.resume(returning: quantities.map { sample in
+                    WeightSample(
+                        id: sample.uuid.uuidString,
+                        // Punnituksen hetki on näytteen loppuaika; hetkellisellä
+                        // näytteellä start ja end ovat sama.
+                        date: sample.endDate,
+                        kilograms: sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+                    )
+                })
+            }
+            store.execute(query)
+        }
     }
 
     private func fetchWorkouts(since start: Date) async -> [HKWorkout] {
