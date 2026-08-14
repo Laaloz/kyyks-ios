@@ -3,6 +3,9 @@ import Foundation
 /// /api/nutrition/ai-estimate -vastaus.
 struct AiEstimateResponse: Decodable {
     let estimate: AiFoodEstimate
+    /// Ilmaiskäyttäjän jäljellä olevat arviot tässä kuussa. Puuttuu tilaajalta
+    /// ja valmennettavalta, joilla rajaa ei ole.
+    let estimatesLeft: Int?
 }
 
 struct AiFoodEstimate: Decodable {

@@ -108,7 +108,7 @@ struct AddMealSheet: View {
 
     private func estimateSection(_ estimate: AiFoodEstimate) -> some View {
         Group {
-            Section("Tunnistettu") {
+            Section {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(estimate.name)
                         .font(.headline)
@@ -129,6 +129,16 @@ struct AddMealSheet: View {
                         .monospacedDigit()
                         .frame(width: 80)
                     Text("g").foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Tunnistettu")
+            } footer: {
+                // Vain ilmaistasolla: tilaajalla ei ole kiintiötä, joten
+                // laskuri olisi hänelle pelkkää kohinaa.
+                if let left = model.estimatesLeft {
+                    Text(left > 0
+                        ? "Ilmaisia AI-arvioita jäljellä \(left) tässä kuussa."
+                        : "Tämä oli kuukauden viimeinen ilmainen AI-arvio.")
                 }
             }
 
@@ -191,6 +201,10 @@ final class AddMealModel {
     /// Palvelimen perustelu: kertoo loppuiko ilmainen kiintiö vai onko
     /// ominaisuus kokonaan maksullinen. Tilausnäkymä näyttää sen sellaisenaan.
     private(set) var paywallMessage = ""
+    /// Ilmaiskäyttäjän jäljellä olevat arviot. Näytetään onnistuneen arvion
+    /// yhteydessä, jottei kiintiön loppuminen tule yllätyksenä — muuri
+    /// hyväksytään paremmin kun sen tulon on nähnyt etukäteen.
+    private(set) var estimatesLeft: Int?
     var grams: Double = 0
     var mealTag: MealTag = .suggestion()
     var query = ""
@@ -230,6 +244,7 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
+            estimatesLeft = response.estimatesLeft
         } catch APIError.paymentRequired(let message) {
             paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
@@ -268,6 +283,7 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
+            estimatesLeft = response.estimatesLeft
         } catch APIError.paymentRequired(let message) {
             paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
