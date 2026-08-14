@@ -16,6 +16,7 @@ struct CreateProgramView: View {
     @State private var draft: ProgramDraft?
     /// Muokattavan ohjelman id. nil = uusi ohjelma.
     @State private var editingProgramId: String?
+    @State private var pendingRemoval: Program?
 
     var body: some View {
         NavigationStack {
@@ -25,10 +26,18 @@ struct CreateProgramView: View {
                         auth: auth,
                         draft: Binding(get: { draft }, set: { self.draft = $0 }),
                         isSaving: model.isSaving,
-                        errorMessage: model.errorMessage
-                    ) {
+                        errorMessage: model.errorMessage,
+                        // Nykyistä ohjelmaa ei tarvitse ottaa käyttöön; muissa
+                        // tapauksissa käyttöönotto on erillinen valinta.
+                        isEditingActiveProgram: editingProgramId != nil && editingProgramId == programs.activeProgram?.id
+                    ) { activate in
                         Task {
-                            if await model.save(draft: draft, athleteId: userId, programId: editingProgramId) {
+                            if await model.save(
+                                draft: draft,
+                                athleteId: userId,
+                                programId: editingProgramId,
+                                activate: activate
+                            ) {
                                 onCreated()
                                 dismiss()
                             }
@@ -60,6 +69,26 @@ struct CreateProgramView: View {
             programs.configure(auth: auth)
             await model.load()
         }
+    }
+
+    /// Arkistoidun rivin sisältö: nimi, päivä ja treenit. Päivä erottaa
+    /// samannimiset versiot toisistaan.
+    private func archivedRow(_ program: Program) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(program.title).font(.subheadline.weight(.medium))
+            HStack(spacing: 4) {
+                if let date = program.updatedDate {
+                    Text(date, format: .dateTime.day().month().year())
+                    Text("·")
+                }
+                Text(program.workoutNames).lineLimit(1)
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 
     private var templatePicker: some View {
@@ -96,6 +125,59 @@ struct CreateProgramView: View {
                     // sarjakohtaiset erot tasoittuvat tallennuksessa. Parempi
                     // kertoa se etukäteen kuin antaa sen yllättää.
                     Text("Muokkaus säilyttää ohjelman ja tehdyt treenit. Kaikki liikkeen sarjat saavat saman tavoitteen, ja käynnissä olevaan treeniin muutokset eivät vaikuta.")
+                }
+            }
+
+            if !programs.archivedPrograms.isEmpty {
+                Section {
+                    ForEach(programs.archivedPrograms) { program in
+                        HStack {
+                            Button {
+                                editingProgramId = program.id
+                                draft = .from(program)
+                            } label: {
+                                archivedRow(program)
+                            }
+                            .buttonStyle(.plain)
+
+                            Menu {
+                                Button {
+                                    Task {
+                                        if await programs.activate(program) { dismiss() }
+                                    }
+                                } label: {
+                                    Label("Ota käyttöön", systemImage: "checkmark.circle")
+                                }
+                                Button {
+                                    editingProgramId = program.id
+                                    draft = .from(program)
+                                } label: {
+                                    Label("Muokkaa", systemImage: "pencil")
+                                }
+                                Button {
+                                    editingProgramId = nil
+                                    draft = .from(program)
+                                } label: {
+                                    Label("Käytä pohjana", systemImage: "doc.on.doc")
+                                }
+                                Button(role: .destructive) {
+                                    pendingRemoval = program
+                                } label: {
+                                    Label("Poista", systemImage: "trash")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .imageScale(.large)
+                            }
+                            .accessibilityLabel("Ohjelman \(program.title) toiminnot")
+                        }
+                    }
+                } header: {
+                    // Listassa on sekä käytöstä poistuneita että etukäteen
+                    // valmisteltuja, joten "Aiemmat" olisi harhaanjohtava.
+                    Text("Ei käytössä")
+                } footer: {
+                    Text("Tänne tallentuvat sekä etukäteen valmistellut ohjelmat että aiemmin käytössä olleet. Käyttöön otettu ohjelma korvaa nykyisen, ja nykyinen siirtyy tähän listaan. Tehdyt treenit säilyvät kaikissa tapauksissa.")
                 }
             }
 
@@ -137,197 +219,20 @@ struct CreateProgramView: View {
             }
         }
         .overlay { if model.isLoading && model.templates.isEmpty { ProgressView() } }
-    }
-}
-
-/// Luonnoksen muokkaus: treenit, liikkeet ja tavoitesarjat.
-private struct ProgramDraftEditor: View {
-    let auth: AuthManager
-    @Binding var draft: ProgramDraft
-    let isSaving: Bool
-    let errorMessage: String?
-    let onSave: () -> Void
-
-    @State private var picker: PickerTarget?
-
-    private struct PickerTarget: Identifiable {
-        let workoutIndex: Int
-        var id: Int { workoutIndex }
-    }
-
-    var body: some View {
-        List {
-            if let errorMessage {
-                Section {
-                    Text(errorMessage).font(.footnote).foregroundStyle(.red)
+        .confirmationDialog(
+            pendingRemoval.map { "Poistetaanko \($0.title)?" } ?? "",
+            isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Poista", role: .destructive) {
+                if let program = pendingRemoval {
+                    Task { _ = await programs.remove(program) }
                 }
+                pendingRemoval = nil
             }
-
-            Section {
-                Text("Liikkeen voi vaihtaa toiseen avaamalla sen. Järjestystä muutetaan Järjestä-tilassa.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Ohjelman nimi") {
-                TextField("Nimi", text: $draft.title)
-            }
-
-            ForEach(Array(draft.workouts.enumerated()), id: \.element.id) { index, workout in
-                Section {
-                    TextField("Treenin nimi", text: $draft.workouts[index].name)
-                        .font(.headline)
-
-                    ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { exerciseIndex, exercise in
-                        NavigationLink {
-                            ExerciseTargetEditor(
-                                auth: auth,
-                                exercise: $draft.workouts[index].exercises[exerciseIndex]
-                            )
-                        } label: {
-                            HStack {
-                                Text(exercise.name).lineLimit(1)
-                                Spacer()
-                                Text(exercise.summary)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
-                            }
-                            .accessibilityElement(children: .combine)
-                        }
-                    }
-                    .onDelete { offsets in
-                        draft.workouts[index].exercises.remove(atOffsets: offsets)
-                    }
-                    // Järjestys on osa ohjelmaa: peruliike ennen eristävää.
-                    .onMove { offsets, destination in
-                        draft.workouts[index].exercises.move(fromOffsets: offsets, toOffset: destination)
-                    }
-
-                    Button {
-                        picker = PickerTarget(workoutIndex: index)
-                    } label: {
-                        Label("Lisää liike", systemImage: "plus.circle")
-                    }
-
-                    if draft.workouts.count > 1 {
-                        Button("Poista treeni", role: .destructive) {
-                            draft.workouts.remove(at: index)
-                        }
-                    }
-                } header: {
-                    Text("Treeni \(index + 1)")
-                } footer: {
-                    if workout.exercises.isEmpty {
-                        Text("Lisää vähintään yksi liike, jotta treenin voi aloittaa.")
-                    }
-                }
-            }
-
-            Section {
-                Button {
-                    draft.workouts.append(
-                        ProgramDraft.DraftWorkout(
-                            name: "Treeni \(draft.workouts.count + 1)",
-                            splitType: "custom",
-                            exercises: []
-                        )
-                    )
-                } label: {
-                    Label("Lisää treeni", systemImage: "plus.circle")
-                }
-            }
-
-            Section {
-                Color.clear
-                    .frame(height: 44)
-                    .listRowBackground(Color.clear)
-            }
-            .listSectionSpacing(0)
-        }
-        .safeAreaInset(edge: .bottom) {
-            Button(action: onSave) {
-                Group {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        Text("Tallenna ohjelma").font(.headline)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!draft.isSavable || isSaving)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            .background(.bar)
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                EditButton()
-            }
-        }
-        .sheet(item: $picker) { target in
-            ExercisePickerSheet(auth: auth, mode: .add) { result in
-                draft.workouts[target.workoutIndex].exercises.append(
-                    ProgramDraft.DraftExercise(
-                        exerciseId: result.id,
-                        name: result.name,
-                        setCount: 3,
-                        repsMin: 8,
-                        repsMax: 12,
-                        restSeconds: 90
-                    )
-                )
-            }
-        }
-    }
-}
-
-/// Sarjat, toistohaarukka ja lepoaika yhdelle liikkeelle.
-private struct ExerciseTargetEditor: View {
-    let auth: AuthManager
-    @Binding var exercise: ProgramDraft.DraftExercise
-
-    @State private var showPicker = false
-
-    var body: some View {
-        List {
-            Section {
-                Button {
-                    showPicker = true
-                } label: {
-                    Label("Vaihda liike", systemImage: "arrow.triangle.2.circlepath")
-                }
-            } footer: {
-                Text("Vaihto säilyttää paikan ohjelmassa sekä sarjat ja toistot.")
-            }
-
-            Section("Sarjat") {
-                Stepper("\(exercise.setCount) sarjaa", value: $exercise.setCount, in: 1 ... 10)
-            }
-            Section("Toistot") {
-                Stepper("Vähintään \(exercise.repsMin)", value: $exercise.repsMin, in: 1 ... 30)
-                    .onChange(of: exercise.repsMin) { _, value in
-                        if exercise.repsMax < value { exercise.repsMax = value }
-                    }
-                Stepper("Enintään \(exercise.repsMax)", value: $exercise.repsMax, in: 1 ... 30)
-                    .onChange(of: exercise.repsMax) { _, value in
-                        if exercise.repsMin > value { exercise.repsMin = value }
-                    }
-            }
-            Section("Lepo") {
-                Stepper("\(exercise.restSeconds) s", value: $exercise.restSeconds, in: 30 ... 300, step: 15)
-            }
-        }
-        .navigationTitle(exercise.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showPicker) {
-            ExercisePickerSheet(auth: auth, mode: .replace(templateExerciseId: exercise.exerciseId, currentName: exercise.name)) { result in
-                exercise.exerciseId = result.id
-                exercise.name = result.name
-            }
+            Button("Peruuta", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("Ohjelma katoaa listalta pysyvästi. Sillä tehdyt treenit ja niiden sarjat säilyvät historiassa.")
         }
     }
 }
@@ -369,16 +274,38 @@ final class CreateProgramModel {
 
     /// Uusi ohjelma POST:lla, olemassa olevan muokkaus PATCH:lla — muokkaus ei
     /// saa arkistoida ohjelmaa eikä katkaista sen historiaa.
-    func save(draft: ProgramDraft, athleteId: String, programId: String?) async -> Bool {
+    /// Tallennus ja käyttöönotto ovat eri asioita: ohjelman voi valmistella
+    /// etukäteen ja ottaa käyttöön vasta kun edellinen jakso on ajettu loppuun.
+    func save(
+        draft: ProgramDraft,
+        athleteId: String,
+        programId: String?,
+        activate: Bool
+    ) async -> Bool {
         guard let api else { return false }
         isSaving = true
         defer { isSaving = false }
         do {
-            let body = CreateProgramRequest(draft: draft, athleteId: athleteId)
             if let programId {
-                _ = try await api.patch("/api/programs/\(programId)", body: body)
+                // Muokkaus ei koske tilaan; käyttöönotto on oma pyyntönsä,
+                // jotta arkistoidun muokkaus ei aktivoi sitä vahingossa.
+                _ = try await api.patch(
+                    "/api/programs/\(programId)",
+                    body: CreateProgramRequest(draft: draft, athleteId: athleteId)
+                )
+                if activate {
+                    struct StatusBody: Encodable { let status: String }
+                    _ = try await api.post("/api/programs/\(programId)/status", body: StatusBody(status: "active"))
+                }
             } else {
-                _ = try await api.post("/api/programs", body: body)
+                _ = try await api.post(
+                    "/api/programs",
+                    body: CreateProgramRequest(
+                        draft: draft,
+                        athleteId: athleteId,
+                        status: activate ? "active" : "archived"
+                    )
+                )
             }
             errorMessage = nil
             return true

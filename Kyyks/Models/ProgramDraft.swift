@@ -121,8 +121,12 @@ struct CreateProgramRequest: Encodable {
     let title: String
     let athleteId: String
     let workouts: [Workout]
+    /// Vain uudelle ohjelmalle: "archived" tallentaa ottamatta käyttöön.
+    /// Muokkauksessa nil, koska tilaa ei vaihdeta sisältöä tallentaessa.
+    let status: String?
 
-    init(draft: ProgramDraft, athleteId: String) {
+    init(draft: ProgramDraft, athleteId: String, status: String? = nil) {
+        self.status = status
         self.title = draft.title.trimmingCharacters(in: .whitespaces)
         self.athleteId = athleteId
         self.workouts = draft.workouts

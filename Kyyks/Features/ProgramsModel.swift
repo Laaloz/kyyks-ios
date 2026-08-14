@@ -17,7 +17,8 @@ final class ProgramsModel {
     private var hasLoaded = false
     private let cacheKey = "mobile-programs"
 
-    var activeProgram: Program? { programs.first }
+    var activeProgram: Program? { programs.first(where: \.isActive) }
+    var archivedPrograms: [Program] { programs.filter { !$0.isActive } }
 
     func configure(auth: AuthManager) {
         if api == nil { api = APIClient(auth: auth) }
@@ -46,6 +47,37 @@ final class ProgramsModel {
             if programs.isEmpty {
                 errorMessage = "Ohjelmien haku epäonnistui."
             }
+        }
+    }
+
+    /// Arkistoidun palautus käyttöön. Palvelin arkistoi samalla nykyisen, joten
+    /// aktiivisia on aina täsmälleen yksi.
+    func activate(_ program: Program) async -> Bool {
+        guard let api else { return false }
+        struct Body: Encodable { let status: String }
+        do {
+            _ = try await api.post("/api/programs/\(program.id)/status", body: Body(status: "active"))
+            await refresh()
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = "Ohjelman palautus epäonnistui — yritä uudelleen."
+            return false
+        }
+    }
+
+    /// Poisto on palvelimella pehmeä: ohjelma katoaa listoilta, mutta sillä
+    /// tehdyt treenit säilyvät historiassa.
+    func remove(_ program: Program) async -> Bool {
+        guard let api else { return false }
+        do {
+            _ = try await api.delete("/api/programs/\(program.id)")
+            await refresh()
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = "Ohjelman poisto epäonnistui — yritä uudelleen."
+            return false
         }
     }
 

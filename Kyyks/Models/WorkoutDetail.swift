@@ -22,7 +22,16 @@ struct ProgramsResponse: Decodable {
 struct Program: Decodable, Identifiable {
     let id: String
     let title: String
+    /// "active" | "archived" — poistetut eivät tule reitiltä lainkaan.
+    let status: String?
+    let updatedAt: String?
     let workouts: [ProgramWorkoutSummary]
+
+    var isActive: Bool { status != "archived" }
+
+    /// Milloin ohjelma oli viimeksi käytössä — erottaa samannimiset versiot.
+    var updatedDate: Date? { updatedAt.flatMap { ExerciseProgress.parseDate($0) } }
+    var workoutNames: String { workouts.map(\.name).joined(separator: " · ") }
 }
 
 struct ProgramWorkoutSummary: Decodable, Identifiable {
