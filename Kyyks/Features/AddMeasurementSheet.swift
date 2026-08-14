@@ -50,8 +50,9 @@ struct AddMeasurementSheet: View {
                     Button("Peru") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Tallenna") { Task { await save() } }
-                        .disabled(isSaving || !hasAnyValue)
+                    SaveToolbarButton(isSaving: isSaving, isEnabled: hasAnyValue) {
+                        Task { await save() }
+                    }
                 }
             }
         }

@@ -49,7 +49,7 @@ struct AddMealSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if model.estimate != nil {
-                        Button("Tallenna") {
+                        SaveToolbarButton(isSaving: model.isSaving) {
                             Task {
                                 if await model.save() {
                                     onAdded()
@@ -57,7 +57,6 @@ struct AddMealSheet: View {
                                 }
                             }
                         }
-                        .disabled(model.isSaving)
                     }
                 }
             }

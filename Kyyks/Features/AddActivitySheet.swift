@@ -95,8 +95,9 @@ struct AddActivitySheet: View {
                     Button("Peru") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Tallenna") { Task { await save() } }
-                        .disabled(isSaving || durationMinutes == nil)
+                    SaveToolbarButton(isSaving: isSaving, isEnabled: durationMinutes != nil) {
+                        Task { await save() }
+                    }
                 }
             }
         }
