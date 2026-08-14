@@ -28,7 +28,9 @@ final class HealthManager {
     private(set) var lastSyncMessage: String?
 
     private let store = HKHealthStore()
-    private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "health")
+    /// HealthKitin kyselyt vastaavat omassa säikeessään, joten loki ei voi olla
+    /// pääsäikeeseen sidottu.
+    private nonisolated static let log = Logger(subsystem: "fit.rooki.kyyks", category: "health")
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
