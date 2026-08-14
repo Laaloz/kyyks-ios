@@ -90,9 +90,13 @@ struct PaywallView: View {
             }
             .navigationTitle("Tilaus")
             .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(store.isPurchasing)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    // Sulkeminen kesken varmennuksen jättäisi oston tilaan,
+                    // jossa raha on veloitettu mutta oikeus ei vielä näy.
                     Button("Sulje") { dismiss() }
+                        .disabled(store.isPurchasing)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -104,8 +108,15 @@ struct PaywallView: View {
                         }
                     } label: {
                         Group {
-                            if store.isPurchasing {
-                                ProgressView()
+                            // Pelkkä pyörivä ympyrä ei kerro mitä odotetaan.
+                            // Osto etenee kahdessa vaiheessa, joista jälkimmäinen
+                            // (palvelimen varmennus) kestää sekunteja — vaiheen
+                            // nimeäminen erottaa hitaan onnistumisen jumista.
+                            if let label = store.phase.label {
+                                HStack(spacing: 10) {
+                                    ProgressView().tint(.white)
+                                    Text(label).font(.headline)
+                                }
                             } else {
                                 Text("Tilaa \(product.displayPrice)").font(.headline)
                             }

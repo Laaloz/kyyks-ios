@@ -23,7 +23,27 @@ final class SubscriptionStore {
     /// tuotetunnisteista tyhjän listan heittämättä virhettä, joten ilman tätä
     /// näkymä jäisi pyörittämään latausta ikuisesti.
     private(set) var didLoadProducts = false
-    private(set) var isPurchasing = false
+    /// Oston vaihe. Pelkkä totuusarvo ei riittänyt: oston jälkeen seuraa vielä
+    /// palvelimen varmennus, joka kestää oman sekuntinsa, ja siinä välissä
+    /// näkymä näytti pysähtyneeltä — käyttäjä ei tiennyt meniko osto läpi.
+    enum PurchasePhase: Equatable {
+        case idle
+        /// StoreKit avaa Applen vahvistusdialogin.
+        case purchasing
+        /// Osto on tehty, palvelin varmentaa allekirjoituksen ja kirjaa oikeuden.
+        case verifying
+
+        var label: String? {
+            switch self {
+            case .idle: nil
+            case .purchasing: "Avataan App Store…"
+            case .verifying: "Vahvistetaan tilausta…"
+            }
+        }
+    }
+
+    private(set) var phase: PurchasePhase = .idle
+    var isPurchasing: Bool { phase != .idle }
     private(set) var errorMessage: String?
 
     private var api: APIClient?
@@ -69,13 +89,17 @@ final class SubscriptionStore {
 
     func purchase(_ product: Product) async {
         guard !isPurchasing else { return }
-        isPurchasing = true
+        phase = .purchasing
         errorMessage = nil
-        defer { isPurchasing = false }
+        defer { phase = .idle }
 
         do {
             switch try await product.purchase() {
             case .success(let verification):
+                // Applen dialogi on kuitattu, mutta oikeus ei ole vielä
+                // voimassa: se syntyy vasta kun palvelin on varmentanut
+                // allekirjoituksen. Vaihe kerrotaan, ettei odotus ole mykkä.
+                phase = .verifying
                 await handle(verification)
             case .userCancelled:
                 break
