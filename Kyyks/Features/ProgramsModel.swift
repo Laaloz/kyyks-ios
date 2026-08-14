@@ -68,14 +68,22 @@ final class ProgramsModel {
 
     /// Poisto on palvelimella pehmeä: ohjelma katoaa listoilta, mutta sillä
     /// tehdyt treenit säilyvät historiassa.
+    ///
+    /// Optimistinen: rivi katoaa heti eikä vasta poiston ja päivityksen
+    /// jälkeen. Vastaus kesti sekunteja, jolloin näytti ettei mitään tapahtunut
+    /// ja poistoa yritettiin uudelleen.
     func remove(_ program: Program) async -> Bool {
         guard let api else { return false }
+        let previous = programs
+        programs.removeAll { $0.id == program.id }
         do {
             _ = try await api.delete("/api/programs/\(program.id)")
-            await refresh()
             errorMessage = nil
+            // Palvelimen tila varmistetaan taustalla; ruutu on jo oikein.
+            await refresh()
             return true
         } catch {
+            programs = previous
             errorMessage = "Ohjelman poisto epäonnistui — yritä uudelleen."
             return false
         }
