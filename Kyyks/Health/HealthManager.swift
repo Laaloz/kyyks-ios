@@ -13,13 +13,32 @@ import OSLog
 @MainActor
 final class HealthManager {
     enum Availability {
+        /// Laite ei tue HealthKitiä.
         case unavailable
+        /// Lupaa ei ole vielä kysytty.
         case notDetermined
-        case authorized
+        /// Lupakyselyyn on vastattu — mutta EI tiedetä miten. iOS ei paljasta
+        /// lukuoikeuden tilaa tietosuojasyistä, eikä `requestAuthorization`
+        /// heitä virhettä silloinkaan kun käyttäjä kieltää lukemisen. Ainoa
+        /// varma merkki pääsystä on se, että jokin kysely palauttaa dataa
+        /// (`hasReceivedData`).
+        case asked
+        /// Lupakysely itse epäonnistui (harvinaista).
         case denied
     }
 
     private(set) var availability: Availability = .notDetermined
+    /// Onko yksikään kysely palauttanut dataa tämän käynnistyksen aikana.
+    ///
+    /// Tämä erottaa "lupa evätty" ja "dataa ei ole" toisistaan sen verran kuin
+    /// iOS antaa: dataa saanut sovellus tietää varmasti pääsevänsä käsiksi,
+    /// mutta tyhjä tulos voi tarkoittaa kumpaa tahansa. Aiemmin tila
+    /// merkittiin sallituksi heti kyselyn jälkeen, jolloin kieltänyt käyttäjä
+    /// näki "yhdistetty"-tilan jossa ei vain koskaan ollut mitään.
+    private(set) var hasReceivedData = false
+    /// Onko ainakin yksi hakukierros ajettu loppuun. Ilman tätä "ei dataa"
+    /// -huomautus välähtäisi joka avauksella ennen kuin kyselyt ehtivät vastata.
+    private(set) var hasCompletedQuery = false
     private(set) var todaySteps: Int?
     /// Keskimääräinen yöuni viimeisiltä seitsemältä yöltä sekunteina. Vaiheet
     /// (syvä/REM) vaatisivat kellon, joten seurataan kokonaisunta, jonka saa
@@ -62,8 +81,9 @@ final class HealthManager {
         return types
     }
 
-    /// HealthKit ei kerro lukuoikeuden tilaa suoraan (tietosuojasyistä), joten
-    /// "sallittu" päätellään siitä, palauttaako kysely dataa ilman virhettä.
+    /// Kysyy lukuluvat. Onnistuminen tarkoittaa vain sitä, että käyttäjä vastasi
+    /// kyselyyn — ei sitä, että hän salli lukemisen: iOS ei kerro lukuoikeuden
+    /// tilaa, eikä tämä kutsu heitä virhettä kiellostakaan.
     func requestAuthorization() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             availability = .unavailable
@@ -71,7 +91,7 @@ final class HealthManager {
         }
         do {
             try await store.requestAuthorization(toShare: [], read: readTypes)
-            availability = .authorized
+            availability = .asked
         } catch {
             Self.log.error("HealthKit-lupa epäonnistui: \(error.localizedDescription, privacy: .public)")
             availability = .denied
@@ -95,7 +115,11 @@ final class HealthManager {
         }
         if let sum {
             todaySteps = Int(sum)
+            hasReceivedData = true
         }
+        // Askelkysely ajetaan aina ja vastaa nopeimmin, joten se merkitsee
+        // kierroksen tehdyksi myös silloin kun mitään ei löytynyt.
+        hasCompletedQuery = true
     }
 
     /// Keskimääräinen yöuni viimeisiltä `nights` yöltä. Näytteet ryhmitellään
@@ -123,6 +147,9 @@ final class HealthManager {
         }
 
         let asleep = samples.filter { Self.isAsleep($0.value) }
+        if !asleep.isEmpty {
+            hasReceivedData = true
+        }
         guard !asleep.isEmpty else {
             averageSleepSeconds = nil
             return
@@ -189,12 +216,15 @@ final class HealthManager {
     /// Tuo viimeisten `days` päivän suoritukset. Voimaharjoittelu ohitetaan,
     /// koska se kirjataan Kyyksissä treeninä.
     func syncWorkouts(days: Int = 7, using api: APIClient) async {
-        guard availability == .authorized else { return }
+        guard availability == .asked else { return }
         isSyncing = true
         defer { isSyncing = false }
 
         guard let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return }
         let workouts = await fetchWorkouts(since: start)
+        if !workouts.isEmpty {
+            hasReceivedData = true
+        }
 
         var imported = 0
         for workout in workouts where !HealthActivityMapping.isStrengthTraining(workout.workoutActivityType) {
@@ -269,11 +299,12 @@ final class HealthManager {
     /// joka aamu ilman että käyttäjä tekee mitään, joten tämä on useimmille
     /// tiheämpää dataa kuin käsin kirjaaminen tuottaisi.
     func syncWeight(days: Int = 30, using api: APIClient) async {
-        guard availability == .authorized else { return }
+        guard availability == .asked else { return }
         guard let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return }
 
         let samples = Self.latestPerDay(await fetchWeightSamples(since: start))
         guard !samples.isEmpty else { return }
+        hasReceivedData = true
 
         struct Sample: Encodable {
             let externalId: String

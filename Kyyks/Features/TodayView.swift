@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Tänään-näkymä (V0, read-only): tervehdys, päivän treeni ja viimeisimmät
 /// oheisaktiviteetit. SWR: välimuistista heti ruudulle, tuore data taustalla.
@@ -74,35 +75,58 @@ struct TodayView: View {
                 if health.availability != .unavailable {
                     Section("Apple Health") {
                         switch health.availability {
-                        case .authorized:
-                            HStack {
-                                Label("Askeleet tänään", systemImage: "figure.walk")
-                                Spacer()
-                                Text(health.todaySteps.map { "\($0)" } ?? "—")
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                            }
-                            // Uni näkyy vasta kun sitä on kirjattu: tyhjä rivi
-                            // kertoisi vain ettei lähdettä ole.
-                            if let sleep = health.averageSleepSeconds {
+                        case .asked:
+                            // iOS ei kerro onko lukuoikeus myönnetty, joten
+                            // tyhjä tulos on kerrottava epävarmana: se voi olla
+                            // joko puuttuva lupa tai puuttuva data. Väite
+                            // "yhdistetty" ilman dataa oli harhaanjohtava.
+                            if health.hasCompletedQuery && !health.hasReceivedData {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Apple Healthista ei saatu tietoja.")
+                                        .font(.subheadline.weight(.medium))
+                                    Text("Joko lukuoikeutta ei ole myönnetty tai Healthissa ei ole vielä dataa. iOS ei kerro sovellukselle kumpi.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                    Button {
+                                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                                            UIApplication.shared.open(url)
+                                        }
+                                    } label: {
+                                        Label("Tarkista oikeudet", systemImage: "gear")
+                                            .font(.footnote)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            } else {
                                 HStack {
-                                    Label("Yöuni, 7 vrk ka.", systemImage: "bed.double")
+                                    Label("Askeleet tänään", systemImage: "figure.walk")
                                     Spacer()
-                                    Text(formatDuration(seconds: sleep))
+                                    Text(health.todaySteps.map { "\($0)" } ?? "—")
                                         .monospacedDigit()
                                         .foregroundStyle(.secondary)
                                 }
-                                .accessibilityElement(children: .combine)
-                            }
-                            if health.isSyncing {
-                                HStack(spacing: 10) {
-                                    ProgressView()
-                                    Text("Haetaan suorituksia…").foregroundStyle(.secondary)
+                                // Uni näkyy vasta kun sitä on kirjattu: tyhjä rivi
+                                // kertoisi vain ettei lähdettä ole.
+                                if let sleep = health.averageSleepSeconds {
+                                    HStack {
+                                        Label("Yöuni, 7 vrk ka.", systemImage: "bed.double")
+                                        Spacer()
+                                        Text(formatDuration(seconds: sleep))
+                                            .monospacedDigit()
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .accessibilityElement(children: .combine)
                                 }
-                            } else if let message = health.lastSyncMessage {
-                                Text(message)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
+                                if health.isSyncing {
+                                    HStack(spacing: 10) {
+                                        ProgressView()
+                                        Text("Haetaan suorituksia…").foregroundStyle(.secondary)
+                                    }
+                                } else if let message = health.lastSyncMessage {
+                                    Text(message)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         case .notDetermined:
                             Button {
@@ -184,7 +208,7 @@ struct TodayView: View {
             if health.availability == .notDetermined {
                 await health.requestAuthorization()
             }
-            if health.availability == .authorized {
+            if health.availability == .asked {
                 await refreshHealth()
             }
         }
@@ -192,7 +216,7 @@ struct TodayView: View {
 
     private func connectHealth() async {
         await health.requestAuthorization()
-        if health.availability == .authorized {
+        if health.availability == .asked {
             await refreshHealth()
         }
     }
