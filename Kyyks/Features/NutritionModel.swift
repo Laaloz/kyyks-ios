@@ -5,13 +5,13 @@ import Observation
 /// optimistiset kirjaukset. Palvelin laskee makrot valmiiksi.
 @Observable
 @MainActor
-final class NutritionModel {
+final class NutritionModel: CachedModel {
     private(set) var day: NutritionDay?
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    var isLoading = false
+    var errorMessage: String?
     private(set) var selectedDate = Date.now
 
-    private var api: APIClient?
+    private(set) var api: APIClient?
 
     var totals: MacroValues { day?.totals ?? MacroValues(kcal: 0, proteinG: 0, carbsG: 0, fatG: 0) }
 
@@ -36,7 +36,10 @@ final class NutritionModel {
         return formatter.string(from: selectedDate)
     }
 
-    private var cacheKey: String { "nutrition-\(dateKey)" }
+    var cacheKey: String { "nutrition-\(dateKey)" }
+    var resourcePath: String { "/api/mobile/nutrition?date=\(dateKey)" }
+    let loadFailureMessage = "Ravintotietojen haku epäonnistui."
+    var hasContent: Bool { day != nil }
 
     func configure(auth: AuthManager) {
         api = APIClient(auth: auth)
@@ -46,36 +49,12 @@ final class NutritionModel {
         (day?.entries ?? []).filter { $0.mealTag == tag.rawValue }.sorted { $0.position < $1.position }
     }
 
-    func load() async {
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
     func shiftDay(by days: Int) async {
         guard let shifted = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) else { return }
         if days > 0 && shifted > Date.now { return }
         selectedDate = shifted
         day = nil
         await load()
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/nutrition?date=\(dateKey)")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if day == nil {
-                errorMessage = "Ravintotietojen haku epäonnistui."
-            }
-        }
     }
 
     /// Optimistinen poisto: rivi katoaa heti ja päivän summat päivittyvät,
@@ -121,7 +100,9 @@ final class NutritionModel {
         }
     }
 
-    private func apply(_ data: Data) {
+    /// Päivä voi ehtiä vaihtua kesken haun — vanhan päivän vastaus jätetään
+    /// huomiotta, jottei se korvaa jo valittua päivää.
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(NutritionDay.self, from: data), decoded.date == dateKey else { return }
         day = decoded
     }

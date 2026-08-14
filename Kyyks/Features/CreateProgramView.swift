@@ -239,37 +239,20 @@ struct CreateProgramView: View {
 
 @Observable
 @MainActor
-final class CreateProgramModel {
+final class CreateProgramModel: CachedModel {
     private(set) var templates: [ProgramTemplate] = []
-    private(set) var isLoading = false
+    var isLoading = false
     private(set) var isSaving = false
-    private(set) var errorMessage: String?
+    var errorMessage: String?
 
-    private var api: APIClient?
-    private let cacheKey = "mobile-program-templates"
+    private(set) var api: APIClient?
+    let cacheKey = "mobile-program-templates"
+    let resourcePath = "/api/mobile/program-templates"
+    let loadFailureMessage = "Ohjelmapohjien haku epäonnistui. Voit silti aloittaa tyhjästä."
+    var hasContent: Bool { !templates.isEmpty }
 
     func configure(auth: AuthManager) {
         if api == nil { api = APIClient(auth: auth) }
-    }
-
-    func load() async {
-        guard let api else { return }
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        defer { isLoading = false }
-        do {
-            let data = try await api.get("/api/mobile/program-templates")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if templates.isEmpty {
-                errorMessage = "Ohjelmapohjien haku epäonnistui. Voit silti aloittaa tyhjästä."
-            }
-        }
     }
 
     /// Uusi ohjelma POST:lla, olemassa olevan muokkaus PATCH:lla — muokkaus ei
@@ -315,7 +298,7 @@ final class CreateProgramModel {
         }
     }
 
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(ProgramTemplatesResponse.self, from: data) else { return }
         templates = decoded.templates
     }

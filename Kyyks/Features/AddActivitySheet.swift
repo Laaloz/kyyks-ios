@@ -26,7 +26,7 @@ struct AddActivitySheet: View {
         // Kalorit esitäytetään kirjatulla arvolla: tyhjänä palvelin laskisi
         // arvion uudelleen ja korvaisi käyttäjän oman lukeman.
         _kcalText = State(initialValue: existing.map { String(Int($0.estimatedKcal)) } ?? "")
-        _occurredAt = State(initialValue: existing.flatMap { ExerciseProgress.parseDate($0.occurredAt) } ?? .now)
+        _occurredAt = State(initialValue: existing.flatMap { parseAPIDate($0.occurredAt) } ?? .now)
         _notes = State(initialValue: existing?.notes ?? "")
     }
 

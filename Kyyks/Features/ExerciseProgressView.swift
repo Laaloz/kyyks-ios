@@ -293,7 +293,7 @@ struct ExerciseProgressDetailView: View {
             Text(value)
                 .font(.subheadline)
                 .monospacedDigit()
-            if let parsed = ExerciseProgress.parseDate(date) {
+            if let parsed = parseAPIDate(date) {
                 Text(parsed, format: .dateTime.day().month())
                     .font(.caption)
                     .foregroundStyle(.secondary)

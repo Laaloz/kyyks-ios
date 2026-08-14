@@ -30,7 +30,7 @@ struct Program: Decodable, Identifiable {
     var isActive: Bool { status != "archived" }
 
     /// Milloin ohjelma oli viimeksi käytössä — erottaa samannimiset versiot.
-    var updatedDate: Date? { updatedAt.flatMap { ExerciseProgress.parseDate($0) } }
+    var updatedDate: Date? { updatedAt.flatMap { parseAPIDate($0) } }
     var workoutNames: String { workouts.map(\.name).joined(separator: " · ") }
 }
 

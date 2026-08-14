@@ -51,14 +51,6 @@ struct ExerciseProgress: Decodable, Identifiable {
         return (min - padding) ... (max + padding)
     }
 
-    /// Aikaleima on joko täysi ISO-leima (treenin valmistuminen) tai pelkkä
-    /// päivä (suunniteltu päivä, jos valmistumisaika puuttuu).
-    static func parseDate(_ value: String) -> Date? {
-        ISO8601DateFormatter.flexible.date(from: value)
-            ?? ISO8601DateFormatter().date(from: value)
-            ?? ISO8601DateFormatter.dateOnly.date(from: String(value.prefix(10)))
-    }
-
     struct SetSummary: Decodable {
         let load: Double
         let reps: Double
@@ -74,7 +66,7 @@ struct ExerciseProgress: Decodable, Identifiable {
         let reps: Double
 
         var id: String { "\(date)-\(load)-\(reps)" }
-        var day: Date { ExerciseProgress.parseDate(date) ?? .now }
+        var day: Date { parseAPIDate(date) ?? .now }
     }
 
     struct RepRecord: Decodable, Identifiable {
@@ -100,64 +92,23 @@ private struct ExerciseProgressResponse: Decodable {
 
 @Observable
 @MainActor
-final class ExerciseProgressModel {
+final class ExerciseProgressModel: CachedModel {
     private(set) var exercises: [ExerciseProgress] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    var isLoading = false
+    var errorMessage: String?
 
-    private var api: APIClient?
-    private let cacheKey = "mobile-exercise-progress"
+    private(set) var api: APIClient?
+    let cacheKey = "mobile-exercise-progress"
+    let resourcePath = "/api/mobile/exercise-progress"
+    let loadFailureMessage = "Kehitystietojen haku epäonnistui."
+    var hasContent: Bool { !exercises.isEmpty }
 
     func configure(auth: AuthManager) {
         if api == nil { api = APIClient(auth: auth) }
     }
 
-    func load() async {
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/exercise-progress")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if exercises.isEmpty {
-                errorMessage = "Kehitystietojen haku epäonnistui."
-            }
-        }
-    }
-
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(ExerciseProgressResponse.self, from: data) else { return }
         exercises = decoded.exercises
     }
-}
-
-// MARK: - Muotoilu
-
-/// Kilot ilman turhaa desimaalia; pilkku desimaalierottimena kuten muualla apissa.
-func formatKg(_ value: Double) -> String {
-    let rounded = (value * 10).rounded() / 10
-    return rounded.truncatingRemainder(dividingBy: 1) == 0
-        ? String(Int(rounded))
-        : String(format: "%.1f", rounded).replacingOccurrences(of: ".", with: ",")
-}
-
-func formatReps(_ value: Double) -> String {
-    value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(format: "%.1f", value)
-}
-
-/// Suunta merkkinä, ei värinä: nousu ei ole aina hyvä eikä lasku aina huono.
-func formatPercent(_ value: Double) -> String {
-    let sign = value >= 0 ? "+" : "−"
-    return "\(sign)\(String(format: "%.1f", abs(value)).replacingOccurrences(of: ".", with: ",")) %"
 }

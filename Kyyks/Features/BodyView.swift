@@ -211,13 +211,16 @@ private struct MeasurementsResponse: Decodable {
 
 @Observable
 @MainActor
-final class BodyModel {
+final class BodyModel: CachedModel {
     private(set) var measurements: [BodyMeasurement] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    var isLoading = false
+    var errorMessage: String?
 
-    private var api: APIClient?
-    private let cacheKey = "mobile-measurements"
+    private(set) var api: APIClient?
+    let cacheKey = "mobile-measurements"
+    let resourcePath = "/api/mobile/measurements"
+    let loadFailureMessage = "Mittausten haku epäonnistui."
+    var hasContent: Bool { !measurements.isEmpty }
 
     /// Historiaan vain rivit joilla on painoa tai vyötäröä.
     var trackedMeasurements: [BodyMeasurement] {
@@ -265,41 +268,8 @@ final class BodyModel {
         api = APIClient(auth: auth)
     }
 
-    func load() async {
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/measurements")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if measurements.isEmpty {
-                errorMessage = "Mittausten haku epäonnistui."
-            }
-        }
-    }
-
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(MeasurementsResponse.self, from: data) else { return }
         measurements = decoded.measurements
     }
-}
-
-extension ISO8601DateFormatter {
-    /// Postgres-aikaleimoissa on murto-osasekunnit, joita oletusmuotoilija ei syö.
-    static let flexible: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
 }

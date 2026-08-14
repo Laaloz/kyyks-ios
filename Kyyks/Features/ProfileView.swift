@@ -289,41 +289,20 @@ private struct ReminderPatch: Encodable {
 
 @Observable
 @MainActor
-final class ProfileModel {
+final class ProfileModel: CachedModel {
     private(set) var profile: MobileProfile?
-    private(set) var isLoading = false
+    var isLoading = false
     private(set) var isSaving = false
-    private(set) var errorMessage: String?
+    var errorMessage: String?
 
-    private var api: APIClient?
-    private let cacheKey = "mobile-profile"
+    private(set) var api: APIClient?
+    let cacheKey = "mobile-profile"
+    let resourcePath = "/api/mobile/profile"
+    let loadFailureMessage = "Profiilin haku epäonnistui."
+    var hasContent: Bool { profile != nil }
 
     func configure(auth: AuthManager) {
         if api == nil { api = APIClient(auth: auth) }
-    }
-
-    func load() async {
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/profile")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if profile == nil {
-                errorMessage = "Profiilin haku epäonnistui."
-            }
-        }
     }
 
     func save(heightCm: Double?, birthDate: String?, sex: String?) async {
@@ -353,7 +332,7 @@ final class ProfileModel {
         }
     }
 
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(MobileProfile.self, from: data) else { return }
         profile = decoded
     }

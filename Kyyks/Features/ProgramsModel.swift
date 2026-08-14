@@ -8,14 +8,17 @@ import Observation
 /// SWR: välimuisti ruudulle heti, verkko taustalla.
 @Observable
 @MainActor
-final class ProgramsModel {
+final class ProgramsModel: CachedModel {
     private(set) var programs: [Program] = []
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    var isLoading = false
+    var errorMessage: String?
 
-    private var api: APIClient?
+    private(set) var api: APIClient?
     private var hasLoaded = false
-    private let cacheKey = "mobile-programs"
+    let cacheKey = "mobile-programs"
+    let resourcePath = "/api/mobile/programs"
+    let loadFailureMessage = "Ohjelmien haku epäonnistui."
+    var hasContent: Bool { !programs.isEmpty }
 
     var activeProgram: Program? { programs.first(where: \.isActive) }
     var archivedPrograms: [Program] { programs.filter { !$0.isActive } }
@@ -27,27 +30,7 @@ final class ProgramsModel {
     func loadIfNeeded() async {
         guard !hasLoaded else { return }
         hasLoaded = true
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/programs")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if programs.isEmpty {
-                errorMessage = "Ohjelmien haku epäonnistui."
-            }
-        }
+        await load()
     }
 
     /// Arkistoidun palautus käyttöön. Palvelin arkistoi samalla nykyisen, joten
@@ -89,7 +72,7 @@ final class ProgramsModel {
         }
     }
 
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(ProgramsResponse.self, from: data) else { return }
         programs = decoded.programs
     }

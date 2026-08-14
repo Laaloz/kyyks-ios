@@ -3,11 +3,11 @@ import Observation
 
 @Observable
 @MainActor
-final class WorkoutModel {
+final class WorkoutModel: CachedModel {
     private(set) var setLogs: [WorkoutSetLog] = []
     private(set) var workout: ScheduledWorkout?
-    private(set) var isLoading = false
-    private(set) var errorMessage: String?
+    var isLoading = false
+    var errorMessage: String?
     private(set) var savedNoteBody = ""
     private(set) var isStructureSyncing = false
     private(set) var isCompleting = false
@@ -64,9 +64,12 @@ final class WorkoutModel {
         return blocks
     }
 
-    private var api: APIClient?
+    private(set) var api: APIClient?
     private var workoutId = ""
-    private var cacheKey: String { "workout-\(workoutId)" }
+    var cacheKey: String { "workout-\(workoutId)" }
+    var resourcePath: String { "/api/mobile/workouts/\(workoutId)" }
+    let loadFailureMessage = "Treenin haku epäonnistui."
+    var hasContent: Bool { !setLogs.isEmpty }
 
     func configure(auth: AuthManager, workoutId: String) {
         api = APIClient(auth: auth)
@@ -76,30 +79,6 @@ final class WorkoutModel {
     /// Vain testeille: lokien asetus ilman verkkoa.
     func setLogsForTesting(_ logs: [WorkoutSetLog]) {
         setLogs = logs
-    }
-
-    func load() async {
-        if let cached = await ResponseCache.shared.read(cacheKey) {
-            apply(cached)
-        } else {
-            isLoading = true
-        }
-        await refresh()
-        isLoading = false
-    }
-
-    func refresh() async {
-        guard let api else { return }
-        do {
-            let data = try await api.get("/api/mobile/workouts/\(workoutId)")
-            await ResponseCache.shared.write(cacheKey, data: data)
-            apply(data)
-            errorMessage = nil
-        } catch {
-            if setLogs.isEmpty {
-                errorMessage = error.localizedDescription
-            }
-        }
     }
 
     /// Toteuman kirjaaminen merkitsee sarjan tehdyksi: jos toistot tai kuorma on
@@ -250,7 +229,7 @@ final class WorkoutModel {
         }
     }
 
-    private func apply(_ data: Data) {
+    func apply(_ data: Data) {
         guard let detail = try? JSONDecoder().decode(WorkoutDetail.self, from: data) else { return }
         setLogs = detail.setLogs
         workout = detail.workout
