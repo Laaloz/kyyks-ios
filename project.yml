@@ -9,6 +9,29 @@ configFiles:
   Debug: Config/Config.xcconfig
   Release: Config/Config.xcconfig
 
+# Skeema on nyt nimenomainen, koska ajon on ladattava StoreKit-konfiguraatio:
+# ilman sitä tilaustuotteita ei ole olemassa simulaattorissa eikä ostopolkua
+# pysty testaamaan ennen App Store Connectin tuotteita.
+schemes:
+  Kyyks:
+    build:
+      targets:
+        Kyyks: all
+        KyyksTests: [test]
+    run:
+      config: Debug
+      storeKitConfiguration: Config/Kyyks.storekit
+    test:
+      config: Debug
+      targets:
+        - KyyksTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift

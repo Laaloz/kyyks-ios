@@ -86,7 +86,10 @@ struct APIClient {
         Self.log.info("\(method, privacy: .public) \(path, privacy: .public) → \(http.statusCode) \(String(format: "%.0f", ms)) ms, \(data.count) B")
 
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw APIError.status(http.statusCode)
+            // 402 on maksumuuri, ei virhe: näkymä avaa tilausnäkymän eikä
+            // näytä virheilmoitusta. Oma tapaus, jottei jokainen kutsupaikka
+            // joudu vertailemaan statuskoodia.
+            throw http.statusCode == 402 ? APIError.paymentRequired : APIError.status(http.statusCode)
         }
         return data
     }
@@ -95,11 +98,13 @@ struct APIClient {
 enum APIError: Error, LocalizedError {
     case transport
     case status(Int)
+    case paymentRequired
 
     var errorDescription: String? {
         switch self {
         case .transport: "Verkkovirhe"
         case .status(let code): "Palvelin vastasi virheellä (\(code))"
+        case .paymentRequired: "Ominaisuus kuuluu Kyyks Pro -tilaukseen"
         }
     }
 }

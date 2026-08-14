@@ -5,6 +5,7 @@ struct KyyksApp: App {
     @State private var auth = AuthManager()
     @State private var today = TodayModel()
     @State private var programs = ProgramsModel()
+    @State private var subscriptions = SubscriptionStore()
     @State private var selectedTab = Tab.today
 
     private enum Tab { case today, workouts, nutrition, body }
@@ -38,6 +39,14 @@ struct KyyksApp: App {
                         BodyView(auth: auth)
                             .tabItem { Label("Keho", systemImage: "figure") }
                             .tag(Tab.body)
+                    }
+                    // Tilaustila haetaan kerran kirjautumisen jälkeen ja
+                    // jaetaan ympäristönä: maksumuuri on Ravinnossa, tilauksen
+                    // hallinta Profiilissa, eikä kumpikaan omista tilaa.
+                    .environment(subscriptions)
+                    .task(id: userId) {
+                        subscriptions.configure(auth: auth)
+                        await subscriptions.start()
                     }
                 }
             }

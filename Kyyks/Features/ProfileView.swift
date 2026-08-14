@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// Profiili ja tilin hallinta: makrolaskennan pohjatiedot (pituus, ikä,
@@ -16,6 +17,9 @@ struct ProfileView: View {
     @State private var ignoreNextBirthDateChange = false
     @State private var sex: String?
     @State private var showDelete = false
+    @State private var showPaywall = false
+    @State private var showManageSubscriptions = false
+    @Environment(SubscriptionStore.self) private var subscriptions
     @FocusState private var focused: Field?
 
     private enum Field { case height }
@@ -138,6 +142,30 @@ struct ProfileView: View {
                     ))
                 }
 
+                Section {
+                    LabeledContent("Taso") {
+                        Text(levelLabel(profile.entitlement ?? .free))
+                            .foregroundStyle(.secondary)
+                    }
+                    if let subscription = profile.subscription, let ends = subscription.expiresAt.flatMap(parseAPIDate) {
+                        LabeledContent(subscription.isActive ? "Uusiutuu" : "Päättyi") {
+                            Text(ends, format: .dateTime.day().month().year())
+                                .foregroundStyle(.secondary)
+                        }
+                        // Hinnan ja peruutuksen omistaa App Store; sovellus ei
+                        // voi eikä saa näyttää omaa peruutuspolkuaan.
+                        Button("Hallitse tilausta") { showManageSubscriptions = true }
+                    } else if profile.entitlement == .free {
+                        Button("Tilaa Kyyks Pro") { showPaywall = true }
+                    }
+                } header: {
+                    Text("Tilaus")
+                } footer: {
+                    if profile.entitlement == .coached {
+                        Text("Valmentajasi sopimus kattaa Kyyksin käytön — omaa tilausta ei tarvita.")
+                    }
+                }
+
                 Section("Tili") {
                     Button("Kirjaudu ulos") {
                         Task { await signOut() }
@@ -176,6 +204,14 @@ struct ProfileView: View {
                 .background(.bar)
             }
         }
+        .sheet(isPresented: $showPaywall, onDismiss: {
+            // Osto muuttaa profiilin tason: haetaan se, ettei näkymä jää
+            // näyttämään ilmaistasoa juuri ostaneelle.
+            Task { await model.refresh() }
+        }) {
+            PaywallView(store: subscriptions, reason: "Avaa AI-ruoka-arvio ja tue kehitystä.")
+        }
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .sheet(isPresented: $showDelete) {
             DeleteAccountSheet(auth: auth, email: model.profile?.email ?? "") {
                 Task { await signOut() }
@@ -238,6 +274,14 @@ struct ProfileView: View {
         await auth.signOut()
     }
 
+    private func levelLabel(_ entitlement: Entitlement) -> String {
+        switch entitlement {
+        case .free: "Ilmainen"
+        case .pro: "Kyyks Pro"
+        case .coached: "Valmennettava"
+        }
+    }
+
     private func missingText(_ missing: [String]) -> String {
         let names = missing.map { field in
             switch field {
@@ -275,6 +319,8 @@ struct MobileProfile: Decodable {
     let sex: String?
     let weeklyMeasurementReminders: Bool?
     let missingForMacros: [String]
+    let entitlement: Entitlement?
+    let subscription: SubscriptionInfo?
 }
 
 private struct ProfilePatch: Encodable {

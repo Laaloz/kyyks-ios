@@ -22,6 +22,7 @@ struct AddMealSheet: View {
     let onAdded: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionStore.self) private var subscriptions
     @State private var model = AddMealModel()
 
     var body: some View {
@@ -58,6 +59,21 @@ struct AddMealSheet: View {
                             }
                         }
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $model.needsSubscription) {
+            PaywallView(store: subscriptions)
+        }
+        .onChange(of: subscriptions.entitlement) { _, entitlement in
+            // Onnistuneen oston jälkeen arvio jatkuu siitä mihin se jäi, ilman
+            // että käyttäjän täytyy kuvata ateria uudelleen.
+            guard entitlement.unlocksPaidFeatures, model.estimate == nil else { return }
+            Task {
+                if let initialImage {
+                    await model.estimate(from: initialImage)
+                } else if !model.query.isEmpty {
+                    await model.estimateFromText()
                 }
             }
         }
@@ -168,6 +184,9 @@ final class AddMealModel {
     private(set) var isEstimating = false
     private(set) var isSaving = false
     private(set) var errorMessage: String?
+    /// Palvelin vastasi maksumuurilla. Paikallinen tilaustila voi olla vanha
+    /// (tilaus umpeutui sovelluksen ollessa auki), joten portti on tässäkin.
+    var needsSubscription = false
     var grams: Double = 0
     var mealTag: MealTag = .suggestion()
     var query = ""
@@ -207,6 +226,8 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
+        } catch APIError.paymentRequired {
+            needsSubscription = true
         } catch {
             errorMessage = "Arviota ei saatu — tarkenna kuvausta tai kokeile kuvaa."
         }
@@ -242,6 +263,8 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
+        } catch APIError.paymentRequired {
+            needsSubscription = true
         } catch {
             errorMessage = "Arvio epäonnistui — kokeile uudelleen tai valitse ruoka käsin."
         }

@@ -15,6 +15,8 @@ struct NutritionView: View {
     @State private var showPicker = false
     @State private var pickerSource: UIImagePickerController.SourceType = .camera
     @State private var capturedImage: UIImage?
+    @State private var showPaywall = false
+    @Environment(SubscriptionStore.self) private var subscriptions
     @FocusState private var isQuickFocused: Bool
 
     var body: some View {
@@ -165,6 +167,9 @@ struct NutritionView: View {
                     onAdded: { Task { await model.refresh() } }
                 )
             }
+            .sheet(isPresented: $showPaywall) {
+                PaywallView(store: subscriptions)
+            }
             // Valitsin esitetään listasta, ei vahvistusnäkymästä: sisäkkäinen
             // esitys jäi avautumatta, ja näin kamera aukeaa heti napautuksesta.
             .fullScreenCover(isPresented: $showPicker) {
@@ -199,6 +204,12 @@ struct NutritionView: View {
     /// Kirjoitettu kuvaus siirtyy vahvistusnäkymään, joka käynnistää arvion
     /// heti — kenttä tyhjenee, jotta seuraavan voi kirjoittaa saman tien.
     private func openPicker(_ source: UIImagePickerController.SourceType) {
+        // Lukko ennen kameraa: kuvaaminen ja sen jälkeinen odotus olisivat
+        // hukkaan heitettyä työtä, jos arvio päättyy maksumuuriin.
+        guard subscriptions.unlocksPaidFeatures else {
+            showPaywall = true
+            return
+        }
         capturedImage = nil
         pickerSource = source
         showPicker = true
@@ -206,6 +217,10 @@ struct NutritionView: View {
 
     private func submitQuickQuery() {
         guard canSubmitQuickQuery else { return }
+        guard subscriptions.unlocksPaidFeatures else {
+            showPaywall = true
+            return
+        }
         capturedImage = nil
         pendingQuery = quickQuery.trimmingCharacters(in: .whitespaces)
         quickQuery = ""
