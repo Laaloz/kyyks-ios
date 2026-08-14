@@ -47,14 +47,20 @@ final class SubscriptionStore {
     private(set) var errorMessage: String?
 
     private var api: APIClient?
+    /// Kyyks-tilin tunniste liitetään ostoon `appAccountToken`ina. Apple
+    /// välittää sen takaisin transaktiossa ja ilmoituksissa, jolloin osto on
+    /// yhdistettävissä tiliin myös silloin kun laitteen kuittaus ei ole tullut
+    /// perille — ja hyvityskiistoissa on näyttöä siitä kuka osti.
+    private var accountToken: UUID?
     private var updatesTask: Task<Void, Never>?
     private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "store")
 
     var unlocksPaidFeatures: Bool { entitlement.unlocksPaidFeatures }
 
-    func configure(auth: AuthManager) {
+    func configure(auth: AuthManager, userId: String) {
         guard api == nil else { return }
         api = APIClient(auth: auth)
+        accountToken = UUID(uuidString: userId)
 
         // Uusiutuminen, palautus ja toisella laitteella tehty osto saapuvat
         // tätä kautta myös silloin kun ostonäkymä ei ole auki — kuuntelija
@@ -94,7 +100,10 @@ final class SubscriptionStore {
         defer { phase = .idle }
 
         do {
-            switch try await product.purchase() {
+            // Ilman tunnistetta ostoa ei estetä: se on jäljitettävyyttä, ei
+            // ehto. Supabasen id on UUID, joten muunnos onnistuu normaalisti.
+            let options: Set<Product.PurchaseOption> = accountToken.map { [.appAccountToken($0)] } ?? []
+            switch try await product.purchase(options: options) {
             case .success(let verification):
                 // Applen dialogi on kuitattu, mutta oikeus ei ole vielä
                 // voimassa: se syntyy vasta kun palvelin on varmentanut

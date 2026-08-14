@@ -45,7 +45,7 @@ struct KyyksApp: App {
                     // hallinta Profiilissa, eikä kumpikaan omista tilaa.
                     .environment(subscriptions)
                     .task(id: userId) {
-                        subscriptions.configure(auth: auth)
+                        subscriptions.configure(auth: auth, userId: userId)
                         await subscriptions.start()
                     }
                 }
