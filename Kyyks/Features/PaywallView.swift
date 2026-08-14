@@ -25,10 +25,17 @@ struct PaywallView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section("Pro sisältää") {
+                Section {
                     benefit("Ruoka-arvio kuvasta", "camera.viewfinder")
                     benefit("Makrot ruoan nimestä", "sparkles")
-                    benefit("Kaikki muu Kyyks jatkuu ennallaan", "checkmark.circle")
+                    benefit("Rajattomasti — ei kuukausikiintiötä", "infinity")
+                } header: {
+                    Text("Pro sisältää")
+                } footer: {
+                    // Rauhoittelu kuuluu alaviitteeseen, ei listaan: "mikään ei
+                    // muutu" ei ole ominaisuus, ja listassa se laimensi kaksi
+                    // oikeaa hyötyä kolmanneksella.
+                    Text("Muu Kyyks — treenit, ravintokirjaus, mittaukset ja kehityskäyrät — pysyy ilmaisena.")
                 }
 
                 if store.products.isEmpty {

@@ -86,25 +86,34 @@ struct APIClient {
         Self.log.info("\(method, privacy: .public) \(path, privacy: .public) → \(http.statusCode) \(String(format: "%.0f", ms)) ms, \(data.count) B")
 
         guard (200 ..< 300).contains(http.statusCode) else {
-            // 402 on maksumuuri, ei virhe: näkymä avaa tilausnäkymän eikä
-            // näytä virheilmoitusta. Oma tapaus, jottei jokainen kutsupaikka
-            // joudu vertailemaan statuskoodia.
-            throw http.statusCode == 402 ? APIError.paymentRequired : APIError.status(http.statusCode)
+            // 402 on maksumuuri, ei virhe: näkymä avaa tilausnäkymän eikä näytä
+            // virheilmoitusta. Palvelimen viesti kulkee mukana, koska vain se
+            // kertoo mihin muuriin törmättiin — ilmaiskiintiö loppui vai onko
+            // ominaisuus kokonaan maksullinen.
+            if http.statusCode == 402 {
+                let message = (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.message
+                throw APIError.paymentRequired(message)
+            }
+            throw APIError.status(http.statusCode)
         }
         return data
     }
 }
 
+private struct APIErrorBody: Decodable {
+    let message: String?
+}
+
 enum APIError: Error, LocalizedError {
     case transport
     case status(Int)
-    case paymentRequired
+    case paymentRequired(String?)
 
     var errorDescription: String? {
         switch self {
         case .transport: "Verkkovirhe"
         case .status(let code): "Palvelin vastasi virheellä (\(code))"
-        case .paymentRequired: "Ominaisuus kuuluu Kyyks Pro -tilaukseen"
+        case .paymentRequired(let message): message ?? "Ominaisuus kuuluu Kyyks Pro -tilaukseen"
         }
     }
 }

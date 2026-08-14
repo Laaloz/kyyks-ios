@@ -63,7 +63,7 @@ struct AddMealSheet: View {
             }
         }
         .sheet(isPresented: $model.needsSubscription) {
-            PaywallView(store: subscriptions)
+            PaywallView(store: subscriptions, reason: model.paywallMessage)
         }
         .onChange(of: subscriptions.entitlement) { _, entitlement in
             // Onnistuneen oston jälkeen arvio jatkuu siitä mihin se jäi, ilman
@@ -184,9 +184,13 @@ final class AddMealModel {
     private(set) var isEstimating = false
     private(set) var isSaving = false
     private(set) var errorMessage: String?
-    /// Palvelin vastasi maksumuurilla. Paikallinen tilaustila voi olla vanha
-    /// (tilaus umpeutui sovelluksen ollessa auki), joten portti on tässäkin.
+    /// Palvelin vastasi maksumuurilla. Tämä on maksumuurin ainoa portti:
+    /// ilmaiskäyttäjällä on kuukausikiintiö, jonka tilaa vain palvelin tietää,
+    /// joten näkymä ei voi päättää lukosta etukäteen.
     var needsSubscription = false
+    /// Palvelimen perustelu: kertoo loppuiko ilmainen kiintiö vai onko
+    /// ominaisuus kokonaan maksullinen. Tilausnäkymä näyttää sen sellaisenaan.
+    private(set) var paywallMessage = ""
     var grams: Double = 0
     var mealTag: MealTag = .suggestion()
     var query = ""
@@ -226,7 +230,8 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
-        } catch APIError.paymentRequired {
+        } catch APIError.paymentRequired(let message) {
+            paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
         } catch {
             errorMessage = "Arviota ei saatu — tarkenna kuvausta tai kokeile kuvaa."
@@ -263,7 +268,8 @@ final class AddMealModel {
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
             estimate = response.estimate
             grams = response.estimate.grams
-        } catch APIError.paymentRequired {
+        } catch APIError.paymentRequired(let message) {
+            paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
         } catch {
             errorMessage = "Arvio epäonnistui — kokeile uudelleen tai valitse ruoka käsin."
