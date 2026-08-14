@@ -73,6 +73,9 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        # Sandbox myös Release-käännöksessä: TestFlight käyttää sandbox-APNs:ää,
+        # ja App Store -jakelussa Apple vaihtaa arvon automaattisesti.
+        aps-environment: development
     info:
       path: Kyyks/Info.plist
       properties:

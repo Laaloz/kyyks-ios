@@ -1,11 +1,40 @@
+import OSLog
 import SwiftUI
+import UIKit
+
+/// APNs-tunniste saapuu UIKitin delegaattimetodiin, jolle SwiftUI:ssa ei ole
+/// vastinetta — siksi sovelluksella on delegaatti pelkästään tätä varten.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    /// Asetetaan heti kun App-rakenne on pystyssä; delegaatti ei omista
+    /// tilaa vaan välittää tunnisteen eteenpäin.
+    static weak var push: PushManager?
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        Task { @MainActor in Self.push?.register(deviceToken: deviceToken) }
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        // Simulaattorissa ja ilman kehittäjätiliä tämä on odotettu tulos:
+        // ilmoitukset eivät toimi, muu sovellus toimii normaalisti.
+        Logger(subsystem: "fit.rooki.kyyks", category: "push")
+            .warning("APNs-rekisteröinti epäonnistui: \(error.localizedDescription, privacy: .public)")
+    }
+}
 
 @main
 struct KyyksApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var auth = AuthManager()
     @State private var today = TodayModel()
     @State private var programs = ProgramsModel()
     @State private var subscriptions = SubscriptionStore()
+    @State private var push = PushManager()
     @State private var selectedTab = Tab.today
 
     private enum Tab { case today, workouts, nutrition, body }
@@ -47,6 +76,14 @@ struct KyyksApp: App {
                     .task(id: userId) {
                         subscriptions.configure(auth: auth, userId: userId)
                         await subscriptions.start()
+                    }
+                    // Push-lupa kysytään vasta kirjautuneelta: ilmoitus koskee
+                    // omia mittauksia, joten kysely ennen kirjautumista olisi
+                    // vailla kontekstia.
+                    .task(id: userId) {
+                        AppDelegate.push = push
+                        push.configure(auth: auth)
+                        await push.requestAuthorizationIfNeeded()
                     }
                 }
             }
