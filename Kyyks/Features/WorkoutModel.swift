@@ -64,7 +64,7 @@ final class WorkoutModel: CachedModel {
         return blocks
     }
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     private var workoutId = ""
     var cacheKey: String { "workout-\(workoutId)" }
     var resourcePath: String { "/api/mobile/workouts/\(workoutId)" }
@@ -72,7 +72,7 @@ final class WorkoutModel: CachedModel {
     var hasContent: Bool { !setLogs.isEmpty }
 
     func configure(auth: AuthManager, workoutId: String) {
-        api = APIClient(auth: auth)
+        configure(auth: auth)
         self.workoutId = workoutId
     }
 

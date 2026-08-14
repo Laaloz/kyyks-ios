@@ -97,15 +97,11 @@ final class ExerciseProgressModel: CachedModel {
     var isLoading = false
     var errorMessage: String?
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     let cacheKey = "mobile-exercise-progress"
     let resourcePath = "/api/mobile/exercise-progress"
     let loadFailureMessage = "Kehitystietojen haku epäonnistui."
     var hasContent: Bool { !exercises.isEmpty }
-
-    func configure(auth: AuthManager) {
-        if api == nil { api = APIClient(auth: auth) }
-    }
 
     func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(ExerciseProgressResponse.self, from: data) else { return }

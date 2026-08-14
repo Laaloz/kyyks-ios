@@ -9,7 +9,7 @@ import Foundation
 /// (periytyminen ei toimisi: alaluokan kentät jäisivät seuraamatta).
 @MainActor
 protocol CachedModel: AnyObject {
-    var api: APIClient? { get }
+    var api: APIClient? { get set }
     /// Levyvälimuistin avain. Päiväkohtaisissa malleissa sisältää päivän.
     var cacheKey: String { get }
     var resourcePath: String { get }
@@ -23,6 +23,13 @@ protocol CachedModel: AnyObject {
 }
 
 extension CachedModel {
+    /// Näkymät kutsuvat tätä `.task`-lohkosta, siis joka avauksella. Clientti
+    /// luodaan vain kerran: jokainen APIClient avaa oman URLSessionin, eikä
+    /// niitä ole syytä kerätä taustalle.
+    func configure(auth: AuthManager) {
+        if api == nil { api = APIClient(auth: auth) }
+    }
+
     func load() async {
         if let cached = await ResponseCache.shared.read(cacheKey) {
             apply(cached)

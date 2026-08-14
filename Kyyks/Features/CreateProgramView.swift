@@ -245,15 +245,11 @@ final class CreateProgramModel: CachedModel {
     private(set) var isSaving = false
     var errorMessage: String?
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     let cacheKey = "mobile-program-templates"
     let resourcePath = "/api/mobile/program-templates"
     let loadFailureMessage = "Ohjelmapohjien haku epäonnistui. Voit silti aloittaa tyhjästä."
     var hasContent: Bool { !templates.isEmpty }
-
-    func configure(auth: AuthManager) {
-        if api == nil { api = APIClient(auth: auth) }
-    }
 
     /// Uusi ohjelma POST:lla, olemassa olevan muokkaus PATCH:lla — muokkaus ei
     /// saa arkistoida ohjelmaa eikä katkaista sen historiaa.

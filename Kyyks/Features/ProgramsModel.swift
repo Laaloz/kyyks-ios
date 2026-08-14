@@ -13,7 +13,7 @@ final class ProgramsModel: CachedModel {
     var isLoading = false
     var errorMessage: String?
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     private var hasLoaded = false
     let cacheKey = "mobile-programs"
     let resourcePath = "/api/mobile/programs"
@@ -22,10 +22,6 @@ final class ProgramsModel: CachedModel {
 
     var activeProgram: Program? { programs.first(where: \.isActive) }
     var archivedPrograms: [Program] { programs.filter { !$0.isActive } }
-
-    func configure(auth: AuthManager) {
-        if api == nil { api = APIClient(auth: auth) }
-    }
 
     func loadIfNeeded() async {
         guard !hasLoaded else { return }

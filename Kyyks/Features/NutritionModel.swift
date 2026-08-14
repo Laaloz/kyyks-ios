@@ -11,7 +11,7 @@ final class NutritionModel: CachedModel {
     var errorMessage: String?
     private(set) var selectedDate = Date.now
 
-    private(set) var api: APIClient?
+    var api: APIClient?
 
     var totals: MacroValues { day?.totals ?? MacroValues(kcal: 0, proteinG: 0, carbsG: 0, fatG: 0) }
 
@@ -40,10 +40,6 @@ final class NutritionModel: CachedModel {
     var resourcePath: String { "/api/mobile/nutrition?date=\(dateKey)" }
     let loadFailureMessage = "Ravintotietojen haku epäonnistui."
     var hasContent: Bool { day != nil }
-
-    func configure(auth: AuthManager) {
-        api = APIClient(auth: auth)
-    }
 
     func entries(for tag: MealTag) -> [NutritionEntry] {
         (day?.entries ?? []).filter { $0.mealTag == tag.rawValue }.sorted { $0.position < $1.position }

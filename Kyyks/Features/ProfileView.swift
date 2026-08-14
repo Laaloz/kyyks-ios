@@ -295,15 +295,11 @@ final class ProfileModel: CachedModel {
     private(set) var isSaving = false
     var errorMessage: String?
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     let cacheKey = "mobile-profile"
     let resourcePath = "/api/mobile/profile"
     let loadFailureMessage = "Profiilin haku epäonnistui."
     var hasContent: Bool { profile != nil }
-
-    func configure(auth: AuthManager) {
-        if api == nil { api = APIClient(auth: auth) }
-    }
 
     func save(heightCm: Double?, birthDate: String?, sex: String?) async {
         guard let api else { return }

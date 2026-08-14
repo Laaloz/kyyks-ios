@@ -15,7 +15,7 @@ final class TodayModel: CachedModel {
     var errorMessage: String?
     var isLoading = false
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     private var userId = ""
     private var hasLoaded = false
     let cacheKey = "mobile-today"
@@ -24,7 +24,7 @@ final class TodayModel: CachedModel {
     var hasContent: Bool { currentUser != nil }
 
     func configure(auth: AuthManager, userId: String) {
-        if api == nil { api = APIClient(auth: auth) }
+        configure(auth: auth)
         self.userId = userId
     }
 

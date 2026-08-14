@@ -216,7 +216,7 @@ final class BodyModel: CachedModel {
     var isLoading = false
     var errorMessage: String?
 
-    private(set) var api: APIClient?
+    var api: APIClient?
     let cacheKey = "mobile-measurements"
     let resourcePath = "/api/mobile/measurements"
     let loadFailureMessage = "Mittausten haku epäonnistui."
@@ -262,10 +262,6 @@ final class BodyModel: CachedModel {
         let values = measurements.compactMap { $0[keyPath: key] }
         guard values.count >= 2 else { return nil }
         return values[0] - values[1]
-    }
-
-    func configure(auth: AuthManager) {
-        api = APIClient(auth: auth)
     }
 
     func apply(_ data: Data) {
