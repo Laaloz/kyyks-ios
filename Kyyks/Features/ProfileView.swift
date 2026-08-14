@@ -129,7 +129,7 @@ struct ProfileView: View {
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("Askeleet, uni ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Oikeudet myönnetään ja perutaan iOS:n asetuksista — sovellus ei voi muuttaa niitä.")
+                    Text("Askeleet, uni, paino ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Oikeudet myönnetään ja perutaan iOS:n asetuksista — sovellus ei voi muuttaa niitä.")
                 }
 
                 Section("Muistutukset") {
