@@ -62,7 +62,7 @@ final class HealthManager {
     private let store = HKHealthStore()
     /// HealthKitin kyselyt vastaavat omassa säikeessään, joten loki ei voi olla
     /// pääsäikeeseen sidottu.
-    private nonisolated static let log = Logger(subsystem: "fit.rooki.kyyks", category: "health")
+    private nonisolated static let log = Logger(subsystem: "fi.kyyks.app", category: "health")
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]

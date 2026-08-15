@@ -25,7 +25,7 @@ final class PushManager: NSObject {
     /// lähettämisen uudelleen samassa ajossa; käynnistyksessä se lähetetään
     /// aina, koska palvelimen tila voi olla eri.
     private var sentToken: String?
-    private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "push")
+    private static let log = Logger(subsystem: "fi.kyyks.app", category: "push")
 
     /// Sandbox vai tuotanto: väärä APNs-osoite palauttaa BadDeviceTokenin,
     /// joten palvelimen on tiedettävä kummasta rakennuksesta tunniste tuli.

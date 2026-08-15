@@ -38,7 +38,7 @@
               "locale" : "fi"
             }
           ],
-          "productID" : "fit.rooki.kyyks.pro.monthly",
+          "productID" : "fi.kyyks.app.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Kyyks Pro kuukausi",
           "subscriptionGroupID" : "20000001",
@@ -63,7 +63,7 @@
               "locale" : "fi"
             }
           ],
-          "productID" : "fit.rooki.kyyks.pro.yearly",
+          "productID" : "fi.kyyks.app.pro.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
           "referenceName" : "Kyyks Pro vuosi",
           "subscriptionGroupID" : "20000001",

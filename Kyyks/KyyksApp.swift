@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         // Simulaattorissa ja ilman kehittäjätiliä tämä on odotettu tulos:
         // ilmoitukset eivät toimi, muu sovellus toimii normaalisti.
-        Logger(subsystem: "fit.rooki.kyyks", category: "push")
+        Logger(subsystem: "fi.kyyks.app", category: "push")
             .warning("APNs-rekisteröinti epäonnistui: \(error.localizedDescription, privacy: .public)")
     }
 }

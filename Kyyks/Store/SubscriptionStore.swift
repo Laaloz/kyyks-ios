@@ -14,7 +14,7 @@ import StoreKit
 final class SubscriptionStore {
     /// App Store Connectiin luotavat tuotteet. Nämä on toistaiseksi vain
     /// Config/Kyyks.storekit-tiedostossa paikallista testausta varten.
-    static let productIDs = ["fit.rooki.kyyks.pro.monthly", "fit.rooki.kyyks.pro.yearly"]
+    static let productIDs = ["fi.kyyks.app.pro.monthly", "fi.kyyks.app.pro.yearly"]
 
     private(set) var entitlement: Entitlement = .free
     private(set) var subscription: SubscriptionInfo?
@@ -53,7 +53,7 @@ final class SubscriptionStore {
     /// perille — ja hyvityskiistoissa on näyttöä siitä kuka osti.
     private var accountToken: UUID?
     private var updatesTask: Task<Void, Never>?
-    private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "store")
+    private static let log = Logger(subsystem: "fi.kyyks.app", category: "store")
 
     var unlocksPaidFeatures: Bool { entitlement.unlocksPaidFeatures }
 

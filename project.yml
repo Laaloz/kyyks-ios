@@ -1,6 +1,6 @@
 name: Kyyks
 options:
-  bundleIdPrefix: fit.rooki
+  bundleIdPrefix: fi.kyyks
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -58,7 +58,7 @@ targets:
         product: Supabase
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: fit.rooki.kyyks
+        PRODUCT_BUNDLE_IDENTIFIER: fi.kyyks.app
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.10"

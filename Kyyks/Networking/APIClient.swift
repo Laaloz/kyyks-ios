@@ -2,12 +2,12 @@ import Foundation
 import OSLog
 
 /// Ohut clientti Kyyksin Next.js-API:in. Jokainen kutsu mitataan ja lokitetaan
-/// (Console.app / Xcode: subsystem "fit.rooki.kyyks", category "api") —
+/// (Console.app / Xcode: subsystem "fi.kyyks.app", category "api") —
 /// hitaat reitit havaitaan heti eikä arvailla.
 struct APIClient {
     private let auth: AuthManager
     private let session: URLSession
-    private static let log = Logger(subsystem: "fit.rooki.kyyks", category: "api")
+    private static let log = Logger(subsystem: "fi.kyyks.app", category: "api")
 
     init(auth: AuthManager) {
         self.auth = auth
