@@ -81,6 +81,24 @@ final class WorkoutModel: CachedModel {
         setLogs = logs
     }
 
+    /// Sarjat, joiden tallennus on kesken. Palvelimen vastaus voi olla lähtenyt
+    /// matkaan ennen kuin kirjaus ehti perille, jolloin se on ruudulla olevaa
+    /// tilaa vanhempi — kesken treenin se tarkoittaisi, että juuri kirjattu
+    /// sarja katoaa silmien edestä ja käyttäjä kirjaa sen uudelleen.
+    private var pendingSets: [String: WorkoutSetLog] = [:]
+
+    /// Palvelimen rivit, mutta kesken olevat kirjaukset päälle. Testattavuuden
+    /// vuoksi erillään `apply`sta, joka tarvitsee verkkovastauksen.
+    func mergingPendingSets(into rows: [WorkoutSetLog]) -> [WorkoutSetLog] {
+        guard !pendingSets.isEmpty else { return rows }
+        return rows.map { pendingSets[$0.id] ?? $0 }
+    }
+
+    /// Vain testeille: kesken olevan kirjauksen asettaminen ilman verkkoa.
+    func setPendingForTesting(_ log: WorkoutSetLog) {
+        pendingSets[log.id] = log
+    }
+
     /// Toteuman kirjaaminen merkitsee sarjan tehdyksi: jos toistot tai kuorma on
     /// syötetty, sarja on tehty. Erillinen kuittaus jäi kannassa tekemättä 84
     /// kertaa valmiiksi merkityissä treeneissä (mm. maastaveto 4 × 120 kg), eli
@@ -202,6 +220,10 @@ final class WorkoutModel: CachedModel {
 
     private func sync(_ updated: WorkoutSetLog, revertTo previous: WorkoutSetLog) {
         guard let api else { return }
+        // Kesken oleva tallennus talteen: jos palvelimen tila haetaan ennen kuin
+        // tämä pyyntö on ehtinyt perille, vastaus on vanhempi kuin ruudulla oleva
+        // arvo — ilman tätä juuri kirjattu sarja katoaisi näkyvistä.
+        pendingSets[updated.id] = updated
         Task {
             do {
                 struct SetPatch: Encodable {
@@ -220,7 +242,14 @@ final class WorkoutModel: CachedModel {
                         done: updated.done
                     )])
                 )
+                // Vain jos tämä oli viimeisin muutos tälle sarjalle: nopea
+                // peräkkäinen kirjaus ehtii korvata arvon kesken pyynnön, eikä
+                // vanhentunut vastaus saa poistaa uudempaa odottavaa arvoa.
+                if pendingSets[updated.id] == updated {
+                    pendingSets.removeValue(forKey: updated.id)
+                }
             } catch {
+                pendingSets.removeValue(forKey: updated.id)
                 if let revertIndex = setLogs.firstIndex(where: { $0.id == updated.id }) {
                     setLogs[revertIndex] = previous
                 }
@@ -231,7 +260,7 @@ final class WorkoutModel: CachedModel {
 
     func apply(_ data: Data) {
         guard let detail = try? JSONDecoder().decode(WorkoutDetail.self, from: data) else { return }
-        setLogs = detail.setLogs
+        setLogs = mergingPendingSets(into: detail.setLogs)
         workout = detail.workout
         let previousSaved = savedNoteBody
         savedNoteBody = detail.note?.body ?? ""

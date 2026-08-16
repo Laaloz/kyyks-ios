@@ -68,7 +68,9 @@ struct WorkoutSession: Decodable {
     let completedAt: String?
 }
 
-struct WorkoutSetLog: Decodable, Identifiable {
+/// Equatable, jotta kesken olevan tallennuksen voi tunnistaa vanhentuneeksi:
+/// nopea peräkkäinen kirjaus korvaa arvon kesken pyynnön.
+struct WorkoutSetLog: Decodable, Identifiable, Equatable {
     let id: String
     let templateExerciseId: String
     let setId: String
