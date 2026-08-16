@@ -42,6 +42,36 @@ final class AuthManager {
         state = .signedIn(userId: session.user.id.uuidString.lowercased())
     }
 
+    /// Uusi tili sähköpostilla. Profiili syntyy kannassa triggerillä
+    /// (migraatio 072): ilman kutsua rooliksi tulee itsenäinen treenaaja.
+    ///
+    /// Sähköpostin vahvistusta ei vaadita, joten istunto on käytettävissä
+    /// heti. Jos vahvistus kytketään myöhemmin päälle Supabasesta, `session`
+    /// on nil eikä käyttäjä pääse sisään ennen linkin klikkausta — siksi
+    /// tilaa ei aseteta arvaamalla vaan vain kun istunto oikeasti saatiin.
+    func signUp(email: String, password: String, fullName: String) async throws {
+        let response = try await client.auth.signUp(
+            email: email,
+            password: password,
+            data: ["full_name": .string(fullName)]
+        )
+        guard let session = response.session else {
+            throw AuthError.confirmationRequired
+        }
+        state = .signedIn(userId: session.user.id.uuidString.lowercased())
+    }
+
+    enum AuthError: LocalizedError {
+        case confirmationRequired
+
+        var errorDescription: String? {
+            switch self {
+            case .confirmationRequired:
+                "Vahvista sähköpostiosoitteesi lähettämästämme linkistä, niin pääset sisään."
+            }
+        }
+    }
+
     func signOut() async {
         try? await client.auth.signOut()
         state = .signedOut
