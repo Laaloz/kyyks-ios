@@ -35,9 +35,23 @@ struct VoluApp: App {
     @State private var programs = ProgramsModel()
     @State private var subscriptions = SubscriptionStore()
     @State private var push = PushManager()
+    /// Puuttuvat makrotiedot = aloituskysely on tekemättä. Palvelin kertoo
+    /// listan, joten sääntö on yhdessä paikassa eikä arvattuna kahdessa.
+    @State private var needsOnboarding = false
     @State private var selectedTab = Tab.today
 
     private enum Tab { case today, workouts, nutrition, body }
+
+    /// Aloituskysely näytetään vain kun makrolaskennan tiedot puuttuvat.
+    /// Verkkovirheessä sitä ei näytetä: kyselyn väläyttäminen olemassa
+    /// olevalle käyttäjälle olisi pahempi haitta kuin sen viivästyminen.
+    private func checkOnboarding() async {
+        struct Profile: Decodable { let missingForMacros: [String] }
+        guard let data = try? await APIClient(auth: auth).get("/api/mobile/profile"),
+              let profile = try? JSONDecoder().decode(Profile.self, from: data)
+        else { return }
+        needsOnboarding = !profile.missingForMacros.isEmpty
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -84,6 +98,17 @@ struct VoluApp: App {
                         AppDelegate.push = push
                         push.configure(auth: auth)
                         await push.requestAuthorizationIfNeeded()
+                    }
+                    .fullScreenCover(isPresented: $needsOnboarding) {
+                        OnboardingView(auth: auth) {
+                            needsOnboarding = false
+                            Task {
+                                await today.refresh()
+                            }
+                        }
+                    }
+                    .task(id: userId) {
+                        await checkOnboarding()
                     }
                     // Applen antama nimi talteen heti ensimmäisen kirjautumisen
                     // jälkeen: Apple ei palauta sitä toista kertaa, joten tämä
