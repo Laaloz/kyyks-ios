@@ -59,6 +59,11 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fi.volu.app
+        # Tiimi tähän eikä Xcodeen: projekti generoidaan uudelleen xcodegenillä,
+        # joten käsin valittu tiimi katoaisi joka kerta ja laitekäännös kaatuisi
+        # allekirjoitukseen aina uudelleen.
+        DEVELOPMENT_TEAM: 4498TZK9KC
+        CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.10"
