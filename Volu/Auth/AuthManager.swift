@@ -61,6 +61,46 @@ final class AuthManager {
         state = .signedIn(userId: session.user.id.uuidString.lowercased())
     }
 
+    /// Sign in with Apple. Laite on jo varmentanut käyttäjän, joten tänne tulee
+    /// Applen allekirjoittama identiteettitoken — Supabase varmentaa sen Applen
+    /// julkisilla avaimilla. Salaisuutta ei tarvita missään vaiheessa.
+    ///
+    /// `fullName` annetaan vain ensimmäisellä kirjautumisella: Apple palauttaa
+    /// nimen kertaalleen valtuutusvastauksessa eikä koskaan enää, eikä se ole
+    /// itse tokenissa. Jos sitä ei oteta talteen heti, profiiliin jää nimeksi
+    /// sähköpostin alkuosa pysyvästi.
+    func signInWithApple(idToken: String, nonce: String, fullName: String?) async throws {
+        let session = try await client.auth.signInWithIdToken(
+            credentials: .init(provider: .apple, idToken: idToken, nonce: nonce)
+        )
+        state = .signedIn(userId: session.user.id.uuidString.lowercased())
+        pendingFullName = fullName
+    }
+
+    /// Google kulkee selainvuon kautta: natiivi SDK vaatisi oman riippuvuuden
+    /// eikä toisi tähän mitään mitä ASWebAuthenticationSession ei tee.
+    func signInWithGoogle() async throws {
+        try await client.auth.signInWithOAuth(
+            provider: .google,
+            redirectTo: URL(string: "fi.volu.app://login-callback")
+        )
+        // signInWithOAuth palauttaa vasta kun istunto on tallennettu, joten
+        // tila luetaan clientilta eikä paluuarvosta.
+        if let session = client.auth.currentSession {
+            state = .signedIn(userId: session.user.id.uuidString.lowercased())
+        }
+    }
+
+    /// Applelta saatu nimi odottamassa profiiliin kirjoitusta. Kirjoitus tehdään
+    /// vasta kun istunto on pystyssä, koska se kulkee tavallisen API-kutsun
+    /// kautta — ja vain kerran, jotta käyttäjän itse vaihtama nimi ei palaudu.
+    private(set) var pendingFullName: String?
+
+    func consumePendingFullName() -> String? {
+        defer { pendingFullName = nil }
+        return pendingFullName
+    }
+
     enum AuthError: LocalizedError {
         case confirmationRequired
 

@@ -85,6 +85,16 @@ struct VoluApp: App {
                         push.configure(auth: auth)
                         await push.requestAuthorizationIfNeeded()
                     }
+                    // Applen antama nimi talteen heti ensimmäisen kirjautumisen
+                    // jälkeen: Apple ei palauta sitä toista kertaa, joten tämä
+                    // on ainoa hetki jolloin profiiliin saa oikean nimen.
+                    .task(id: userId) {
+                        guard let name = auth.consumePendingFullName() else { return }
+                        struct Patch: Encodable { let fullName: String }
+                        _ = try? await APIClient(auth: auth)
+                            .patch("/api/mobile/profile", body: Patch(fullName: name))
+                        await today.refresh()
+                    }
                 }
             }
             // Käyttöliittymä on suomeksi, joten päivämäärät ja viikonpäivät

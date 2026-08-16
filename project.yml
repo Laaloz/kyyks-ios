@@ -76,6 +76,7 @@ targets:
         # Sandbox myös Release-käännöksessä: TestFlight käyttää sandbox-APNs:ää,
         # ja App Store -jakelussa Apple vaihtaa arvon automaattisesti.
         aps-environment: development
+        com.apple.developer.applesignin: [Default]
     info:
       path: Volu/Info.plist
       properties:
@@ -87,3 +88,9 @@ targets:
         APIBaseURL: $(VOLU_API_BASE_URL)
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Google-kirjautuminen avaa selaimen, ja paluu sovellukseen tapahtuu
+        # tällä skeemalla. Ilman sitä vuo jää selaimeen eikä istuntoa synny.
+        # Sama osoite on lisättävä Supabasen sallittuihin uudelleenohjauksiin.
+        CFBundleURLTypes:
+          - CFBundleURLName: fi.volu.app
+            CFBundleURLSchemes: [fi.volu.app]

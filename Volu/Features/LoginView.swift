@@ -99,6 +99,24 @@ struct LoginView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(isSubmitting || !canSubmit)
 
+                divider
+
+                VStack(spacing: 10) {
+                    AppleSignInButton(auth: auth) { errorMessage = $0 }
+
+                    Button {
+                        signInWithGoogle()
+                    } label: {
+                        Label("Jatka Googlella", systemImage: "globe")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 15)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
                 switcher
 
                 if mode == .signUp {
@@ -127,6 +145,31 @@ struct LoginView: View {
             Text("Treenit, ravinto ja kehitys samassa paikassa.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private var divider: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(.quaternary).frame(height: 1)
+            Text("tai").font(.footnote).foregroundStyle(.secondary)
+            Rectangle().fill(.quaternary).frame(height: 1)
+        }
+    }
+
+    private func signInWithGoogle() {
+        guard !isSubmitting else { return }
+        isSubmitting = true
+        errorMessage = nil
+        Task {
+            do {
+                try await auth.signInWithGoogle()
+            } catch {
+                // Käyttäjän sulkema selainikkuna ei ole virhe.
+                if !"\(error)".lowercased().contains("cancel") {
+                    errorMessage = "Google-kirjautuminen epäonnistui."
+                }
+            }
+            isSubmitting = false
         }
     }
 
