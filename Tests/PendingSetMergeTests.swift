@@ -95,3 +95,39 @@ final class PendingSetStoreTests: XCTestCase {
         XCTAssertTrue(loaded.isEmpty)
     }
 }
+
+/// Ohjelmaluonnoksen muutosten tunnistaminen: peruminen saa kysyä vain kun
+/// työtä on oikeasti hukattavana.
+final class ProgramDraftChangeTests: XCTestCase {
+    /// Vertailu tehdään avattuun luonnokseen otettuun kopioon, ei uuteen
+    /// `empty()`yn: treeneillä ja liikkeillä on omat UUID:t, joten kaksi
+    /// erikseen luotua tyhjää eivät ole yhtä suuria — eikä tarvitsekaan olla.
+    func testUntouchedDraftEqualsOriginal() {
+        let original = ProgramDraft.empty()
+        let untouched = original
+        XCTAssertEqual(untouched, original)
+    }
+
+    func testRenamedTitleDiffersFromOriginal() {
+        let original = ProgramDraft.empty()
+        var edited = original
+        edited.title = "Voimakausi"
+        XCTAssertNotEqual(edited, original)
+    }
+
+    func testAddedExerciseDiffersFromOriginal() {
+        let original = ProgramDraft.empty()
+        var edited = original
+        edited.workouts[0].exercises.append(
+            ProgramDraft.DraftExercise(
+                exerciseId: "ex-1",
+                name: "Kyykky",
+                setCount: 3,
+                repsMin: 5,
+                repsMax: 8,
+                restSeconds: 120
+            )
+        )
+        XCTAssertNotEqual(edited, original)
+    }
+}

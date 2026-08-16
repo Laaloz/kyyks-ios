@@ -17,6 +17,24 @@ struct CreateProgramView: View {
     /// Muokattavan ohjelman id. nil = uusi ohjelma.
     @State private var editingProgramId: String?
     @State private var pendingRemoval: Program?
+    /// Luonnos sellaisena kuin se avattiin. Vertailu tähän kertoo onko työtä
+    /// hukattavana — muuten peruminen kysyisi turhaan myös silloin kun mitään
+    /// ei ole muutettu.
+    @State private var originalDraft: ProgramDraft?
+    @State private var showDiscardConfirm = false
+
+    private var hasUnsavedChanges: Bool {
+        guard let draft else { return false }
+        return draft != originalDraft
+    }
+
+    /// Takaisin pohjavalintaan. Lähtötila nollataan samalla, jottei seuraava
+    /// avaus vertaa edellisen ohjelman luonnokseen.
+    private func discardDraft() {
+        draft = nil
+        originalDraft = nil
+        editingProgramId = nil
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,12 +74,26 @@ struct CreateProgramView: View {
                         // pohjan valinta ei saa heittää alkuun asti.
                         if draft == nil {
                             dismiss()
+                        } else if hasUnsavedChanges {
+                            showDiscardConfirm = true
                         } else {
-                            draft = nil
-                            editingProgramId = nil
+                            discardDraft()
                         }
                     }
                 }
+            }
+            // Pyyhkäisy alas hylkäisi muuten koko luonnoksen kysymättä — useamman
+            // treenin ohjelma katoaisi yhdellä vahingossa tehdyllä eleellä.
+            .interactiveDismissDisabled(hasUnsavedChanges)
+            .confirmationDialog(
+                "Hylätäänkö muutokset?",
+                isPresented: $showDiscardConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Hylkää muutokset", role: .destructive) { discardDraft() }
+                Button("Jatka muokkausta", role: .cancel) {}
+            } message: {
+                Text("Tallentamattomat liikkeet ja treenit menetetään.")
             }
         }
         .task {
@@ -115,6 +147,7 @@ struct CreateProgramView: View {
                     Button {
                         editingProgramId = active.id
                         draft = .from(active)
+                        originalDraft = draft
                     } label: {
                         Label("Muokkaa ohjelmaa", systemImage: "pencil")
                     }
@@ -135,6 +168,7 @@ struct CreateProgramView: View {
                             Button {
                                 editingProgramId = program.id
                                 draft = .from(program)
+                                originalDraft = draft
                             } label: {
                                 archivedRow(program)
                             }
@@ -151,12 +185,14 @@ struct CreateProgramView: View {
                                 Button {
                                     editingProgramId = program.id
                                     draft = .from(program)
+                                    originalDraft = draft
                                 } label: {
                                     Label("Muokkaa", systemImage: "pencil")
                                 }
                                 Button {
                                     editingProgramId = nil
                                     draft = .from(program)
+                                    originalDraft = draft
                                 } label: {
                                     Label("Käytä pohjana", systemImage: "doc.on.doc")
                                 }
@@ -185,6 +221,7 @@ struct CreateProgramView: View {
                 ForEach(model.templates) { template in
                     Button {
                         draft = .from(template)
+                        originalDraft = draft
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
@@ -213,6 +250,7 @@ struct CreateProgramView: View {
             Section {
                 Button {
                     draft = .empty()
+                    originalDraft = draft
                 } label: {
                     Label("Aloita tyhjästä", systemImage: "square.dashed")
                 }

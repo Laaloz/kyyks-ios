@@ -30,7 +30,7 @@ struct ProgramTemplatesResponse: Decodable {
 
 /// Muokattava luonnos. Pohja täyttää tämän, tyhjästä aloittava rakentaa itse —
 /// kumpikin päätyy samaan rakenteeseen, joten tallennuspolku on yksi.
-struct ProgramDraft {
+struct ProgramDraft: Equatable {
     var title: String
     var workouts: [DraftWorkout]
 
@@ -93,14 +93,14 @@ struct ProgramDraft {
             && workouts.contains { !$0.exercises.isEmpty }
     }
 
-    struct DraftWorkout: Identifiable {
+    struct DraftWorkout: Identifiable, Equatable {
         let id = UUID()
         var name: String
         var splitType: String
         var exercises: [DraftExercise]
     }
 
-    struct DraftExercise: Identifiable {
+    struct DraftExercise: Identifiable, Equatable {
         let id = UUID()
         // Vaihdettavissa: liikkeen korvaaminen säilyttää paikan ja tavoitteet,
         // eikä vaadi poistoa ja uudelleenlisäystä.
