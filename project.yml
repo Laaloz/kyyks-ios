@@ -73,8 +73,10 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
-        # Sandbox myös Release-käännöksessä: TestFlight käyttää sandbox-APNs:ää,
-        # ja App Store -jakelussa Apple vaihtaa arvon automaattisesti.
+        # Kehitysarvo lähdetiedostossa; Xcode vaihtaa sen tuotannoksi
+        # jakelukäännöksessä (TestFlight ja App Store käyttävät molemmat
+        # tuotanto-APNs:ää). Sovellus ei luota tähän arvoon vaan lukee
+        # lopullisen profiilinsa — ks. PushManager.environment.
         aps-environment: development
         com.apple.developer.applesignin: [Default]
     info:

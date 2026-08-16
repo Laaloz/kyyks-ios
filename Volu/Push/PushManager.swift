@@ -28,14 +28,46 @@ final class PushManager: NSObject {
     private static let log = Logger(subsystem: "fi.volu.app", category: "push")
 
     /// Sandbox vai tuotanto: väärä APNs-osoite palauttaa BadDeviceTokenin,
-    /// joten palvelimen on tiedettävä kummasta rakennuksesta tunniste tuli.
-    /// Debug-käännös ja TestFlight käyttävät sandboxia.
-    private static var environment: String {
-        #if DEBUG
-        "sandbox"
-        #else
-        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" ? "sandbox" : "production"
-        #endif
+    /// jonka palvelin tulkitsee kuolleeksi tunnisteeksi ja poistaa rivin — eli
+    /// väärä arvaus ei näy virheenä vaan ilmoitusten hiljaisena puuttumisena.
+    ///
+    /// Ainoa lähde joka tämän oikeasti tietää on paketin provisiointiprofiiliin
+    /// leimattu `aps-environment`. Kuitista päättely olisi väärin: TestFlightin
+    /// `sandboxReceipt` koskee StoreKitiä, ja TestFlight-asennukset käyttävät
+    /// **tuotanto**-APNs:ää siinä missä App Store -asennuksetkin.
+    private static let environment: String = {
+        // Profiilia ei ole simulaattorissa, jossa APNs ei toimi muutenkaan.
+        // Muualla lukemisen epäonnistuminen on tuntematon tilanne, ja
+        // tuotanto on turvallisempi arvaus: se on oikea kaikille jaelluille
+        // käännöksille, ja väärä vain kehittäjän omalla laitteella.
+        guard let value = apsEnvironmentFromProfile() else {
+            #if DEBUG
+            return "sandbox"
+            #else
+            return "production"
+            #endif
+        }
+        return value == "development" ? "sandbox" : "production"
+    }()
+
+    /// Lukee `aps-environment`-oikeuden paketin provisiointiprofiilista.
+    ///
+    /// Profiili on CMS-allekirjoitettu, eli plist on binäärikuoren sisällä.
+    /// Allekirjoitusta ei tarvitse purkaa: iOS on jo validoinut profiilin
+    /// asennuksessa, joten arvon voi etsiä tekstinä. Latin-1 siksi, että
+    /// kuoressa on tavuja jotka eivät ole kelvollista UTF-8:aa — se ei muuta
+    /// ASCII-osuutta, joka on ainoa mitä tästä luetaan.
+    private static func apsEnvironmentFromProfile() -> String? {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let data = try? Data(contentsOf: url),
+              let text = String(data: data, encoding: .isoLatin1),
+              let key = text.range(of: "<key>aps-environment</key>"),
+              let open = text.range(of: "<string>", range: key.upperBound..<text.endIndex),
+              let close = text.range(of: "</string>", range: open.upperBound..<text.endIndex)
+        else {
+            return nil
+        }
+        return String(text[open.upperBound..<close.lowerBound])
     }
 
     func configure(auth: AuthManager) {
