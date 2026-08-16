@@ -12,6 +12,7 @@ struct WorkoutView: View {
     var onFinished: ((WorkoutEndAction, String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = WorkoutModel()
     @State private var editingLog: WorkoutSetLog?
     @State private var pickerMode: ExercisePickerMode?
@@ -145,6 +146,12 @@ struct WorkoutView: View {
             await model.load()
             await model.flushPendingWrites()
             autoExpandFirstUnfinished()
+        }
+        // Paluu taustalta on tavallisin hetki, jolloin verkko on taas käytössä:
+        // puhelin taskussa sarjojen välissä, kenttä palaa salin ovella.
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            Task { await model.flushPendingWrites() }
         }
         .sheet(item: $editingLog) { log in
             SetEditSheet(log: log) { reps, load in

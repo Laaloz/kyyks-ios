@@ -159,6 +159,9 @@ final class WorkoutModel: CachedModel {
         guard let api, let updatedAt = workout?.updatedAt else { return }
         isCompleting = true
         defer { isCompleting = false }
+        // Odottavat kirjaukset ensin: valmiiksi merkitty treeni ilman viimeisiä
+        // sarjoja on huonompi lopputulos kuin hetken odotus.
+        await flushPendingWrites()
         do {
             struct Body: Encodable { let expectedUpdatedAt: String }
             _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: updatedAt))
@@ -258,6 +261,10 @@ final class WorkoutModel: CachedModel {
                 let snapshot = pendingSets
                 await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)
             }
+            // Onnistunut lähetys on todiste siitä että verkko toimii juuri nyt.
+            // Salin huonossa kentässä aiemmat kirjaukset ovat jääneet
+            // odottamaan, eikä niiden pidä odottaa näkymästä poistumista.
+            await flushPendingWrites()
         } catch APIError.status(let code) where (400 ..< 500).contains(code) {
             pendingSets.removeValue(forKey: patch.logId)
             let snapshot = pendingSets
@@ -287,11 +294,18 @@ final class WorkoutModel: CachedModel {
     /// Odottavien uudelleenlähetys. Aiempi arvo ei ole tiedossa, joten
     /// hylkäyksessä ei ole mitään mihin palata — palvelimen tila haetaan
     /// tuolloin joka tapauksessa.
+    ///
+    /// Lippu katkaisee rekursion: `send` kutsuu tätä onnistuessaan.
     func flushPendingWrites() async {
+        guard !isFlushing else { return }
+        isFlushing = true
+        defer { isFlushing = false }
         for patch in pendingSets.values {
             await send(patch, revertTo: nil)
         }
     }
+
+    private var isFlushing = false
 
     func apply(_ data: Data) {
         guard let detail = try? JSONDecoder().decode(WorkoutDetail.self, from: data) else { return }
