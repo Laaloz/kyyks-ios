@@ -41,8 +41,22 @@ struct LoginView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+        // Pystysuunnassa keskitetty, mutta vieritettävä: `minHeight` säiliön
+        // korkeuteen keskittää sisällön kun se mahtuu, ja antaa sen kasvaa
+        // yli kun näppäimistö nousee tai rekisteröinnin lisäkenttä ilmestyy.
+        // Kiinteä korkeus leikkaisi sisällön juuri niissä tilanteissa.
+        GeometryReader { proxy in
+            ScrollView {
+                content
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: proxy.size.height, alignment: .center)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 28) {
                 header
 
                 VStack(spacing: 12) {
@@ -97,11 +111,8 @@ struct LoginView: View {
                         .font(.caption.weight(.semibold))
                 }
             }
-            .padding(24)
-            .padding(.top, 32)
-            .animation(.snappy(duration: 0.25), value: mode)
-        }
-        .scrollDismissesKeyboard(.interactively)
+        .padding(24)
+        .animation(.snappy(duration: 0.25), value: mode)
     }
 
     private var header: some View {
