@@ -1,6 +1,7 @@
 import OSLog
 import SwiftUI
 import UIKit
+import UserNotifications
 
 /// APNs-tunniste saapuu UIKitin delegaattimetodiin, jolle SwiftUI:ssa ei ole
 /// vastinetta — siksi sovelluksella on delegaatti pelkästään tätä varten.
@@ -8,6 +9,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// Asetetaan heti kun App-rakenne on pystyssä; delegaatti ei omista
     /// tilaa vaan välittää tunnisteen eteenpäin.
     static weak var push: PushManager?
+
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions options: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // Ilman tätä iOS vaimentaa ilmoituksen aina kun sovellus on edessä.
+        // Viikkomuistutus tulee kerran viikossa eikä kilpaile mistään, joten
+        // sen vaimentaminen tarkoittaisi käytännössä sen menettämistä.
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
 
     func application(
         _ application: UIApplication,
@@ -24,6 +36,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // ilmoitukset eivät toimi, muu sovellus toimii normaalisti.
         Logger(subsystem: "fi.volu.app", category: "push")
             .warning("APNs-rekisteröinti epäonnistui: \(error.localizedDescription, privacy: .public)")
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Näytä muistutus myös edessä olevassa sovelluksessa. Ilman ääntä:
+    /// käyttäjä katsoo jo ruutua, joten pelkkä palkki riittää.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list]
     }
 }
 
