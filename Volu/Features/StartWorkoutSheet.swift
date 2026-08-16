@@ -88,7 +88,7 @@ struct StartWorkoutSheet: View {
             }
             .sheet(isPresented: $showCreateProgram) {
                 CreateProgramView(auth: auth, userId: userId, programs: programs) {
-                    Task { await programs.refresh() }
+                    Task { await programs.refreshAfterChange() }
                 }
             }
         }

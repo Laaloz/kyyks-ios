@@ -208,7 +208,7 @@ struct WorkoutsListView: View {
                     auth: auth,
                     existing: { if case .edit(let activity) = sheet { activity } else { nil } }()
                 ) {
-                    Task { await model.refresh() }
+                    Task { await model.refreshAfterChange() }
                 }
             }
             .navigationTitle("Treeni")
@@ -245,7 +245,7 @@ struct WorkoutsListView: View {
                 StartWorkoutSheet(auth: auth, userId: userId, programs: programs) { workoutId, title, autoCancelled in
                     autoCancelledNotice = autoCancelled
                     startedWorkout = StartedWorkout(id: workoutId, title: title)
-                    Task { await model.refresh() }
+                    Task { await model.refreshAfterChange() }
                 }
             }
         }
@@ -253,7 +253,7 @@ struct WorkoutsListView: View {
         // kasatuista sheeteistä vain viimeinen jää voimaan.
         .sheet(isPresented: $showCreateProgram) {
             CreateProgramView(auth: auth, userId: userId, programs: programs) {
-                Task { await programs.refresh() }
+                Task { await programs.refreshAfterChange() }
             }
         }
         .task {

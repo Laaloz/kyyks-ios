@@ -139,7 +139,7 @@ struct BodyView: View {
             .refreshable { await model.refresh() }
             .sheet(isPresented: $showAdd) {
                 AddMeasurementSheet(auth: auth, latest: model.measurements.first) {
-                    Task { await model.refresh() }
+                    Task { await model.refreshAfterChange() }
                 }
             }
         }

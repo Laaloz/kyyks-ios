@@ -137,7 +137,7 @@ final class WorkoutModel: CachedModel {
         do {
             struct Body: Encodable { let expectedUpdatedAt: String }
             _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: updatedAt))
-            await refresh()
+            await refreshAfterChange()
         } catch {
             errorMessage = "Valmiiksi merkintä epäonnistui — päivitä näkymä ja yritä uudelleen."
         }
@@ -153,7 +153,7 @@ final class WorkoutModel: CachedModel {
             }
             _ = try await api.put("/api/workouts/\(workoutId)/note", body: Body(body: body, expectedUpdatedAt: noteUpdatedAt))
             savedNoteBody = body
-            await refresh()
+            await refreshAfterChange()
         } catch {
             errorMessage = "Muistiinpanon tallennus epäonnistui."
         }
@@ -190,7 +190,7 @@ final class WorkoutModel: CachedModel {
             defer { isStructureSyncing = false }
             do {
                 _ = try await api.post("/api/workouts/\(workoutId)/exercise-structure", body: payload)
-                await refresh()
+                await refreshAfterChange()
             } catch {
                 if let previous {
                     setLogs = previous

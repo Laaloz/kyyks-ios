@@ -184,7 +184,7 @@ struct TodayView: View {
             .refreshable { await model.refresh() }
             .sheet(isPresented: $showAddMeasurement) {
                 AddMeasurementSheet(auth: auth, latest: nil) {
-                    Task { await model.refresh() }
+                    Task { await model.refreshAfterChange() }
                 }
             }
             .toolbar {
@@ -231,6 +231,6 @@ struct TodayView: View {
         async let workouts: Void = health.syncWorkouts(using: api)
         async let weight: Void = health.syncWeight(using: api)
         _ = await (steps, sleep, workouts, weight)
-        await model.refresh()
+        await model.refreshAfterChange()
     }
 }

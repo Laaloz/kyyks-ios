@@ -68,7 +68,7 @@ final class NutritionModel: CachedModel {
         Task {
             do {
                 _ = try await api.delete("/api/day-meal-plans/\(entry.id)")
-                await refresh()
+                await refreshAfterChange()
             } catch {
                 day = previous
                 errorMessage = "Aterian poisto epäonnistui — yritä uudelleen."
@@ -90,7 +90,7 @@ final class NutritionModel: CachedModel {
                 "/api/day-meal-plans/\(entry.id)",
                 body: Body(grams: grams, servings: servings, mealTag: mealTag.rawValue)
             )
-            await refresh()
+            await refreshAfterChange()
         } catch {
             errorMessage = "Muutoksen tallennus epäonnistui."
         }

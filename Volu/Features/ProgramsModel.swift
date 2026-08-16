@@ -36,7 +36,7 @@ final class ProgramsModel: CachedModel {
         struct Body: Encodable { let status: String }
         do {
             _ = try await api.post("/api/programs/\(program.id)/status", body: Body(status: "active"))
-            await refresh()
+            await refreshAfterChange()
             errorMessage = nil
             return true
         } catch {
@@ -59,7 +59,7 @@ final class ProgramsModel: CachedModel {
             _ = try await api.delete("/api/programs/\(program.id)")
             errorMessage = nil
             // Palvelimen tila varmistetaan taustalla; ruutu on jo oikein.
-            await refresh()
+            await refreshAfterChange()
             return true
         } catch {
             programs = previous

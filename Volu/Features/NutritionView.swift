@@ -162,7 +162,7 @@ struct NutritionView: View {
                         showAddMeal = false
                         openPicker(pickerSource)
                     },
-                    onAdded: { Task { await model.refresh() } }
+                    onAdded: { Task { await model.refreshAfterChange() } }
                 )
             }
             // Valitsin esitetään listasta, ei vahvistusnäkymästä: sisäkkäinen

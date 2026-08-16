@@ -40,17 +40,43 @@ extension CachedModel {
         isLoading = false
     }
 
-    func refresh() async {
-        guard let api else { return }
+    /// Taustapäivitys. Epäonnistuminen on hiljainen jos ruudulla on jo dataa:
+    /// vanha data on käyttäjälle parempi kuin virheilmoitus.
+    ///
+    /// Palauttaa onnistuiko haku. Käyttäjän tekemän muutoksen jälkeen käytä
+    /// `refreshAfterChange()`ia — siellä hiljaisuus on väärä vastaus.
+    @discardableResult
+    func refresh() async -> Bool {
+        guard let api else { return false }
         do {
             let data = try await api.get(resourcePath)
             await ResponseCache.shared.write(cacheKey, data: data)
             apply(data)
             errorMessage = nil
+            return true
         } catch {
             if !hasContent {
                 errorMessage = loadFailureMessage
             }
+            return false
         }
+    }
+
+    /// Päivitys heti käyttäjän muutoksen jälkeen.
+    ///
+    /// Ero taustapäivitykseen on olennainen: muutos on jo tallennettu
+    /// palvelimelle, joten epäonnistunut haku jättää ruudulle tilan, josta
+    /// puuttuu juuri se muutos jonka käyttäjä äsken teki — esimerkiksi kesken
+    /// treenin lisätty liike. Hiljaisuus näyttää siltä kuin tallennus olisi
+    /// epäonnistunut, ja ainoa keino saada liike näkyviin oli käynnistää
+    /// sovellus uudelleen.
+    ///
+    /// Yksi uusintayritys ennen luovuttamista: tavallisin syy on hetkellinen
+    /// katko, ja verkko on juuri äsken toiminut kun muutos meni läpi.
+    func refreshAfterChange() async {
+        if await refresh() { return }
+        try? await Task.sleep(for: .milliseconds(600))
+        if await refresh() { return }
+        errorMessage = "Muutos tallentui, mutta näkymä ei päivittynyt — vedä alas päivittääksesi."
     }
 }

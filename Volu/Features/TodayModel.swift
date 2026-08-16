@@ -52,7 +52,7 @@ final class TodayModel: CachedModel {
                     _ = try await api.delete("/api/workouts/\(workoutId)")
                 }
                 await ResponseCache.shared.remove("workout-\(workoutId)")
-                await refresh()
+                await refreshAfterChange()
             } catch {
                 workouts = previousWorkouts
                 errorMessage = action == .deleted
@@ -71,7 +71,7 @@ final class TodayModel: CachedModel {
         Task {
             do {
                 _ = try await api.delete("/api/extra-activities/\(activity.id)")
-                await refresh()
+                await refreshAfterChange()
             } catch {
                 activities = previous
                 errorMessage = "Suorituksen poisto epäonnistui — yritä uudelleen."

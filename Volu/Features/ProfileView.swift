@@ -234,7 +234,7 @@ struct ProfileView: View {
         .sheet(isPresented: $showPaywall, onDismiss: {
             // Osto muuttaa profiilin tason: haetaan se, ettei näkymä jää
             // näyttämään ilmaistasoa juuri ostaneelle.
-            Task { await model.refresh() }
+            Task { await model.refreshAfterChange() }
         }) {
             PaywallView(store: subscriptions, reason: "Avaa AI-ruoka-arvio ja tue kehitystä.")
         }
@@ -388,7 +388,7 @@ final class ProfileModel: CachedModel {
         defer { isSaving = false }
         do {
             _ = try await api.patch("/api/mobile/profile", body: ProfilePatch(heightCm: heightCm, birthDate: birthDate, sex: sex))
-            await refresh()
+            await refreshAfterChange()
             errorMessage = nil
         } catch {
             errorMessage = "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
@@ -402,11 +402,11 @@ final class ProfileModel: CachedModel {
         guard let api else { return }
         do {
             _ = try await api.patch("/api/mobile/profile", body: GoalPatch(goal: goal, activityLevel: activityLevel))
-            await refresh()
+            await refreshAfterChange()
             errorMessage = nil
         } catch {
             errorMessage = "Tavoitteen tallennus epäonnistui."
-            await refresh()
+            await refreshAfterChange()
         }
     }
 
@@ -416,11 +416,11 @@ final class ProfileModel: CachedModel {
         guard let api else { return }
         do {
             _ = try await api.patch("/api/mobile/profile", body: ReminderPatch(weeklyMeasurementReminders: isOn))
-            await refresh()
+            await refreshAfterChange()
             errorMessage = nil
         } catch {
             errorMessage = "Asetuksen tallennus epäonnistui."
-            await refresh()
+            await refreshAfterChange()
         }
     }
 

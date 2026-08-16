@@ -143,7 +143,7 @@ struct VoluApp: App {
                         OnboardingView(auth: auth) {
                             needsOnboarding = false
                             Task {
-                                await today.refresh()
+                                await today.refreshAfterChange()
                             }
                         }
                     }
@@ -158,7 +158,7 @@ struct VoluApp: App {
                         struct Patch: Encodable { let fullName: String }
                         _ = try? await APIClient(auth: auth)
                             .patch("/api/mobile/profile", body: Patch(fullName: name))
-                        await today.refresh()
+                        await today.refreshAfterChange()
                     }
                 }
             }
