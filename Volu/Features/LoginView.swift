@@ -104,17 +104,24 @@ struct LoginView: View {
                 VStack(spacing: 10) {
                     AppleSignInButton(auth: auth) { errorMessage = $0 }
 
-                    Button {
-                        signInWithGoogle()
-                    } label: {
-                        Label("Jatka Googlella", systemImage: "globe")
-                            .font(.headline)
+                    // Applen painikkeen mitat ja muoto tarkoituksella samat:
+                    // vierekkäin eri kokoiset painikkeet näyttävät siltä että
+                    // toinen olisi tärkeämpi. Ikonia ei ole, koska Googlen logo
+                    // on tavaramerkki jota ei saa piirtää itse — ja väärä
+                    // omatekoinen G näyttäisi huonommalta kuin ei mitään.
+                    Button(action: signInWithGoogle) {
+                        Text("Jatka Google-tilillä")
+                            .font(.system(size: 19, weight: .medium))
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 15)
+                            .frame(height: 52)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.primary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .foregroundStyle(.primary)
+                    .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(.quaternary, lineWidth: 1)
+                    }
+                    .disabled(isSubmitting)
                 }
 
                 switcher
