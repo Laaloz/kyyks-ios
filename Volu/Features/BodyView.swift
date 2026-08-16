@@ -7,6 +7,7 @@ import SwiftUI
 struct BodyView: View {
     let auth: AuthManager
 
+    @Environment(NotificationRouter.self) private var router
     @State private var model = BodyModel()
     @State private var showAdd = false
     @State private var selectedDate: Date?
@@ -142,10 +143,21 @@ struct BodyView: View {
                 }
             }
         }
+        // Molemmat polut tarvitaan: onChange kattaa jo näkyvän välilehden, task
+        // sen että ilmoitus vaihtoi välilehteä eikä näkymää ollut vielä olemassa
+        // silloin kun kohde asetettiin.
         .task {
             model.configure(auth: auth)
+            openMeasurementIfRequested()
             await model.load()
         }
+        .onChange(of: router.target) { openMeasurementIfRequested() }
+    }
+
+    /// Muistutuksen napautus avaa suoraan lomakkeen: kehotus kirjata mittaus ja
+    /// sen kirjaaminen kuuluvat samaan hetkeen.
+    private func openMeasurementIfRequested() {
+        if router.consume("measurement") { showAdd = true }
     }
 
     private func metricRow(_ title: String, _ value: Double?, _ unit: String, change: Double?) -> some View {

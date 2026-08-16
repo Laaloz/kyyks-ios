@@ -48,6 +48,17 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list]
     }
+
+    /// Napautus vie sinne mitä ilmoitus koski. Ilman tätä muistutus avaa vain
+    /// viimeksi auki olleen välilehden, jolloin käyttäjä saa kehotuksen kirjata
+    /// mittaus ja joutuu etsimään lomakkeen itse.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let target = response.notification.request.content.userInfo["target"] as? String
+        await MainActor.run { NotificationRouter.shared.handle(target: target) }
+    }
 }
 
 @main
@@ -110,6 +121,12 @@ struct VoluApp: App {
                     // jaetaan ympäristönä: maksumuuri on Ravinnossa, tilauksen
                     // hallinta Profiilissa, eikä kumpikaan omista tilaa.
                     .environment(subscriptions)
+                    .environment(NotificationRouter.shared)
+                    // Välilehden vaihto tässä, lomakkeen avaus Kehossa: näkymä
+                    // omistaa oman sheettinsä, eikä sitä kannata ohjata ulkoa.
+                    .onChange(of: NotificationRouter.shared.target) {
+                        if NotificationRouter.shared.target == "measurement" { selectedTab = .body }
+                    }
                     .task(id: userId) {
                         subscriptions.configure(auth: auth, userId: userId)
                         await subscriptions.start()
