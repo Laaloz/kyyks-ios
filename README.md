@@ -1,15 +1,15 @@
-# Kyyks iOS (natiivi, V0)
+# Volu iOS (natiivi, V0)
 
-Natiivi SwiftUI-clientti, joka käyttää web-Kyyksin Supabase-authia ja Next.js-API:a
+Natiivi SwiftUI-clientti, joka käyttää web-Volun Supabase-authia ja Next.js-API:a
 (`Authorization: Bearer <jwt>`). Suorituskykyperiaatteet: Keychain-istunto ilman
 verkkokutsua käynnistyksessä, stale-while-revalidate-levyvälimuisti, kaikkien
-API-kutsujen vasteajat lokiin (subsystem `fit.rooki.kyyks`, category `api`).
+API-kutsujen vasteajat lokiin (subsystem `fit.rooki.volu`, category `api`).
 
 ## Vaatimukset
 
 - Xcode 16+ (App Store) ja `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`
 - XcodeGen (`brew install xcodegen`)
-- Web-repon dev-palvelin ajossa (`pnpm dev` kyyks-repossa) — API vastaa osoitteessa `http://localhost:3000`
+- Web-repon dev-palvelin ajossa (`pnpm dev` volu-repossa) — API vastaa osoitteessa `http://localhost:3000`
 
 ## Käynnistys
 
@@ -21,16 +21,16 @@ cp Config/Config.example.xcconfig Config/Config.xcconfig  # ja täytä arvot
 xcodegen generate
 
 # 3. Avaa ja aja
-open Kyyks.xcodeproj
+open Volu.xcodeproj
 ```
 
 ## Rakenne
 
-- `Kyyks/Auth/AuthManager.swift` — supabase-swift, istunto Keychainissa
-- `Kyyks/Networking/APIClient.swift` — Bearer-kutsut + vasteaikaloki
-- `Kyyks/Networking/ResponseCache.swift` — SWR-levyvälimuisti
-- `Kyyks/Models/AppState.swift` — virhesietoinen minimidekoodaus `/api/app-state`
-- `Kyyks/Features/` — LoginView, TodayView (read-only)
+- `Volu/Auth/AuthManager.swift` — supabase-swift, istunto Keychainissa
+- `Volu/Networking/APIClient.swift` — Bearer-kutsut + vasteaikaloki
+- `Volu/Networking/ResponseCache.swift` — SWR-levyvälimuisti
+- `Volu/Models/AppState.swift` — virhesietoinen minimidekoodaus `/api/app-state`
+- `Volu/Features/` — LoginView, TodayView (read-only)
 
 ## Tiedossa (V0)
 

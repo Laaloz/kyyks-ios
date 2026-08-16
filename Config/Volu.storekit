@@ -17,7 +17,7 @@
       "localizations" : [
 
       ],
-      "name" : "Kyyks Pro",
+      "name" : "Volu Pro",
       "subscriptions" : [
         {
           "adHocOffers" : [
@@ -34,13 +34,13 @@
           "localizations" : [
             {
               "description" : "AI-ruoka-arvio kuvasta ja tekstistä.",
-              "displayName" : "Kyyks Pro – kuukausi",
+              "displayName" : "Volu Pro – kuukausi",
               "locale" : "fi"
             }
           ],
-          "productID" : "fi.kyyks.app.pro.monthly",
+          "productID" : "fi.volu.app.pro.monthly",
           "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Kyyks Pro kuukausi",
+          "referenceName" : "Volu Pro kuukausi",
           "subscriptionGroupID" : "20000001",
           "type" : "RecurringSubscription"
         },
@@ -59,13 +59,13 @@
           "localizations" : [
             {
               "description" : "AI-ruoka-arvio kuvasta ja tekstistä.",
-              "displayName" : "Kyyks Pro – vuosi",
+              "displayName" : "Volu Pro – vuosi",
               "locale" : "fi"
             }
           ],
-          "productID" : "fi.kyyks.app.pro.yearly",
+          "productID" : "fi.volu.app.pro.yearly",
           "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Kyyks Pro vuosi",
+          "referenceName" : "Volu Pro vuosi",
           "subscriptionGroupID" : "20000001",
           "type" : "RecurringSubscription"
         }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Kyyks
+@testable import Volu
 
 /// WorkoutModel.blocks: liikkeiden ryhmittely korteiksi ja supersetin
 /// yhdistäminen yhdeksi lohkoksi.

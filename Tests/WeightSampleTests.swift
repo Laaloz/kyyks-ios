@@ -1,5 +1,5 @@
 import XCTest
-@testable import Kyyks
+@testable import Volu
 
 /// Painon tuonti Healthista: historiaan viedään päivän viimeinen punnitus.
 /// Älyvaaka ja käyttäjä voivat kirjata saman päivän monta kertaa, eikä

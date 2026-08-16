@@ -13,8 +13,8 @@ import StoreKit
 @MainActor
 final class SubscriptionStore {
     /// App Store Connectiin luotavat tuotteet. Nämä on toistaiseksi vain
-    /// Config/Kyyks.storekit-tiedostossa paikallista testausta varten.
-    static let productIDs = ["fi.kyyks.app.pro.monthly", "fi.kyyks.app.pro.yearly"]
+    /// Config/Volu.storekit-tiedostossa paikallista testausta varten.
+    static let productIDs = ["fi.volu.app.pro.monthly", "fi.volu.app.pro.yearly"]
 
     private(set) var entitlement: Entitlement = .free
     private(set) var subscription: SubscriptionInfo?
@@ -47,13 +47,13 @@ final class SubscriptionStore {
     private(set) var errorMessage: String?
 
     private var api: APIClient?
-    /// Kyyks-tilin tunniste liitetään ostoon `appAccountToken`ina. Apple
+    /// Volu-tilin tunniste liitetään ostoon `appAccountToken`ina. Apple
     /// välittää sen takaisin transaktiossa ja ilmoituksissa, jolloin osto on
     /// yhdistettävissä tiliin myös silloin kun laitteen kuittaus ei ole tullut
     /// perille — ja hyvityskiistoissa on näyttöä siitä kuka osti.
     private var accountToken: UUID?
     private var updatesTask: Task<Void, Never>?
-    private static let log = Logger(subsystem: "fi.kyyks.app", category: "store")
+    private static let log = Logger(subsystem: "fi.volu.app", category: "store")
 
     var unlocksPaidFeatures: Bool { entitlement.unlocksPaidFeatures }
 
@@ -198,7 +198,7 @@ final class SubscriptionStore {
             subscription = response.subscription
             return true
         } catch APIError.status(409) {
-            errorMessage = "Tämä tilaus on jo liitetty toiseen Kyyks-tiliin."
+            errorMessage = "Tämä tilaus on jo liitetty toiseen Volu-tiliin."
             // Konflikti ei korjaannu yrittämällä uudelleen, joten transaktio
             // kuitataan käsitellyksi.
             return true

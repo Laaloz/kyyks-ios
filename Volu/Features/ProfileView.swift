@@ -156,13 +156,13 @@ struct ProfileView: View {
                         // voi eikä saa näyttää omaa peruutuspolkuaan.
                         Button("Hallitse tilausta") { showManageSubscriptions = true }
                     } else if profile.entitlement == .free {
-                        Button("Tilaa Kyyks Pro") { showPaywall = true }
+                        Button("Tilaa Volu Pro") { showPaywall = true }
                     }
                 } header: {
                     Text("Tilaus")
                 } footer: {
                     if profile.entitlement == .coached {
-                        Text("Valmentajasi sopimus kattaa Kyyksin käytön — omaa tilausta ei tarvita.")
+                        Text("Valmentajasi sopimus kattaa Volun käytön — omaa tilausta ei tarvita.")
                     }
                 }
 
@@ -277,7 +277,7 @@ struct ProfileView: View {
     private func levelLabel(_ entitlement: Entitlement) -> String {
         switch entitlement {
         case .free: "Ilmainen"
-        case .pro: "Kyyks Pro"
+        case .pro: "Volu Pro"
         case .coached: "Valmennettava"
         }
     }

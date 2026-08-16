@@ -1,13 +1,13 @@
 import HealthKit
 
-/// HKWorkoutActivityType → Kyyksin oheisaktiviteettikatalogi.
+/// HKWorkoutActivityType → Volun oheisaktiviteettikatalogi.
 ///
 /// Katalogi elää palvelimella (lib/extra-activities.ts, 23 lajia MET-kertoimineen),
 /// ja rajapinta hyväksyy vain sen tuntemat avaimet. HealthKitissä on yli 70
 /// tyyppiä, joten tuntemattomat kääntyvät "other"-lajiksi — suoritus ei katoa,
 /// vaikka lajia ei tunneta tarkasti.
 enum HealthActivityMapping {
-    static func kyyksActivityType(for type: HKWorkoutActivityType) -> String {
+    static func voluActivityType(for type: HKWorkoutActivityType) -> String {
         switch type {
         case .running, .trackAndField: "run"
         case .walking: "walk"
@@ -33,7 +33,7 @@ enum HealthActivityMapping {
         }
     }
 
-    /// Voimaharjoittelu kirjataan Kyyksissä treeninä, ei oheisaktiviteettina,
+    /// Voimaharjoittelu kirjataan Volussa treeninä, ei oheisaktiviteettina,
     /// joten näitä ei tuoda — muuten sama sali-istunto olisi kahdesti.
     static func isStrengthTraining(_ type: HKWorkoutActivityType) -> Bool {
         switch type {

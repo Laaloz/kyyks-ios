@@ -1,6 +1,6 @@
 // Kopioi tiedostoksi Config.xcconfig ja täytä arvot (web-repon .env:stä).
 // Huom: xcconfigissa "//" aloittaa kommentin — siksi https:/$()/ -kikka.
-KYYKS_SUPABASE_URL = https:/$()/PROJEKTI.supabase.co
-KYYKS_SUPABASE_ANON_KEY = ANON_KEY_TAHAN
+VOLU_SUPABASE_URL = https:/$()/PROJEKTI.supabase.co
+VOLU_SUPABASE_ANON_KEY = ANON_KEY_TAHAN
 // Dev: paikallinen Next-palvelin. Tuotannossa deployattu web-osoite.
-KYYKS_API_BASE_URL = http:/$()/localhost:3000
+VOLU_API_BASE_URL = http:/$()/localhost:3000

@@ -1,5 +1,5 @@
 import XCTest
-@testable import Kyyks
+@testable import Volu
 
 /// Yöunen keskiarvo: yöt tunnistetaan heräämispäivästä, ja päällekkäiset
 /// jaksot yhdistetään — kello ja unisovellus kirjaavat usein saman unen

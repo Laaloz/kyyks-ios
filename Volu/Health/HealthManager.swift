@@ -3,7 +3,7 @@ import Observation
 import OSLog
 
 /// Apple Health -luku: päivän askeleet, uni, muissa sovelluksissa tehdyt
-/// suoritukset ja paino. Kirjoitusoikeutta ei pyydetä — Kyyks vain lukee.
+/// suoritukset ja paino. Kirjoitusoikeutta ei pyydetä — Volu vain lukee.
 ///
 /// Suoritukset tuodaan oheisaktiviteeteiksi ja painot mittaushistoriaan
 /// olemassa olevien API-reittien kautta. Duplikaatit estetään palvelimella
@@ -62,7 +62,7 @@ final class HealthManager {
     private let store = HKHealthStore()
     /// HealthKitin kyselyt vastaavat omassa säikeessään, joten loki ei voi olla
     /// pääsäikeeseen sidottu.
-    private nonisolated static let log = Logger(subsystem: "fi.kyyks.app", category: "health")
+    private nonisolated static let log = Logger(subsystem: "fi.volu.app", category: "health")
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
@@ -214,7 +214,7 @@ final class HealthManager {
     }
 
     /// Tuo viimeisten `days` päivän suoritukset. Voimaharjoittelu ohitetaan,
-    /// koska se kirjataan Kyyksissä treeninä.
+    /// koska se kirjataan Volussa treeninä.
     func syncWorkouts(days: Int = 7, using api: APIClient) async {
         guard availability == .asked else { return }
         isSyncing = true
@@ -246,7 +246,7 @@ final class HealthManager {
 
             do {
                 let data = try await api.post("/api/extra-activities", body: Body(
-                    activityType: HealthActivityMapping.kyyksActivityType(for: workout.workoutActivityType),
+                    activityType: HealthActivityMapping.voluActivityType(for: workout.workoutActivityType),
                     durationMinutes: minutes,
                     // Healthin oma kulutus on tarkempi kuin MET-arvio; ilman sitä
                     // palvelin laskee arvion kuten käsin kirjatuille.

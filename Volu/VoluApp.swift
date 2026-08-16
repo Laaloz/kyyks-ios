@@ -22,13 +22,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         // Simulaattorissa ja ilman kehittäjätiliä tämä on odotettu tulos:
         // ilmoitukset eivät toimi, muu sovellus toimii normaalisti.
-        Logger(subsystem: "fi.kyyks.app", category: "push")
+        Logger(subsystem: "fi.volu.app", category: "push")
             .warning("APNs-rekisteröinti epäonnistui: \(error.localizedDescription, privacy: .public)")
     }
 }
 
 @main
-struct KyyksApp: App {
+struct VoluApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var auth = AuthManager()
     @State private var today = TodayModel()

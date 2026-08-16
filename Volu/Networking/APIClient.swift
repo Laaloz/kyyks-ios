@@ -1,13 +1,13 @@
 import Foundation
 import OSLog
 
-/// Ohut clientti Kyyksin Next.js-API:in. Jokainen kutsu mitataan ja lokitetaan
-/// (Console.app / Xcode: subsystem "fi.kyyks.app", category "api") —
+/// Ohut clientti Volun Next.js-API:in. Jokainen kutsu mitataan ja lokitetaan
+/// (Console.app / Xcode: subsystem "fi.volu.app", category "api") —
 /// hitaat reitit havaitaan heti eikä arvailla.
 struct APIClient {
     private let auth: AuthManager
     private let session: URLSession
-    private static let log = Logger(subsystem: "fi.kyyks.app", category: "api")
+    private static let log = Logger(subsystem: "fi.volu.app", category: "api")
 
     init(auth: AuthManager) {
         self.auth = auth
@@ -113,7 +113,7 @@ enum APIError: Error, LocalizedError {
         switch self {
         case .transport: "Verkkovirhe"
         case .status(let code): "Palvelin vastasi virheellä (\(code))"
-        case .paymentRequired(let message): message ?? "Ominaisuus kuuluu Kyyks Pro -tilaukseen"
+        case .paymentRequired(let message): message ?? "Ominaisuus kuuluu Volu Pro -tilaukseen"
         }
     }
 }

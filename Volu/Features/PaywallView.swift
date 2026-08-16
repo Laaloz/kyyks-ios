@@ -24,7 +24,7 @@ struct PaywallView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Kyyks Pro").font(.title2.bold())
+                        Text("Volu Pro").font(.title2.bold())
                         Text(reason).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
@@ -40,7 +40,7 @@ struct PaywallView: View {
                     // Rauhoittelu kuuluu alaviitteeseen, ei listaan: "mikään ei
                     // muutu" ei ole ominaisuus, ja listassa se laimensi kaksi
                     // oikeaa hyötyä kolmanneksella.
-                    Text("Muu Kyyks — treenit, ravintokirjaus, mittaukset ja kehityskäyrät — pysyy ilmaisena.")
+                    Text("Muu Volu — treenit, ravintokirjaus, mittaukset ja kehityskäyrät — pysyy ilmaisena.")
                 }
 
                 if store.products.isEmpty {
