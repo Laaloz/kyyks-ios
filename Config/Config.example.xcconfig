@@ -5,5 +5,13 @@ VOLU_SUPABASE_ANON_KEY = ANON_KEY_TAHAN
 // API-osoite kääntyy konfiguraation mukaan: Debug puhuu paikalliselle
 // Next-palvelimelle, Release tuotantoon. Ilman tätä jakoa TestFlightiin
 // ladattu käännös yrittäisi ottaa yhteyttä localhostiin eikä saisi mitään.
+//
+// Debugissa ratkaisee lisäksi kohdelaite: simulaattorissa localhost on Mac,
+// mutta puhelimessa se on puhelin itse, jolloin dev-API jää tavoittamatta.
+// Oire on hiljainen siellä missä virhe niellään tarkoituksella (esim.
+// push-laitetunnisteen välitys), joten laitteelle käännettäessä osoite on
+// tuotanto. Paikallinen dev-palvelin käyttää muutenkin samaa Supabase-
+// projektia, joten ero on vain siinä kumpi koodi ajetaan.
 VOLU_API_BASE_URL[config=Debug] = http:/$()/localhost:3300
+VOLU_API_BASE_URL[config=Debug][sdk=iphoneos*] = https:/$()/volu.fi
 VOLU_API_BASE_URL[config=Release] = https:/$()/volu.fi
