@@ -143,6 +143,33 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    Picker("Tavoite", selection: Binding(
+                        get: { profile.goal ?? "maintain" },
+                        set: { newValue in Task { await model.setGoal(newValue, activityLevel: nil) } }
+                    )) {
+                        Text("Pudota painoa").tag("lose")
+                        Text("Pysy nykyisessä").tag("maintain")
+                        Text("Kasvata lihasta").tag("gain")
+                    }
+                    Picker("Aktiivisuus", selection: Binding(
+                        get: { profile.activityLevel ?? "moderate" },
+                        set: { newValue in Task { await model.setGoal(nil, activityLevel: newValue) } }
+                    )) {
+                        Text("Kevyt").tag("low")
+                        Text("Kohtalainen").tag("moderate")
+                        Text("Aktiivinen").tag("high")
+                    }
+                } header: {
+                    Text("Ravintotavoite")
+                } footer: {
+                    if let kcal = profile.targetKcal {
+                        Text("Päivätavoite \(kcal) kcal. Se lasketaan uudelleen aina kun muutat näitä tai painosi muuttuu.")
+                    } else {
+                        Text("Tavoite lasketaan, kun makrolaskennan tiedot ovat täydelliset.")
+                    }
+                }
+
+                Section {
                     LabeledContent("Taso") {
                         Text(levelLabel(profile.entitlement ?? .free))
                             .foregroundStyle(.secondary)
@@ -317,6 +344,9 @@ struct MobileProfile: Decodable {
     let age: Int?
     let birthDate: String?
     let sex: String?
+    let goal: String?
+    let activityLevel: String?
+    let targetKcal: Int?
     let weeklyMeasurementReminders: Bool?
     let missingForMacros: [String]
     let entitlement: Entitlement?
@@ -327,6 +357,11 @@ private struct ProfilePatch: Encodable {
     let heightCm: Double?
     let birthDate: String?
     let sex: String?
+}
+
+private struct GoalPatch: Encodable {
+    let goal: String?
+    let activityLevel: String?
 }
 
 private struct ReminderPatch: Encodable {
@@ -357,6 +392,21 @@ final class ProfileModel: CachedModel {
             errorMessage = nil
         } catch {
             errorMessage = "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
+        }
+    }
+
+    /// Tavoite ja aktiivisuus tallentuvat heti valinnasta, ja palvelin laskee
+    /// makrotavoitteen uudelleen samassa pyynnössä. Erillinen tallennusnappi
+    /// jättäisi tilan helposti puolitiehen.
+    func setGoal(_ goal: String?, activityLevel: String?) async {
+        guard let api else { return }
+        do {
+            _ = try await api.patch("/api/mobile/profile", body: GoalPatch(goal: goal, activityLevel: activityLevel))
+            await refresh()
+            errorMessage = nil
+        } catch {
+            errorMessage = "Tavoitteen tallennus epäonnistui."
+            await refresh()
         }
     }
 
