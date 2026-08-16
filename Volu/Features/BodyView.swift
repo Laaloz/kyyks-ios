@@ -24,7 +24,7 @@ struct BodyView: View {
                     Section("Viimeisin") {
                         metricRow("Paino", latest.weightKg, "kg", change: model.weightChange)
                         metricRow("Vyötärö", latest.waistCm, "cm", change: model.waistChange)
-                        metricRow("Pituus", latest.heightCm, "cm", change: nil)
+                        metricRow("Pituus", model.heightCm, "cm", change: nil)
                     }
                 }
 
@@ -178,7 +178,6 @@ struct BodyView: View {
 
 struct BodyMeasurement: Decodable, Identifiable {
     let id: String
-    let heightCm: Double?
     let weightKg: Double?
     let waistCm: Double?
     let measuredAt: String
@@ -206,6 +205,8 @@ struct WeightPoint: Identifiable {
 }
 
 private struct MeasurementsResponse: Decodable {
+    /// Profiilista, ei mittausriviltä — ks. BodyModel.heightCm.
+    let heightCm: Double?
     let measurements: [BodyMeasurement]
 }
 
@@ -213,6 +214,10 @@ private struct MeasurementsResponse: Decodable {
 @MainActor
 final class BodyModel: CachedModel {
     private(set) var measurements: [BodyMeasurement] = []
+    /// Pituus tulee profiilista eikä mittausriviltä: se kirjataan kerran, joten
+    /// tuoreimmalla mittausrivillä sitä ei ole ja näkymä näytti viivaa vaikka
+    /// arvo oli tallessa.
+    private(set) var heightCm: Double?
     var isLoading = false
     var errorMessage: String?
 
@@ -267,5 +272,6 @@ final class BodyModel: CachedModel {
     func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(MeasurementsResponse.self, from: data) else { return }
         measurements = decoded.measurements
+        heightCm = decoded.heightCm
     }
 }
