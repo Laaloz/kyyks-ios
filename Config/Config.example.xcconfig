@@ -2,5 +2,8 @@
 // Huom: xcconfigissa "//" aloittaa kommentin — siksi https:/$()/ -kikka.
 VOLU_SUPABASE_URL = https:/$()/PROJEKTI.supabase.co
 VOLU_SUPABASE_ANON_KEY = ANON_KEY_TAHAN
-// Dev: paikallinen Next-palvelin. Tuotannossa deployattu web-osoite.
-VOLU_API_BASE_URL = http:/$()/localhost:3000
+// API-osoite kääntyy konfiguraation mukaan: Debug puhuu paikalliselle
+// Next-palvelimelle, Release tuotantoon. Ilman tätä jakoa TestFlightiin
+// ladattu käännös yrittäisi ottaa yhteyttä localhostiin eikä saisi mitään.
+VOLU_API_BASE_URL[config=Debug] = http:/$()/localhost:3300
+VOLU_API_BASE_URL[config=Release] = https:/$()/volu.fi
