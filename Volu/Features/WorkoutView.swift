@@ -139,7 +139,11 @@ struct WorkoutView: View {
         .refreshable { await model.refresh() }
         .task {
             model.configure(auth: auth, workoutId: workoutId)
+            // Ennen hakua: edellisellä kerralla lähettämättä jäänyt kirjaus
+            // näkyy heti, eikä vasta jos uudelleenlähetys onnistuu.
+            await model.restorePendingWrites()
             await model.load()
+            await model.flushPendingWrites()
             autoExpandFirstUnfinished()
         }
         .sheet(item: $editingLog) { log in

@@ -30,8 +30,7 @@ final class PendingSetMergeTests: XCTestCase {
 
     func testPendingSetSurvivesOlderServerResponse() {
         let model = WorkoutModel()
-        let pending = log(id: "1", reps: 8, load: 80, done: true)
-        model.setPendingForTesting(pending)
+        model.setPendingForTesting(PendingSetPatch(logId: "1", actualReps: 8, actualLoad: 80, done: true))
 
         // Palvelin ei ole vielä nähnyt kirjausta.
         let fromServer = [log(id: "1", reps: nil, load: nil, done: false)]
@@ -44,7 +43,7 @@ final class PendingSetMergeTests: XCTestCase {
 
     func testRowsWithoutPendingChangeComeFromServer() {
         let model = WorkoutModel()
-        model.setPendingForTesting(log(id: "1", reps: 8, load: 80, done: true))
+        model.setPendingForTesting(PendingSetPatch(logId: "1", actualReps: 8, actualLoad: 80, done: true))
 
         // Toisen sarjan arvo tulee palvelimelta sellaisenaan — yhdistäminen ei
         // saa jäädyttää muita rivejä vanhaan tilaan.
@@ -64,5 +63,35 @@ final class PendingSetMergeTests: XCTestCase {
         let fromServer = [log(id: "1", reps: 5, load: 50, done: true)]
 
         XCTAssertEqual(model.mergingPendingSets(into: fromServer).first?.actualReps, 5)
+    }
+}
+
+/// Lähettämättömien kirjausten säilyminen levyllä: sovellus voi sulkeutua
+/// kesken treenin ennen kuin pyyntö on perillä.
+final class PendingSetStoreTests: XCTestCase {
+    func testPatchesSurviveReload() async {
+        let store = PendingSetStore()
+        let workoutId = "test-\(UUID().uuidString)"
+        let patch = PendingSetPatch(logId: "log-1", actualReps: 10, actualLoad: 60, done: true)
+
+        await store.save(workoutId: workoutId, patches: [patch.logId: patch])
+        let loaded = await store.load(workoutId: workoutId)
+
+        XCTAssertEqual(loaded[patch.logId], patch)
+        await store.save(workoutId: workoutId, patches: [:])
+    }
+
+    func testSavingEmptyRemovesFile() async {
+        let store = PendingSetStore()
+        let workoutId = "test-\(UUID().uuidString)"
+        let patch = PendingSetPatch(logId: "log-1", actualReps: 5, actualLoad: nil, done: false)
+
+        await store.save(workoutId: workoutId, patches: [patch.logId: patch])
+        // Tyhjä tarkoittaa "ei odottavia" — tiedosto ei saa jäädä levylle
+        // kummittelemaan seuraavaan avaukseen.
+        await store.save(workoutId: workoutId, patches: [:])
+
+        let loaded = await store.load(workoutId: workoutId)
+        XCTAssertTrue(loaded.isEmpty)
     }
 }

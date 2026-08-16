@@ -81,22 +81,29 @@ final class WorkoutModel: CachedModel {
         setLogs = logs
     }
 
-    /// Sarjat, joiden tallennus on kesken. Palvelimen vastaus voi olla lähtenyt
-    /// matkaan ennen kuin kirjaus ehti perille, jolloin se on ruudulla olevaa
-    /// tilaa vanhempi — kesken treenin se tarkoittaisi, että juuri kirjattu
-    /// sarja katoaa silmien edestä ja käyttäjä kirjaa sen uudelleen.
-    private var pendingSets: [String: WorkoutSetLog] = [:]
+    /// Lähettämättömät sarjakirjaukset. Kaksi eri ongelmaa, sama ratkaisu:
+    /// palvelimen vastaus voi olla ruutua vanhempi (kirjaus vielä matkalla), ja
+    /// sovellus voi sulkeutua ennen kuin pyyntö on perillä. Sama tila myös
+    /// levyllä ([[PendingSetStore]]), jotta jälkimmäinenkään ei hävitä sarjaa.
+    private var pendingSets: [String: PendingSetPatch] = [:]
 
-    /// Palvelimen rivit, mutta kesken olevat kirjaukset päälle. Testattavuuden
+    /// Palvelimen rivit, mutta lähettämättömät kirjaukset päälle. Testattavuuden
     /// vuoksi erillään `apply`sta, joka tarvitsee verkkovastauksen.
     func mergingPendingSets(into rows: [WorkoutSetLog]) -> [WorkoutSetLog] {
         guard !pendingSets.isEmpty else { return rows }
-        return rows.map { pendingSets[$0.id] ?? $0 }
+        return rows.map { row in
+            guard let patch = pendingSets[row.id] else { return row }
+            var merged = row
+            merged.actualReps = patch.actualReps
+            merged.actualLoad = patch.actualLoad
+            merged.done = patch.done
+            return merged
+        }
     }
 
-    /// Vain testeille: kesken olevan kirjauksen asettaminen ilman verkkoa.
-    func setPendingForTesting(_ log: WorkoutSetLog) {
-        pendingSets[log.id] = log
+    /// Vain testeille: lähettämättömän kirjauksen asettaminen ilman verkkoa.
+    func setPendingForTesting(_ patch: PendingSetPatch) {
+        pendingSets[patch.logId] = patch
     }
 
     /// Toteuman kirjaaminen merkitsee sarjan tehdyksi: jos toistot tai kuorma on
@@ -219,42 +226,70 @@ final class WorkoutModel: CachedModel {
     }
 
     private func sync(_ updated: WorkoutSetLog, revertTo previous: WorkoutSetLog) {
+        let patch = PendingSetPatch(
+            logId: updated.id,
+            actualReps: updated.actualReps,
+            actualLoad: updated.actualLoad,
+            done: updated.done
+        )
+        pendingSets[patch.logId] = patch
+        let snapshot = pendingSets
+        Task { await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot) }
+        Task { await send(patch, revertTo: previous) }
+    }
+
+    /// Yhden kirjauksen lähetys.
+    ///
+    /// Virheen laji ratkaisee, mitä käyttäjän syötteelle tapahtuu. Katko tai
+    /// palvelimen häiriö ei ole syy hylätä kirjausta: se jää odottamaan ja
+    /// lähtee uudelleen kun treeni seuraavan kerran avataan. Vain palvelimen
+    /// selvä hylkäys (4xx) tarkoittaa, ettei kirjaus koskaan kelpaa — vasta
+    /// silloin arvo palautetaan ja käyttäjälle kerrotaan.
+    private func send(_ patch: PendingSetPatch, revertTo previous: WorkoutSetLog?) async {
         guard let api else { return }
-        // Kesken oleva tallennus talteen: jos palvelimen tila haetaan ennen kuin
-        // tämä pyyntö on ehtinyt perille, vastaus on vanhempi kuin ruudulla oleva
-        // arvo — ilman tätä juuri kirjattu sarja katoaisi näkyvistä.
-        pendingSets[updated.id] = updated
-        Task {
-            do {
-                struct SetPatch: Encodable {
-                    let logId: String
-                    let actualReps: Double?
-                    let actualLoad: Double?
-                    let done: Bool
-                }
-                struct Body: Encodable { let sets: [SetPatch] }
-                _ = try await api.patch(
-                    "/api/workouts/\(workoutId)/sets",
-                    body: Body(sets: [SetPatch(
-                        logId: updated.id,
-                        actualReps: updated.actualReps,
-                        actualLoad: updated.actualLoad,
-                        done: updated.done
-                    )])
-                )
-                // Vain jos tämä oli viimeisin muutos tälle sarjalle: nopea
-                // peräkkäinen kirjaus ehtii korvata arvon kesken pyynnön, eikä
-                // vanhentunut vastaus saa poistaa uudempaa odottavaa arvoa.
-                if pendingSets[updated.id] == updated {
-                    pendingSets.removeValue(forKey: updated.id)
-                }
-            } catch {
-                pendingSets.removeValue(forKey: updated.id)
-                if let revertIndex = setLogs.firstIndex(where: { $0.id == updated.id }) {
-                    setLogs[revertIndex] = previous
-                }
-                errorMessage = "Tallennus epäonnistui — yritä uudelleen."
+        do {
+            struct Body: Encodable { let sets: [PendingSetPatch] }
+            _ = try await api.patch("/api/workouts/\(workoutId)/sets", body: Body(sets: [patch]))
+            // Vain jos tämä oli viimeisin muutos tälle sarjalle: nopea
+            // peräkkäinen kirjaus ehtii korvata arvon kesken pyynnön, eikä
+            // vanhentunut vastaus saa poistaa uudempaa odottavaa arvoa.
+            if pendingSets[patch.logId] == patch {
+                pendingSets.removeValue(forKey: patch.logId)
+                let snapshot = pendingSets
+                await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)
             }
+        } catch APIError.status(let code) where (400 ..< 500).contains(code) {
+            pendingSets.removeValue(forKey: patch.logId)
+            let snapshot = pendingSets
+            await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)
+            if let previous, let index = setLogs.firstIndex(where: { $0.id == patch.logId }) {
+                setLogs[index] = previous
+            }
+            errorMessage = "Tallennus epäonnistui — yritä uudelleen."
+        } catch {
+            // Jää odottamaan. Arvoa ei palauteta: se on ruudulla ja levyllä,
+            // ja se lähtee uudelleen kun treeni avataan seuraavan kerran.
+        }
+    }
+
+    /// Levyllä odottavat kirjaukset käyttöön ja uudelleen matkaan.
+    ///
+    /// Kutsutaan treeniä avattaessa ennen hakua, jotta edellisellä kerralla
+    /// lähettämättä jäänyt sarja näkyy heti eikä vasta onnistuneen lähetyksen
+    /// jälkeen.
+    func restorePendingWrites() async {
+        let stored = await PendingSetStore.shared.load(workoutId: workoutId)
+        guard !stored.isEmpty else { return }
+        pendingSets = stored.merging(pendingSets) { _, newer in newer }
+        setLogs = mergingPendingSets(into: setLogs)
+    }
+
+    /// Odottavien uudelleenlähetys. Aiempi arvo ei ole tiedossa, joten
+    /// hylkäyksessä ei ole mitään mihin palata — palvelimen tila haetaan
+    /// tuolloin joka tapauksessa.
+    func flushPendingWrites() async {
+        for patch in pendingSets.values {
+            await send(patch, revertTo: nil)
         }
     }
 

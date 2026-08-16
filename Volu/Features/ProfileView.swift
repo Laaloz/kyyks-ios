@@ -298,6 +298,9 @@ struct ProfileView: View {
 
     private func signOut() async {
         await ResponseCache.shared.clear()
+        // Myös lähettämättömät sarjakirjaukset: ne ovat käyttäjän dataa eivätkä
+        // saa jäädä laitteelle seuraavalle kirjautujalle.
+        await PendingSetStore.shared.clear()
         await auth.signOut()
     }
 
