@@ -3,7 +3,7 @@
 Natiivi SwiftUI-clientti, joka käyttää web-Volun Supabase-authia ja Next.js-API:a
 (`Authorization: Bearer <jwt>`). Suorituskykyperiaatteet: Keychain-istunto ilman
 verkkokutsua käynnistyksessä, stale-while-revalidate-levyvälimuisti, kaikkien
-API-kutsujen vasteajat lokiin (subsystem `fit.rooki.volu`, category `api`).
+API-kutsujen vasteajat lokiin (subsystem `fi.volu.app`, category `api`).
 
 ## Vaatimukset
 

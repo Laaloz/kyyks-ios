@@ -11,7 +11,7 @@ struct LoginView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("rooki.fit")
+                Text("volu.fi")
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .kerning(2)
