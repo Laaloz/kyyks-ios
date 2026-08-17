@@ -32,25 +32,27 @@ struct NutritionView: View {
                     macroSummary
                 }
 
+
                 // Ei erillisiä ateriaotsikoita: Listin rivikorkeus on vähintään
                 // ~44 pt, joten kompaktikin otsikko söi sen verran ruutua jokaista
                 // ateriaa kohden. Ateriapaikka on nyt rivin omalla tietorivillä,
                 // ja rivit pysyvät ateriajärjestyksessä.
                 Section {
-                    ForEach(MealTag.allCases, id: \.self) { tag in
-                        ForEach(model.entries(for: tag)) { entry in
-                            Button {
-                                selectedEntry = entry
+                    ForEach(model.orderedEntries) { entry in
+                        Button {
+                            selectedEntry = entry
+                        } label: {
+                            NutritionRow(
+                                entry: entry,
+                                mealLabel: MealTag(rawValue: entry.mealTag)?.label ?? ""
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                model.deleteEntry(entry)
                             } label: {
-                                NutritionRow(entry: entry, mealLabel: tag.label)
-                            }
-                            .buttonStyle(.plain)
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    model.deleteEntry(entry)
-                                } label: {
-                                    Label("Poista", systemImage: "trash")
-                                }
+                                Label("Poista", systemImage: "trash")
                             }
                         }
                     }

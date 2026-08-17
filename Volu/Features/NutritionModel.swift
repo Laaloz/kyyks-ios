@@ -41,6 +41,20 @@ final class NutritionModel: CachedModel {
     let loadFailureMessage = "Ravintotietojen haku epäonnistui."
     var hasContent: Bool { day != nil }
 
+    /// Päivän ateriat ateriapaikkojen järjestyksessä, sitten oman
+    /// järjestyslukunsa mukaan.
+    ///
+    /// Yksi lista eikä sisäkkäistä ForEachia ateriapaikkojen yli: sisäkkäisenä
+    /// rivit eivät piirtyneet lainkaan, vaikka data oli näkymässä oikein.
+    var orderedEntries: [NutritionEntry] {
+        let order = Dictionary(uniqueKeysWithValues: MealTag.allCases.enumerated().map { ($1.rawValue, $0) })
+        return (day?.entries ?? []).sorted {
+            let left = order[$0.mealTag] ?? Int.max
+            let right = order[$1.mealTag] ?? Int.max
+            return left == right ? $0.position < $1.position : left < right
+        }
+    }
+
     func entries(for tag: MealTag) -> [NutritionEntry] {
         (day?.entries ?? []).filter { $0.mealTag == tag.rawValue }.sorted { $0.position < $1.position }
     }
