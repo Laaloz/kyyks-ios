@@ -260,11 +260,28 @@ final class BodyModel: CachedModel {
 
     /// Uusin ensin -järjestyksessä; kaavio tarvitsee aikajärjestyksen.
     var weightSeries: [WeightPoint] {
-        measurements
-            .compactMap { entry in
+        Self.dailySeries(
+            measurements.compactMap { entry in
                 entry.weightKg.map { WeightPoint(id: entry.id, date: entry.measuredDate, value: $0) }
             }
-            .sorted { $0.date < $1.date }
+        )
+    }
+
+    /// Päivältä vain viimeisin punnitus, aikajärjestyksessä.
+    ///
+    /// Samalle päivälle voi kertyä useita punnituksia — Healthista tuotu ja
+    /// käsin kirjattu, tai kaksi punnitusta samana aamuna. Kaaviossa ne
+    /// näkyivät pystysuorana hyppynä, joka kertoo vaa'an heitosta eikä painon
+    /// kehityksestä. Seuraamme viikkojen trendiä, joten päivän sisäinen
+    /// vaihtelu on kohinaa.
+    static func dailySeries(_ points: [WeightPoint], calendar: Calendar = .current) -> [WeightPoint] {
+        var latestByDay: [Date: WeightPoint] = [:]
+        for point in points {
+            let day = calendar.startOfDay(for: point.date)
+            if let existing = latestByDay[day], existing.date >= point.date { continue }
+            latestByDay[day] = point
+        }
+        return latestByDay.values.sorted { $0.date < $1.date }
     }
 
     /// Akselin rajat datasta pienellä marginaalilla: kiinteä 0-alku
