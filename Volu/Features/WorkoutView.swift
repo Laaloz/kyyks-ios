@@ -338,6 +338,7 @@ struct WorkoutView: View {
                 SetRow(
                     log: log,
                     showsTarget: exercise.sharedTarget == nil,
+                    previous: model.previousSet(for: log),
                     onToggle: {
                         if let rest = model.toggleDone(logId: log.id) {
                             withAnimation(.snappy) {

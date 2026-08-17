@@ -6,6 +6,33 @@ struct WorkoutDetail: Decodable {
     let session: WorkoutSession?
     let setLogs: [WorkoutSetLog]
     let note: WorkoutNote?
+    /// Edellisen kerran tulokset samoille liikkeille.
+    ///
+    /// Valinnainen tarkoituksella: levyllä oleva välimuistivastaus on
+    /// tallennettu ennen tätä kenttää, eikä Swift käytä oletusarvoa puuttuvalle
+    /// avaimelle vaan heittää. Pakollisena koko treeni jäisi dekoodaamatta ja
+    /// näkymä tyhjäksi ensimmäisellä avauksella päivityksen jälkeen — hiljaa,
+    /// koska apply nielee dekoodausvirheen.
+    let previousSets: [PreviousSet]?
+}
+
+/// Yksi sarja edelliseltä kerralta. Liike ja sarjan numero yhdistävät sen
+/// nykyiseen riviin.
+struct PreviousSet: Decodable {
+    let exerciseId: String
+    let setLabel: String
+    let actualReps: Double?
+    let actualLoad: Double?
+    let performedAt: String
+
+    /// "9 × 23 kg" tai pelkkä toistomäärä, jos kuormaa ei ole.
+    var summary: String? {
+        guard let reps = actualReps else {
+            return actualLoad.map { WorkoutSetLog.loadText($0) }
+        }
+        guard let load = actualLoad, load > 0 else { return "\(Int(reps))" }
+        return "\(Int(reps)) × \(WorkoutSetLog.loadText(load))"
+    }
 }
 
 struct WorkoutNote: Decodable {

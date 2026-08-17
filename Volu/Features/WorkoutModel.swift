@@ -316,9 +316,21 @@ final class WorkoutModel: CachedModel {
 
     private var isFlushing = false
 
+    /// Edellisen kerran tulos liikkeen ja sarjan numeron mukaan.
+    private(set) var previousSets: [String: PreviousSet] = [:]
+
+    /// Edellinen tulos tälle sarjalle, jos se on tiedossa.
+    func previousSet(for log: WorkoutSetLog) -> PreviousSet? {
+        previousSets["\(log.exerciseId)#\(log.setLabel)"]
+    }
+
     func apply(_ data: Data) {
         guard let detail = try? JSONDecoder().decode(WorkoutDetail.self, from: data) else { return }
         setLogs = mergingPendingSets(into: detail.setLogs)
+        previousSets = Dictionary(
+            (detail.previousSets ?? []).map { ("\($0.exerciseId)#\($0.setLabel)", $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         workout = detail.workout
         let previousSaved = savedNoteBody
         savedNoteBody = detail.note?.body ?? ""

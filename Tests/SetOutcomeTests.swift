@@ -105,3 +105,27 @@ final class SetLoggedStateTests: XCTestCase {
         XCTAssertTrue(log(reps: nil, load: 23, done: false).isLogged)
     }
 }
+
+/// Vanha välimuistivastaus levyllä ei sisällä uusia kenttiä. Jos dekoodaus
+/// kaatuu niihin, näkymä jää tyhjäksi hiljaa — päivityksen jälkeen ensimmäinen
+/// avaus lukee juuri sellaisen vastauksen.
+final class WorkoutDetailDecodingTests: XCTestCase {
+    private let withoutPreviousSets = """
+    {
+      "workout": {
+        "id": "w1", "athleteId": "a1", "title": "Koko",
+        "scheduledDate": "2026-08-14", "status": "completed"
+      },
+      "session": null,
+      "note": null,
+      "setLogs": []
+    }
+    """
+
+    func testDecodesResponseWithoutPreviousSets() throws {
+        let data = Data(withoutPreviousSets.utf8)
+        let detail = try JSONDecoder().decode(WorkoutDetail.self, from: data)
+        XCTAssertNil(detail.previousSets)
+        XCTAssertEqual(detail.workout.title, "Koko")
+    }
+}

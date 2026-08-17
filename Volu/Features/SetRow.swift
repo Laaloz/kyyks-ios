@@ -12,6 +12,10 @@ struct SetRow: View {
     /// Tavoite rivillä vain kun liikkeen sarjat eroavat toisistaan; muuten se
     /// on liikkeen otsikossa eikä toistu joka rivillä.
     var showsTarget: Bool = true
+    /// Edellisen kerran tulos tälle sarjalle. Näytetään vain kirjaamattomalle
+    /// riville: kirjatun rivin oma lukema kertoo jo enemmän, ja kaksi lukemaa
+    /// vierekkäin sekoittaisi sen kumpi on tämän päivän.
+    var previous: PreviousSet?
     let onToggle: () -> Void
     let onEdit: () -> Void
 
@@ -51,9 +55,25 @@ struct SetRow: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
+            if !log.isLogged, let previousText = previous?.summary {
+                Text("viimeksi \(previousText)")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(showsTarget ? "Sarja \(log.setLabel), tavoite \(targetText)" : "Sarja \(log.setLabel)")
+        .accessibilityLabel(labelAccessibilityText)
+    }
+
+    private var labelAccessibilityText: String {
+        var parts = ["Sarja \(log.setLabel)"]
+        if showsTarget { parts.append("tavoite \(targetText)") }
+        if !log.isLogged, let previousText = previous?.summary {
+            parts.append("viimeksi \(previousText)")
+        }
+        return parts.joined(separator: ", ")
     }
 
     // Kuittaus ja muokkaus ovat erilliset kosketusalueet: lukema avaa
