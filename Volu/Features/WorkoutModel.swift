@@ -189,7 +189,7 @@ final class WorkoutModel: CachedModel {
             )
             await refreshAfterChange()
             return nil
-        } catch APIError.status(409) {
+        } catch APIError.status(409, _) {
             return "Treeni on muuttunut toisaalla. Päivitä näkymä ja yritä uudelleen."
         } catch {
             return "Keston tallennus epäonnistui."
@@ -306,7 +306,7 @@ final class WorkoutModel: CachedModel {
             // Salin huonossa kentässä aiemmat kirjaukset ovat jääneet
             // odottamaan, eikä niiden pidä odottaa näkymästä poistumista.
             await flushPendingWrites()
-        } catch APIError.status(let code) where (400 ..< 500).contains(code) {
+        } catch APIError.status(let code, _) where (400 ..< 500).contains(code) {
             pendingSets.removeValue(forKey: patch.logId)
             let snapshot = pendingSets
             await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)

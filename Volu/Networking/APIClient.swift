@@ -94,7 +94,12 @@ struct APIClient {
                 let message = (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.message
                 throw APIError.paymentRequired(message)
             }
-            throw APIError.status(http.statusCode)
+            // Palvelimen viesti mukaan aina, ei vain maksumuurista. Ilman sitä
+            // näkymät näyttävät oman yleisilmauksensa ("Treenin aloitus
+            // epäonnistui"), ja ainoa tieto siitä mikä oikeasti meni pieleen
+            // katoaa — myös lokista, koska pyyntö ei koskaan palaa palvelimelle.
+            let message = (try? JSONDecoder().decode(APIErrorBody.self, from: data))?.message
+            throw APIError.status(http.statusCode, message)
         }
         return data
     }
@@ -106,14 +111,26 @@ private struct APIErrorBody: Decodable {
 
 enum APIError: Error, LocalizedError {
     case transport
-    case status(Int)
+    /// Koodi ja palvelimen oma selitys, kun se antoi sellaisen.
+    case status(Int, String?)
     case paymentRequired(String?)
 
     var errorDescription: String? {
         switch self {
         case .transport: "Verkkovirhe"
-        case .status(let code): "Palvelin vastasi virheellä (\(code))"
+        case .status(let code, let message): message ?? "Palvelin vastasi virheellä (\(code))"
         case .paymentRequired(let message): message ?? "Ominaisuus kuuluu Volu Pro -tilaukseen"
+        }
+    }
+
+    /// Palvelimen selitys, jos se on ihmiselle näytettävä. Näkymät käyttävät
+    /// tätä oman yleisilmauksensa sijaan, jotta käyttäjä näkee syyn eikä vain
+    /// sitä että jokin epäonnistui.
+    var serverMessage: String? {
+        switch self {
+        case .status(_, let message): message
+        case .paymentRequired(let message): message
+        case .transport: nil
         }
     }
 }

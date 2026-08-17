@@ -129,7 +129,11 @@ struct StartWorkoutSheet: View {
                 onStarted(response.scheduledWorkoutId, workout.name, response.autoCancelledWorkoutTitle)
                 dismiss()
             } catch {
-                errorMessage = "Treenin aloitus epäonnistui — yritä uudelleen."
+                // Palvelin kertoo miksi aloitus estyi — esimerkiksi että
+                // ohjelma on arkistoitu. Oma yleisilmaus peitti sen, jolloin
+                // korjattavissa oleva tilanne näytti satunnaiselta virheeltä.
+                errorMessage = (error as? APIError)?.serverMessage
+                    ?? "Treenin aloitus epäonnistui — yritä uudelleen."
             }
         }
     }

@@ -197,7 +197,7 @@ final class SubscriptionStore {
             entitlement = response.entitlement ?? .free
             subscription = response.subscription
             return true
-        } catch APIError.status(409) {
+        } catch APIError.status(409, _) {
             errorMessage = "Tämä tilaus on jo liitetty toiseen Volu-tiliin."
             // Konflikti ei korjaannu yrittämällä uudelleen, joten transaktio
             // kuitataan käsitellyksi.

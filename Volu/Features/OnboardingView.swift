@@ -168,7 +168,11 @@ struct OnboardingView: View {
                 ))
                 onFinished()
             } catch {
-                errorMessage = "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
+                // "Tarkista arvot" on huono neuvo kun vika ei ole arvoissa.
+                // Palvelin nimeää puuttuvan tiedon, joten sen viesti kertoo
+                // käyttäjälle mitä oikeasti pitää korjata.
+                errorMessage = (error as? APIError)?.serverMessage
+                    ?? "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
             }
             isSaving = false
         }

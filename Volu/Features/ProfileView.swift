@@ -409,7 +409,8 @@ final class ProfileModel: CachedModel {
             await refreshAfterChange()
             errorMessage = nil
         } catch {
-            errorMessage = "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
+            errorMessage = (error as? APIError)?.serverMessage
+                ?? "Tallennus epäonnistui. Tarkista arvot ja yritä uudelleen."
         }
     }
 
