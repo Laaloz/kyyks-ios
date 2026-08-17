@@ -42,12 +42,15 @@ struct WorkoutView: View {
             }
 
             ForEach(model.blocks) { block in
+                // Otsikko on rivi eikä osion otsikko. Osion otsikkopaikka on
+                // muualla sovelluksessa aina pelkkää tekstiä, ja iOS antaa
+                // sille omat marginaalinsa ja typografiansa — vuorovaikutteinen
+                // otsikko ei siksi voinut näyttää samalta kuin muut rivit.
                 Section {
+                    blockHeaderRow(block)
                     if expanded.contains(block.id) {
                         blockContent(block)
                     }
-                } header: {
-                    blockHeader(block)
                 }
             }
 
@@ -98,11 +101,14 @@ struct WorkoutView: View {
                         }
                         .font(.headline)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
+                        // Samat mitat kuin Treeni-välilehden "Aloita treeni"
+                        // -napilla, jotta treenin alku ja loppu näyttävät
+                        // saman luokan toiminnoilta.
+                        .padding(.vertical, 14)
                     }
                     .disabled(model.isCompleting)
                     .buttonStyle(.borderedProminent)
-                    .listRowInsets(EdgeInsets())
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                     .listRowBackground(Color.clear)
                 }
             }
@@ -238,7 +244,6 @@ struct WorkoutView: View {
         )
     }
 
-    @ViewBuilder
     /// Otsikon alarivi: tavoite, ja kutistetusta liikkeestä myös toteuma.
     ///
     /// Supersetissä liikkeillä on omat tavoitteensa, joten yhteistä tavoitetta
@@ -256,14 +261,14 @@ struct WorkoutView: View {
         return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
     }
 
-    private func blockHeader(_ block: ExerciseBlock) -> some View {
+    private func blockHeaderRow(_ block: ExerciseBlock) -> some View {
         HStack(spacing: 8) {
             Button {
                 withAnimation(.snappy(duration: 0.2)) { toggle(block.id) }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.bold))
+                        .font(.caption.weight(.semibold))
                         .rotationEffect(.degrees(expanded.contains(block.id) ? 90 : 0))
                         .foregroundStyle(.secondary)
 
@@ -273,7 +278,10 @@ struct WorkoutView: View {
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.tint)
                         }
+                        // Rivin otsikko on .headline kuten muissakin
+                        // näkymissä (esim. Tänään-välilehden treenirivi).
                         Text(block.title)
+                            .font(.headline)
                             .lineLimit(2)
                         // Tavoite kerran liikettä kohti, ei joka riville. Kun
                         // liike on kutistettuna, mukaan tulee myös se mitä
@@ -302,6 +310,7 @@ struct WorkoutView: View {
                     // Laskuri ei ole arvosana: valmis on normaalitila eikä
                     // ansaitse väriä. Väri on varattu tavoitepoikkeamalle.
                     Text("\(block.doneCount)/\(block.logs.count)")
+                        .font(.subheadline)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
                 }
@@ -393,10 +402,10 @@ struct WorkoutView: View {
                         } label: {
                             if model.isEditable {
                                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                                    durationLabel(session.durationSeconds(now: context.date))
+                                    durationLabel(session.durationSeconds(now: context.date), isEditable: true)
                                 }
                             } else {
-                                durationLabel(session.durationSeconds())
+                                durationLabel(session.durationSeconds(), isEditable: false)
                             }
                         }
                         .buttonStyle(.plain)
@@ -440,10 +449,13 @@ struct WorkoutView: View {
         return minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
     }
 
-    private func durationLabel(_ seconds: Int) -> some View {
+    /// Kesto on napautettava kun treeni on kesken. Harmaana se näytti
+    /// tavalliselta tekstiltä eikä mikään kertonut että kestoa voi korjata —
+    /// muuallakin sovelluksessa napautettava on korostusvärillä.
+    private func durationLabel(_ seconds: Int, isEditable: Bool) -> some View {
         Text(durationText(seconds))
             .font(.footnote)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(isEditable ? Color.accentColor : Color.secondary)
             .monospacedDigit()
             .accessibilityLabel("Kesto \(durationText(seconds))")
     }

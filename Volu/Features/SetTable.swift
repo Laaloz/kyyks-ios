@@ -62,7 +62,9 @@ struct SetTable: View {
         // Ei versaaleja: suomen sanat ovat pitkiä, ja "SARJA" katkesi
         // kahdelle riville kapeassa sarakkeessa.
         .font(.caption2)
-        .foregroundStyle(.tertiary)
+        // Toissijainen, ei tertiäärinen: sama peruste kuin arvoriveillä —
+        // tertiäärin kontrasti jää alle luettavan rajan.
+        .foregroundStyle(.secondary)
         .padding(.bottom, 6)
         .accessibilityHidden(true)
     }
