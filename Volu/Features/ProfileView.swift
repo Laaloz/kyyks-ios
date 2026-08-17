@@ -9,6 +9,16 @@ struct ProfileView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
     let auth: AuthManager
 
+    /// Julkaisuversio ja buildinumero. Buildinumero on se joka erottaa
+    /// TestFlight-lataukset toisistaan — julkaisuversio pysyy samana monen
+    /// buildin ajan, joten pelkkä se ei kertoisi onko korjaus mukana.
+    static var versionText: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return "\(version) (\(build))"
+    }
+
     @State private var model = ProfileModel()
     @State private var heightText = ""
     @State private var birthDate = Date()
@@ -215,6 +225,21 @@ struct ProfileView: View {
                     Button("Poista tili", role: .destructive) {
                         showDelete = true
                     }
+                }
+
+                // Versio näkyviin: testivaiheessa on jatkuvasti epäselvää onko
+                // puhelimessa jo se build jossa korjaus on. Ilman tätä sitä ei
+                // voi tarkistaa mistään, ja vanha build näyttää korjaamattomalta
+                // bugilta.
+                Section {
+                    HStack {
+                        Text("Versio")
+                        Spacer()
+                        Text(Self.versionText)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
