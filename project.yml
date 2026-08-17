@@ -84,6 +84,12 @@ targets:
         # lopullisen profiilinsa — ks. PushManager.environment.
         aps-environment: development
         com.apple.developer.applesignin: [Default]
+        # Lepoajastimen loppuilmoitus on merkitty aikaherkäksi
+        # (RestTimer.swift). Ilman tätä oikeutta iOS pudottaa sen tavalliseksi,
+        # jolloin se ei läpäise keskittymistilaa — ja salilla keskittymistila
+        # on tavallinen. Vaatii saman ominaisuuden App ID:lle; automaattinen
+        # allekirjoitus lisää sen yleensä itse.
+        com.apple.developer.usernotifications.time-sensitive: true
     info:
       path: Volu/Info.plist
       properties:

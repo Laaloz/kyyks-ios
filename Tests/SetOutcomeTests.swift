@@ -233,3 +233,63 @@ final class SessionDurationTests: XCTestCase {
         XCTAssertEqual(s.durationSeconds(), 0)
     }
 }
+
+/// Lepoajastin näytön ollessa suljettuna.
+///
+/// Ajastin ei saa perustua tikittävään laskuriin: taustalla ja lukitulla
+/// näytöllä ajastimet eivät aja, joten jäljellä oleva aika on laskettava
+/// seinäkellosta joka kerta uudelleen.
+final class RestTimerPersistenceTests: XCTestCase {
+    private let keys = ["restTimerEndsAt", "restTimerTotal", "restTimerName"]
+
+    override func setUp() {
+        super.setUp()
+        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+    }
+
+    override func tearDown() {
+        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        super.tearDown()
+    }
+
+    @MainActor
+    func testRemainingComesFromWallClockNotTicks() {
+        let timer = RestTimerManager()
+        timer.start(seconds: 90, exerciseName: "Penkkipunnerrus")
+
+        // Kello siirtyy eteenpäin ilman että mikään on "tikittänyt".
+        let later = Date.now.addingTimeInterval(30)
+        XCTAssertEqual(timer.remainingSeconds(at: later), 60)
+    }
+
+    @MainActor
+    func testTimerSurvivesAppRestart() {
+        let timer = RestTimerManager()
+        timer.start(seconds: 120, exerciseName: "Kyykky")
+
+        // Uusi ilmentymä = sovellus käynnistetty uudelleen.
+        let restored = RestTimerManager()
+        XCTAssertTrue(restored.isActive)
+        XCTAssertEqual(restored.exerciseName, "Kyykky")
+        XCTAssertEqual(restored.totalSeconds, 120)
+    }
+
+    @MainActor
+    func testExpiredTimerDoesNotComeBack() {
+        let timer = RestTimerManager()
+        timer.start(seconds: 1, exerciseName: "Soutu")
+        // Vanhentunut ajastin ei saa palata ruudulle käynnistyksessä.
+        UserDefaults.standard.set(Date.now.addingTimeInterval(-5).timeIntervalSince1970, forKey: "restTimerEndsAt")
+
+        XCTAssertFalse(RestTimerManager().isActive)
+    }
+
+    @MainActor
+    func testStoppedTimerLeavesNothingBehind() {
+        let timer = RestTimerManager()
+        timer.start(seconds: 60, exerciseName: "Maastaveto")
+        timer.stop()
+
+        XCTAssertFalse(RestTimerManager().isActive)
+    }
+}
