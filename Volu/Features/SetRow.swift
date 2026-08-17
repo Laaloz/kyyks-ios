@@ -27,45 +27,65 @@ struct SetRow: View {
         // ahtaudu tekstin päälle.
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 8) {
-                label
                 HStack(spacing: 12) {
-                    editChip
-                    toggleButton
+                    setNumber
+                    content
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                toggleButton
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         } else {
+            // Sisältö vasemmalle yhteen ryhmään, kuittaus oikeaan reunaan.
+            // Aiemmin lukema oli työnnetty oikeaan laitaan, jolloin numeron ja
+            // lukeman väliin jäi koko rivin levyinen tyhjä — vaikka ne ovat
+            // saman asian kaksi osaa. Väli kuuluu sisällön ja kontrollin
+            // väliin, kuten iOS-listoissa muutenkin.
             HStack(spacing: 12) {
-                label
+                setNumber
+                content
                 Spacer(minLength: 8)
-                editChip
                 toggleButton
             }
             .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         }
     }
 
-    private var label: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(log.setLabel)
-                .font(.subheadline.weight(.medium))
-            if showsTarget {
-                Text(targetText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            if let previousText = previous?.summary {
-                Text("viimeksi \(previousText)")
-                    .font(.footnote)
-                    .foregroundStyle(.tertiary)
-                    .monospacedDigit()
-                    .lineLimit(1)
+    /// Sarjan numero omana kapeana sarakkeenaan, jotta lukemat asettuvat
+    /// samaan linjaan riveittäin.
+    private var setNumber: some View {
+        Text(log.setLabel)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .frame(minWidth: 16, alignment: .leading)
+            .accessibilityHidden(true)
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            editChip
+            if showsTarget || previous != nil {
+                HStack(spacing: 6) {
+                    if showsTarget {
+                        Text(targetText)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let previousText = previous?.summary {
+                        Text("viimeksi \(previousText)")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .font(.caption)
+                .monospacedDigit()
+                .lineLimit(1)
             }
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(labelAccessibilityText)
+    }
+
+    private var label: some View {
+        Text(log.setLabel)
+            .accessibilityLabel(labelAccessibilityText)
     }
 
     private var labelAccessibilityText: String {
@@ -118,11 +138,11 @@ struct SetRow: View {
                         .foregroundStyle(.tint)
                 }
             }
-            .font(.subheadline)
+            .font(.body.weight(.medium))
             .monospacedDigit()
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
-            .frame(minHeight: 44)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 38)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
