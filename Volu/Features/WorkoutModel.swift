@@ -152,7 +152,11 @@ final class WorkoutModel: CachedModel {
         } else {
             setLogs[index].done = true
             setLogs[index].actualReps = previous.targetReps
-            setLogs[index].actualLoad = previous.targetLoad
+            // Kuorma tavoitteesta, tai jos ohjelmassa ei ole painoja, siitä
+            // mitä samalla sarjalla nostettiin viimeksi. Ilman tätä kuittaus
+            // kirjaisi pelkät toistot, ja paino olisi haettava lomakkeelta
+            // joka sarjalla erikseen.
+            setLogs[index].actualLoad = previous.targetLoad ?? previousSet(for: previous)?.actualLoad
         }
         sync(setLogs[index], revertTo: previous)
 

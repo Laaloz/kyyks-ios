@@ -19,10 +19,17 @@ struct SetTable: View {
     let onEdit: (WorkoutSetLog) -> Void
     let onToggle: (WorkoutSetLog) -> Void
 
-    /// Näytetäänkö "viimeksi"-sarake lainkaan. Jos yhdelläkään sarjalla ei ole
-    /// edellistä tulosta, sarake olisi pelkkä rivi viivoja.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Näytetäänkö "viimeksi"-sarake lainkaan.
+    ///
+    /// Jätetään pois kahdesta syystä: jos yhdelläkään sarjalla ei ole
+    /// edellistä tulosta, sarake olisi pelkkä rivi viivoja — ja
+    /// saavutettavuuskoossa kolme saraketta ei mahdu riville, jolloin
+    /// tärkeämmät (tulos ja kuittaus) kutistuisivat luettavuuden alle.
     private var showsPrevious: Bool {
-        logs.contains { previous($0) != nil }
+        guard !dynamicTypeSize.isAccessibilitySize else { return false }
+        return logs.contains { previous($0) != nil }
     }
 
     var body: some View {
@@ -44,9 +51,14 @@ struct SetTable: View {
             if showsPrevious {
                 Text("Viimeksi")
                     .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                // Joustava väli tarvitaan myös ilman viimeksi-saraketta:
+                // ilman sitä HStack keskittää koko sisällön eivätkä otsikot
+                // osu sarakkeidensa päälle.
+                Spacer(minLength: 8)
             }
             Text("Tulos")
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .frame(minWidth: 76, alignment: .center)
             // Sarake kuittausruudulle, jotta otsikot osuvat sarakkeiden päälle.
             Color.clear.frame(width: 44, height: 1)
         }
@@ -65,14 +77,19 @@ struct SetTable: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .frame(width: 40, alignment: .leading)
+                .accessibilityHidden(true)
 
             if showsPrevious {
                 Text(previous(log)?.summary ?? "—")
                     .font(.footnote)
-                    .foregroundStyle(.tertiary)
+                    // Toissijainen eikä tertiäärinen: tertiäärin kontrasti
+                    // valkoisella jää alle luettavan rajan.
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Spacer(minLength: 8)
             }
 
             Button {
@@ -92,7 +109,13 @@ struct SetTable: View {
                         .monospacedDigit()
                 }
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .trailing)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .frame(minWidth: 76, minHeight: 44)
+                // Solu näyttää syöttökentältä, koska se on syöttökenttä.
+                // Ilman taustaa lukema oli pelkkää tekstiä, eikä mikään
+                // kertonut että sitä napauttamalla kirjataan.
+                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -112,7 +135,7 @@ struct SetTable: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Sarja \(log.setLabel)")
+            .accessibilityLabel("Sarja \(log.setLabel), kuittaus")
             .accessibilityValue(log.isLogged ? "Kirjattu" : "Kirjaamatta")
             .accessibilityHint(log.isLogged ? "Poista kirjaus kaksoisnapauttamalla" : "Kirjaa sarja tavoitteen mukaisena ja käynnistä lepoajastin kaksoisnapauttamalla")
         }

@@ -131,3 +131,39 @@ final class ProgramDraftChangeTests: XCTestCase {
         XCTAssertNotEqual(edited, original)
     }
 }
+
+/// Lepoajastimen käynnistyminen kuittauksesta. Ajastin on treenin toiseksi
+/// tärkein toiminto heti kirjauksen jälkeen, ja sen ennakoitavuus on osa
+/// kirjauksen luotettavuutta.
+@MainActor
+final class RestTimerTriggerTests: XCTestCase {
+    private func log(_ label: String) -> WorkoutSetLog {
+        WorkoutSetLog(
+            id: "s\(label)", templateExerciseId: "e1", setId: "set\(label)", exerciseId: "ex",
+            exerciseName: "Penkkipunnerrus", supersetGroup: nil, setLabel: label,
+            targetReps: 5, targetRepsMin: 5, targetRepsMax: 7,
+            targetLoad: 60, targetRestSeconds: 90,
+            actualReps: nil, actualLoad: nil, done: false
+        )
+    }
+
+    func testEachSetStartsRestUntilTheLastOne() {
+        let model = WorkoutModel()
+        model.setLogsForTesting([log("1"), log("2"), log("3")])
+
+        // Jokainen kuittaus käynnistää levon uudelleen — myös silloin kun
+        // edellinen ajastin on suljettu käsin.
+        XCTAssertNotNil(model.toggleDone(logId: "s1"))
+        XCTAssertNotNil(model.toggleDone(logId: "s2"))
+        // Viimeisestä ei: treeni on ohi eikä lepoa tarvita.
+        XCTAssertNil(model.toggleDone(logId: "s3"))
+    }
+
+    func testUncheckingDoesNotStartRest() {
+        let model = WorkoutModel()
+        model.setLogsForTesting([log("1"), log("2")])
+        _ = model.toggleDone(logId: "s1")
+
+        XCTAssertNil(model.toggleDone(logId: "s1"))
+    }
+}
