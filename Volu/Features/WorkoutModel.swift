@@ -170,6 +170,32 @@ final class WorkoutModel: CachedModel {
         return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }
 
+    /// Keston korjaus. Palvelin vaatii istunnon versiotiedon, joten
+    /// samanaikainen muokkaus toisesta laitteesta hylätään eikä ylikirjoita.
+    /// Palauttaa virheviestin tai nil.
+    func updateDuration(seconds: Int) async -> String? {
+        guard let api else { return "Ei yhteyttä." }
+        guard let expected = session?.updatedAt else {
+            return "Treenin versiotieto puuttuu — päivitä näkymä ja yritä uudelleen."
+        }
+        struct Body: Encodable {
+            let durationSeconds: Int
+            let expectedUpdatedAt: String
+        }
+        do {
+            _ = try await api.patch(
+                "/api/workouts/\(workoutId)",
+                body: Body(durationSeconds: seconds, expectedUpdatedAt: expected)
+            )
+            await refreshAfterChange()
+            return nil
+        } catch APIError.status(409) {
+            return "Treeni on muuttunut toisaalla. Päivitä näkymä ja yritä uudelleen."
+        } catch {
+            return "Keston tallennus epäonnistui."
+        }
+    }
+
     func completeWorkout() async {
         guard let api, let updatedAt = workout?.updatedAt else { return }
         isCompleting = true

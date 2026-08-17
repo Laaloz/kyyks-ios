@@ -20,6 +20,7 @@ struct WorkoutView: View {
     @State private var didAutoExpand = false
     @State private var confirmation: Confirmation?
     @State private var restTimer = RestTimerManager()
+    @State private var showDurationEdit = false
 
     private enum Confirmation: Identifiable {
         case complete, cancel, delete
@@ -152,6 +153,12 @@ struct WorkoutView: View {
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
             Task { await model.flushPendingWrites() }
+        }
+        .sheet(isPresented: $showDurationEdit) {
+            DurationEditSheet(currentSeconds: model.session?.durationSeconds() ?? 0) { seconds in
+                await model.updateDuration(seconds: seconds)
+            }
+            .presentationDetents([.height(300)])
         }
         .sheet(item: $editingLog) { log in
             SetEditSheet(log: log) { reps, load in
@@ -381,13 +388,19 @@ struct WorkoutView: View {
                     // treenin luku ei muutu, eikä sitä ole syytä piirtää
                     // uudelleen.
                     if let session = model.session {
-                        if model.isEditable {
-                            TimelineView(.periodic(from: .now, by: 1)) { context in
-                                durationLabel(session.durationSeconds(now: context.date))
+                        Button {
+                            showDurationEdit = true
+                        } label: {
+                            if model.isEditable {
+                                TimelineView(.periodic(from: .now, by: 1)) { context in
+                                    durationLabel(session.durationSeconds(now: context.date))
+                                }
+                            } else {
+                                durationLabel(session.durationSeconds())
                             }
-                        } else {
-                            durationLabel(session.durationSeconds())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Muokkaa treenin kestoa")
                     }
                     Spacer()
                     Text("\(model.doneCount)/\(model.setLogs.count) sarjaa")
@@ -397,6 +410,24 @@ struct WorkoutView: View {
                 }
                 ProgressView(value: Double(model.doneCount), total: Double(max(model.setLogs.count, 1)))
                     .tint(model.isCompleted ? .green : .accentColor)
+
+                // Päälle unohtunut treeni kirjaa tuntikausia. Sovellus ei
+                // päätä puolesta milloin treeni oikeasti loppui — vain
+                // treenaaja tietää sen — vaan huomauttaa ja tarjoaa korjausta.
+                if model.isEditable, let session = model.session, session.durationSeconds() >= 4 * 3600 {
+                    Button {
+                        showDurationEdit = true
+                    } label: {
+                        Label(
+                            "Treeni on ollut käynnissä pitkään — jäikö se päälle? Korjaa kesto",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.leading)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.vertical, 4)
         }
