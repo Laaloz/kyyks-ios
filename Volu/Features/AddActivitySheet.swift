@@ -120,6 +120,21 @@ struct AddActivitySheet: View {
                             .frame(width: 90)
                         Text("kcal").foregroundStyle(.secondary)
                     }
+
+                    // Syke näytetään mutta sitä ei muokata: se tulee kellosta
+                    // mittauksena, eikä käsin arvattu keskisyke ole mittaus.
+                    // Rivi on silti tarpeen, jotta käyttäjä näkee että arvo on
+                    // tallessa — ja jotta tallennus ei näytä hävittävän sitä.
+                    if let heartRate = existing?.averageHeartRate, heartRate > 0 {
+                        HStack {
+                            Text("Keskisyke")
+                            Spacer()
+                            Text("\(Int(heartRate.rounded()))")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                            Text("bpm").foregroundStyle(.secondary)
+                        }
+                    }
                 } footer: {
                     Text("Jätä tyhjäksi, niin kulutus arvioidaan lajin ja kestosi perusteella.")
                 }
@@ -157,18 +172,9 @@ struct AddActivitySheet: View {
         isSaving = true
         defer { isSaving = false }
 
-        struct Body: Encodable {
-            let activityType: String
-            let durationMinutes: Double
-            let manualKcal: Double?
-            let occurredAt: String
-            let notes: String?
-            let distanceMeters: Double?
-        }
-
         let client = APIClient(auth: auth)
         do {
-            let body = Body(
+            let body = ActivitySavePayload(
                 activityType: activityType.rawValue,
                 durationMinutes: minutes,
                 manualKcal: Double(kcalText).flatMap { $0 > 0 ? $0 : nil },
@@ -176,7 +182,10 @@ struct AddActivitySheet: View {
                 notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes,
                 // Palvelin nollaa matkan itse jos laji ei kulje matkaa, joten
                 // lajin vaihto joogaksi ei jätä vanhaa kilometrilukemaa roikkumaan.
-                distanceMeters: distanceMeters
+                distanceMeters: distanceMeters,
+                // Syke kulkee muuttumattomana läpi: se on kellon mittaus, jota
+                // lomake ei muokkaa mutta ei myöskään saa hävittää.
+                averageHeartRate: existing?.averageHeartRate
             )
             if let existing {
                 _ = try await client.patch("/api/extra-activities/\(existing.id)", body: body)
@@ -188,6 +197,41 @@ struct AddActivitySheet: View {
         } catch {
             errorMessage = "Suorituksen tallennus epäonnistui — yritä uudelleen."
         }
+    }
+}
+
+/// Suorituksen tallennuspyyntö.
+///
+/// Mittaukset koodataan aina, myös tyhjinä. Swiftin oletuskoodaus jättää
+/// tyhjän arvon pois pyynnöstä, jolloin palvelin ei voi erottaa "tyhjennä
+/// matka" -tarkoitusta siitä ettei kenttää lähetetty lainkaan. Nimenomainen
+/// null tekee eron näkyväksi ja estää sen, että kellosta tuotu syke katoaisi
+/// pelkästään siitä että suoritus avataan ja tallennetaan uudelleen.
+struct ActivitySavePayload: Encodable {
+    let activityType: String
+    let durationMinutes: Double
+    let manualKcal: Double?
+    let occurredAt: String
+    let notes: String?
+    let distanceMeters: Double?
+    let averageHeartRate: Double?
+
+    // Oma encode estää avainten johtamisen automaattisesti, joten ne on
+    // lueteltava. Nimet vastaavat palvelimen odottamia kenttiä.
+    private enum CodingKeys: String, CodingKey {
+        case activityType, durationMinutes, manualKcal, occurredAt, notes
+        case distanceMeters, averageHeartRate
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(activityType, forKey: .activityType)
+        try container.encode(durationMinutes, forKey: .durationMinutes)
+        try container.encodeIfPresent(manualKcal, forKey: .manualKcal)
+        try container.encode(occurredAt, forKey: .occurredAt)
+        try container.encodeIfPresent(notes, forKey: .notes)
+        try container.encode(distanceMeters, forKey: .distanceMeters)
+        try container.encode(averageHeartRate, forKey: .averageHeartRate)
     }
 }
 

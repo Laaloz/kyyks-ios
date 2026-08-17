@@ -148,23 +148,40 @@ struct TodayView: View {
                 // treeni on — samaa asiaa ei kirjata kahdesta paikasta.
                 if !model.recentEntries.isEmpty {
                     Section("Viimeisimmät") {
+                        // Rivi vie Treeni-välilehdelle, jossa kirjaus tehdään.
+                        // Osio kertoo jo, ettei täällä kirjata — mutta ilman
+                        // napautusta lukija jää umpikujaan eikä mikään kerro
+                        // minne pitäisi mennä.
                         ForEach(model.recentEntries) { entry in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(entry.title)
-                                    Text(entry.date, format: .dateTime.weekday(.abbreviated).day().month())
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
+                            Button {
+                                onOpenWorkouts()
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(entry.title)
+                                        Text(entry.date, format: .dateTime.weekday(.abbreviated).day().month())
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let detail = entry.detail {
+                                        Text(detail)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                            .monospacedDigit()
+                                    }
+                                    // Sama kuvake kuin listan siirtymärivillä:
+                                    // se on iOS:n vakiintunut merkki siitä että
+                                    // rivi vie eteenpäin.
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
                                 }
-                                Spacer()
-                                if let detail = entry.detail {
-                                    Text(detail)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                        .monospacedDigit()
-                                }
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             .accessibilityElement(children: .combine)
+                            .accessibilityHint("Avaa Treeni-välilehden")
                         }
                     }
                 }
