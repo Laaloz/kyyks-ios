@@ -69,6 +69,7 @@ targets:
         SWIFT_VERSION: "5.10"
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         # Dev-vaihe: API-kutsut http://localhost:3000 vaativat ATS-poikkeuksen.
@@ -93,6 +94,9 @@ targets:
     info:
       path: Volu/Info.plist
       properties:
+        # Ei vientirajoitusten alaista salausta (vain HTTPS). Ilman tätä
+        # App Store Connect kysyy saman asian jokaisen latauksen yhteydessä.
+        ITSAppUsesNonExemptEncryption: false
         NSHealthShareUsageDescription: Apple Healthin tietoja luetaan, jotta askeleesi, unesi, painosi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Volussa ilman käsin kirjaamista.
         NSCameraUsageDescription: Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.
         NSPhotoLibraryUsageDescription: Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.
