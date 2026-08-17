@@ -227,6 +227,19 @@ struct ProfileView: View {
                     }
                 }
 
+                // Applen sääntö 5.1.1(i): tietosuojaselosteeseen on päästävä
+                // sovelluksen sisältä helposti, ei vain App Storen sivulta.
+                // Rekisteröitymisnäkymän linkki ei riitä, koska kirjautunut
+                // käyttäjä ei näe sitä enää koskaan.
+                Section("Tietosuoja ja ehdot") {
+                    Link(destination: LegalLinks.privacy) {
+                        Label("Tietosuojaseloste", systemImage: "hand.raised")
+                    }
+                    Link(destination: LegalLinks.terms) {
+                        Label("Käyttöehdot", systemImage: "doc.text")
+                    }
+                }
+
                 // Versio näkyviin: testivaiheessa on jatkuvasti epäselvää onko
                 // puhelimessa jo se build jossa korjaus on. Ilman tätä sitä ei
                 // voi tarkistaa mistään, ja vanha build näyttää korjaamattomalta

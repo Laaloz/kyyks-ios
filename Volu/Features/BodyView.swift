@@ -195,7 +195,7 @@ struct BodyMeasurement: Decodable, Identifiable {
     let measuredAt: String
 
     var measuredDate: Date {
-        ISO8601DateFormatter.flexible.date(from: measuredAt) ?? .now
+        parseAPIDate(measuredAt) ?? .distantPast
     }
 
     /// Onko rivillä seurattavaa mittaa. Pelkän pituuden rivit ovat

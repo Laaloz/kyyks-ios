@@ -132,7 +132,7 @@ struct LoginView: View {
                     Text("Luomalla tilin hyväksyt tietojesi käsittelyn tietosuojaselosteen mukaisesti.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Link("Tietosuojaseloste", destination: URL(string: "https://volu.fi/privacy")!)
+                    Link("Tietosuojaseloste", destination: LegalLinks.privacy)
                         .font(.caption.weight(.semibold))
                 }
             }

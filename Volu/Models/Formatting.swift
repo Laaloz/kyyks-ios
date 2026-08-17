@@ -9,7 +9,13 @@ import Foundation
 
 extension ISO8601DateFormatter {
     /// Postgres-aikaleimoissa on murto-osasekunnit, joita oletusmuotoilija ei syö.
-    static let flexible: ISO8601DateFormatter = {
+    ///
+    /// **Tämä osaa vain murto-osasekunnilliset leimat.** Käytä aina
+    /// `parseAPIDate`ia — sama API palauttaa myös leimoja ilman desimaaleja
+    /// (esim. Healthista tuodut mittaukset), ja niiden jäsennys epäonnistuu
+    /// tällä hiljaa. Muotoilija hiljeni aiemmin nimellä `flexible`, mikä
+    /// houkutteli käyttämään sitä suoraan.
+    static let withFractionalSeconds: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
@@ -25,7 +31,7 @@ extension ISO8601DateFormatter {
 
 /// API:n aikaleima Dateksi muodosta riippumatta.
 func parseAPIDate(_ value: String) -> Date? {
-    ISO8601DateFormatter.flexible.date(from: value)
+    ISO8601DateFormatter.withFractionalSeconds.date(from: value)
         ?? ISO8601DateFormatter().date(from: value)
         ?? ISO8601DateFormatter.dateOnly.date(from: String(value.prefix(10)))
 }

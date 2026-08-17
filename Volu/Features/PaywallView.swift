@@ -11,14 +11,6 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected: Product?
 
-    /// Applen vakioehdot: tilaussovelluksen on linkitettävä käyttöehtoihin.
-    private static let eulaURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    /// Tietosuojaseloste on pakollinen linkki tilausnäkymässä. Osoite johdetaan
-    /// API:n osoitteesta, koska seloste on samalla palvelimella — näin
-    /// kehitys- ja tuotantoympäristö osoittavat kumpikin omaansa eikä
-    /// domainia tarvitse ylläpitää kahdessa paikassa.
-    private static let privacyURL = AppConfig.apiBaseURL.appending(path: "privacy")
-
     var body: some View {
         NavigationStack {
             List {
@@ -82,8 +74,8 @@ struct PaywallView: View {
                     Button("Palauta ostot") {
                         Task { await store.restore() }
                     }
-                    Link("Käyttöehdot", destination: Self.eulaURL)
-                    Link("Tietosuojaseloste", destination: Self.privacyURL)
+                    Link("Käyttöehdot", destination: LegalLinks.terms)
+                    Link("Tietosuojaseloste", destination: LegalLinks.privacy)
                 } footer: {
                     Text("Tilaus uusiutuu automaattisesti, ellei sitä peruta vähintään vuorokautta ennen jakson päättymistä. Hallinta ja peruutus tapahtuvat App Storen tilausasetuksissa.")
                 }
