@@ -71,4 +71,19 @@ echo "=== ci_post_clone: generoidaan projekti ==="
 xcodegen generate
 
 ls -d Volu.xcodeproj
+
+# Riippuvuuslukko generoituun projektiin. Xcode Cloud ei salli automaattista
+# riippuvuuksien ratkaisua, vaan vaatii Package.resolvedin projektin sisältä —
+# mutta *.xcodeproj on gitignoressa, joten tiedostoa ei voi versioida siellä
+# missä Xcode sitä odottaa. Se pidetään siksi tässä ja kopioidaan paikalleen
+# generoinnin jälkeen (XcodeGen kirjoittaa projektin aina tyhjästä).
+#
+# Päivitä ci_scripts/Package.resolved kun riippuvuuksia muutetaan, muuten
+# pilvi kääntää eri versioilla kuin koneesi.
+echo "=== ci_post_clone: kopioidaan riippuvuuslukko ==="
+SWIFTPM_DIR="Volu.xcodeproj/project.xcworkspace/xcshareddata/swiftpm"
+mkdir -p "$SWIFTPM_DIR"
+cp ci_scripts/Package.resolved "$SWIFTPM_DIR/Package.resolved"
+echo "Package.resolved kopioitu: $(grep -c '"identity"' "$SWIFTPM_DIR/Package.resolved") riippuvuutta"
+
 echo "=== ci_post_clone: valmis ==="
