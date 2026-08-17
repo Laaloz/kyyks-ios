@@ -21,15 +21,15 @@ struct SetTable: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Näytetäänkö "viimeksi"-sarake lainkaan.
+    /// Näytetäänkö "viimeksi"-sarake.
     ///
-    /// Jätetään pois kahdesta syystä: jos yhdelläkään sarjalla ei ole
-    /// edellistä tulosta, sarake olisi pelkkä rivi viivoja — ja
-    /// saavutettavuuskoossa kolme saraketta ei mahdu riville, jolloin
-    /// tärkeämmät (tulos ja kuittaus) kutistuisivat luettavuuden alle.
+    /// Näytetään aina kun se mahtuu, myös silloin kun edellistä tulosta ei
+    /// ole: sarake pitää taulukon rakenteen samana liikkeestä toiseen, ja
+    /// viiva kertoo että liike on uusi. Saavutettavuuskoossa se jätetään pois,
+    /// koska kolme saraketta ei mahdu riville ja tärkeämmät (tulos ja
+    /// kuittaus) kutistuisivat luettavuuden alle.
     private var showsPrevious: Bool {
-        guard !dynamicTypeSize.isAccessibilitySize else { return false }
-        return logs.contains { previous($0) != nil }
+        !dynamicTypeSize.isAccessibilitySize
     }
 
     var body: some View {
@@ -52,13 +52,10 @@ struct SetTable: View {
                 Text("Viimeksi")
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                // Joustava väli tarvitaan myös ilman viimeksi-saraketta:
-                // ilman sitä HStack keskittää koko sisällön eivätkä otsikot
-                // osu sarakkeidensa päälle.
                 Spacer(minLength: 8)
             }
             Text("Tulos")
-                .frame(minWidth: 76, alignment: .center)
+                .frame(maxWidth: .infinity, alignment: .center)
             // Sarake kuittausruudulle, jotta otsikot osuvat sarakkeiden päälle.
             Color.clear.frame(width: 44, height: 1)
         }
@@ -109,9 +106,13 @@ struct SetTable: View {
                         .monospacedDigit()
                 }
                 .lineLimit(1)
+                .minimumScaleFactor(0.85)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
-                .frame(minWidth: 76, minHeight: 44)
+                // Sama leveys joka rivillä: eri levyiset ja oikeaan reunaan
+                // tasatut kentät saivat sarakkeen vasemman reunan sahaamaan,
+                // mikä näytti rikkinäiseltä.
+                .frame(maxWidth: .infinity, minHeight: 44)
                 // Solu näyttää syöttökentältä, koska se on syöttökenttä.
                 // Ilman taustaa lukema oli pelkkää tekstiä, eikä mikään
                 // kertonut että sitä napauttamalla kirjataan.
