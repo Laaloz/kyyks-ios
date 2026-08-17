@@ -58,7 +58,7 @@ struct StartWorkoutSheet: View {
                 // Itsenäisellä treenaajalla ei ole valmentajaa joka tekisi
                 // ohjelman, joten luonti on täällä. Näkyy myös kun ohjelma on
                 // olemassa: ohjelma vaihtuu ajan myötä.
-                if !programs.isLoading {
+                if !programs.isLoading && programs.canManagePrograms {
                     Section {
                         Button {
                             showCreateProgram = true
@@ -75,6 +75,17 @@ struct StartWorkoutSheet: View {
                                 : "Uusi ohjelma tulee käyttöön heti, ja nykyinen ohjelma arkistoidaan. Tehdyt treenit säilyvät."
                         )
                     }
+                }
+            }
+            .overlay {
+                // Valmennettavalla ei ole luontinappia, joten tyhjä lista
+                // jäisi muuten selittämättä.
+                if !programs.isLoading, programs.activeProgram == nil, !programs.canManagePrograms {
+                    ContentUnavailableView(
+                        "Ei ohjelmaa vielä",
+                        systemImage: "list.bullet.rectangle",
+                        description: Text("Valmentajasi tekee ohjelmasi. Se ilmestyy tähän heti kun se on valmis.")
+                    )
                 }
             }
             .navigationTitle("Aloita treeni")

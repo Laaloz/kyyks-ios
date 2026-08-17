@@ -115,10 +115,18 @@ struct WorkoutsListView: View {
                     // Ohjelman luonti oli vain "Aloita treeni" -sheetin sisällä,
                     // eli sinne pääsi vain aloittamalla treenin — väärä paikka
                     // toiminnolle, jota itsenäinen treenaaja tarvitsee ensin.
-                    Button {
-                        showCreateProgram = true
-                    } label: {
-                        Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
+                    //
+                    // Valmennettavalle sitä ei näytetä lainkaan: hänen
+                    // ohjelmansa tekee valmentaja, ja palvelin torjuu sekä
+                    // luonnin että muokkauksen. Napin näyttäminen olisi lupaus,
+                    // jota palvelin ei lunasta — käyttäjä tekisi työn ja saisi
+                    // eston vasta tallennuksessa.
+                    if programs.canManagePrograms {
+                        Button {
+                            showCreateProgram = true
+                        } label: {
+                            Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
+                        }
                     }
                 }
 

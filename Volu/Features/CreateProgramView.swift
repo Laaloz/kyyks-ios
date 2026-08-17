@@ -144,12 +144,20 @@ struct CreateProgramView: View {
                     .padding(.vertical, 2)
                     .accessibilityElement(children: .combine)
 
-                    Button {
-                        editingProgramId = active.id
-                        draft = .from(active)
-                        originalDraft = draft
-                    } label: {
-                        Label("Muokkaa ohjelmaa", systemImage: "pencil")
+                    if active.isEditable {
+                        Button {
+                            editingProgramId = active.id
+                            draft = .from(active)
+                            originalDraft = draft
+                        } label: {
+                            Label("Muokkaa ohjelmaa", systemImage: "pencil")
+                        }
+                    } else {
+                        // Valmentajan tekemää ohjelmaa palvelin ei anna
+                        // treenaajan muokata, joten muokkausta ei tarjota.
+                        Label("Valmentajasi tekemä ohjelma", systemImage: "person.badge.shield.checkmark")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("Nykyinen ohjelma")

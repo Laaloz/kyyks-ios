@@ -10,6 +10,9 @@ import Observation
 @MainActor
 final class ProgramsModel: CachedModel {
     private(set) var programs: [Program] = []
+    /// Saako käyttäjä luoda ja muokata ohjelmia. Oletus tosi, jottei
+    /// itsenäiseltä treenaajalta katoa toiminto verkkovirheessä.
+    private(set) var canManagePrograms = true
     var isLoading = false
     var errorMessage: String?
 
@@ -71,5 +74,6 @@ final class ProgramsModel: CachedModel {
     func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(ProgramsResponse.self, from: data) else { return }
         programs = decoded.programs
+        canManagePrograms = decoded.canManagePrograms ?? true
     }
 }

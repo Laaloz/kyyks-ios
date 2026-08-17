@@ -44,6 +44,10 @@ struct WorkoutNote: Decodable {
 /// ohjelman muokkaukseen — liikkeet tulevat samasta JSONB-sarakkeesta.
 struct ProgramsResponse: Decodable {
     let programs: [Program]
+    /// Saako käyttäjä luoda ja muokata ohjelmia. Valmennettavalla ohjelmat
+    /// tekee valmentaja. Valinnainen, koska levyllä oleva vanha
+    /// välimuistivastaus ei sisällä kenttää.
+    let canManagePrograms: Bool?
 }
 
 struct Program: Decodable, Identifiable {
@@ -53,8 +57,14 @@ struct Program: Decodable, Identifiable {
     let status: String?
     let updatedAt: String?
     let workouts: [ProgramWorkoutSummary]
+    /// Onko ohjelma käyttäjän itsensä tekemä. Valmentajan tekemää palvelin ei
+    /// anna treenaajan muokata.
+    let isOwn: Bool?
 
     var isActive: Bool { status != "archived" }
+    /// Muokattavissa vain jos se on oma. Tuntematon (vanha vastaus) tulkitaan
+    /// omaksi, jotta itsenäisen treenaajan muokkaus ei katoa päivityksessä.
+    var isEditable: Bool { isOwn ?? true }
 
     /// Milloin ohjelma oli viimeksi käytössä — erottaa samannimiset versiot.
     var updatedDate: Date? { updatedAt.flatMap { parseAPIDate($0) } }
