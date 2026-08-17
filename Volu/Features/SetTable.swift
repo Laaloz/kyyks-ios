@@ -33,12 +33,12 @@ struct SetTable: View {
     }
 
     var body: some View {
+        // Ei erotinviivoja rivien välissä: tulossolulla on oma tausta ja väli,
+        // joten rivit erottuvat jo. Sisennetty viiva ei osunut sarakkeisiin ja
+        // näytti irralliselta.
         VStack(spacing: 0) {
             header
-            ForEach(Array(logs.enumerated()), id: \.element.id) { index, log in
-                if index > 0 {
-                    Divider().padding(.leading, 40)
-                }
+            ForEach(logs) { log in
                 row(log)
             }
         }

@@ -93,6 +93,28 @@ struct WorkoutSession: Decodable {
     let id: String
     let startedAt: String
     let completedAt: String?
+    /// Tauon alku ja kertynyt taukoaika. Valinnaisia, koska vanha
+    /// välimuistivastaus levyllä ei sisällä niitä.
+    let pausedAt: String?
+    let pausedDurationSeconds: Double?
+    let updatedAt: String?
+
+    /// Treenin kesto sekunteina. Sama sääntö kuin webissä
+    /// (`calculateSessionDurationSeconds`): loppuhetki on valmistuminen, tauko
+    /// tai viimeisin muutos, ja kertynyt taukoaika vähennetään.
+    ///
+    /// Käynnissä olevalle treenille annetaan `now`, jolloin luku kasvaa
+    /// ruudulla. Kahtena toteutuksena web ja natiivi voisivat näyttää saman
+    /// treenin eri pituisena.
+    func durationSeconds(now: Date = .now) -> Int {
+        guard let start = parseAPIDate(startedAt) else { return 0 }
+        let endIso = completedAt ?? pausedAt ?? updatedAt
+        let end = completedAt != nil || pausedAt != nil
+            ? endIso.flatMap { parseAPIDate($0) }
+            : now
+        guard let end, end >= start else { return 0 }
+        return max(0, Int((end.timeIntervalSince(start)).rounded()) - Int(pausedDurationSeconds ?? 0))
+    }
 }
 
 /// Equatable, jotta kesken olevan tallennuksen voi tunnistaa vanhentuneeksi:

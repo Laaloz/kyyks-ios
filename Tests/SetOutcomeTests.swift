@@ -195,3 +195,41 @@ final class LoadProgressionTests: XCTestCase {
         XCTAssertFalse(sets.isReadyForHeavierLoad)
     }
 }
+
+/// Treenin kesto. Sama sääntö kuin webissä: kahtena toteutuksena sama treeni
+/// voisi näkyä eri pituisena.
+final class SessionDurationTests: XCTestCase {
+    private func session(started: String, completed: String? = nil, paused: String? = nil, pausedSeconds: Double? = nil, updated: String? = nil) -> WorkoutSession {
+        WorkoutSession(
+            id: "s1", startedAt: started, completedAt: completed,
+            pausedAt: paused, pausedDurationSeconds: pausedSeconds, updatedAt: updated
+        )
+    }
+
+    func testCompletedSessionUsesCompletionTime() {
+        let s = session(started: "2026-08-17T10:00:00Z", completed: "2026-08-17T11:00:00Z")
+        XCTAssertEqual(s.durationSeconds(), 3600)
+    }
+
+    func testPausedSecondsAreSubtracted() {
+        let s = session(started: "2026-08-17T10:00:00Z", completed: "2026-08-17T11:00:00Z", pausedSeconds: 600)
+        XCTAssertEqual(s.durationSeconds(), 3000)
+    }
+
+    func testRunningSessionGrowsWithNow() {
+        let s = session(started: "2026-08-17T10:00:00Z")
+        let now = ISO8601DateFormatter().date(from: "2026-08-17T10:30:00Z")!
+        XCTAssertEqual(s.durationSeconds(now: now), 1800)
+    }
+
+    func testPausedSessionStopsAtPauseTime() {
+        let s = session(started: "2026-08-17T10:00:00Z", paused: "2026-08-17T10:20:00Z")
+        let now = ISO8601DateFormatter().date(from: "2026-08-17T11:00:00Z")!
+        XCTAssertEqual(s.durationSeconds(now: now), 1200)
+    }
+
+    func testNegativeRangeIsZero() {
+        let s = session(started: "2026-08-17T11:00:00Z", completed: "2026-08-17T10:00:00Z")
+        XCTAssertEqual(s.durationSeconds(), 0)
+    }
+}

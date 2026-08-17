@@ -6,6 +6,8 @@ import Observation
 final class WorkoutModel: CachedModel {
     private(set) var setLogs: [WorkoutSetLog] = []
     private(set) var workout: ScheduledWorkout?
+    /// Istunto keston laskentaa varten: alku, tauot ja valmistuminen.
+    private(set) var session: WorkoutSession?
     var isLoading = false
     var errorMessage: String?
     private(set) var savedNoteBody = ""
@@ -336,6 +338,7 @@ final class WorkoutModel: CachedModel {
             uniquingKeysWith: { first, _ in first }
         )
         workout = detail.workout
+        session = detail.session
         let previousSaved = savedNoteBody
         savedNoteBody = detail.note?.body ?? ""
         noteUpdatedAt = detail.note?.updatedAt

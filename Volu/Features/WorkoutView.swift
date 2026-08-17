@@ -376,6 +376,19 @@ struct WorkoutView: View {
                     Text(model.statusLabel)
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(model.isCompleted ? Color.green : Color.accentColor)
+                    // Kesto: käynnissä olevalla kasvava, tehdyllä lopullinen.
+                    // Sekunnin välein vain kun treeni on kesken — valmiin
+                    // treenin luku ei muutu, eikä sitä ole syytä piirtää
+                    // uudelleen.
+                    if let session = model.session {
+                        if model.isEditable {
+                            TimelineView(.periodic(from: .now, by: 1)) { context in
+                                durationLabel(session.durationSeconds(now: context.date))
+                            }
+                        } else {
+                            durationLabel(session.durationSeconds())
+                        }
+                    }
                     Spacer()
                     Text("\(model.doneCount)/\(model.setLogs.count) sarjaa")
                         .font(.footnote)
@@ -387,6 +400,18 @@ struct WorkoutView: View {
             }
             .padding(.vertical, 4)
         }
+    }
+
+    /// Kesto tekstinä. Alle tunnin treeni "48 min", pidempi "1 h 12 min" —
+    /// sekunnit eivät kiinnosta treenin pituudessa.
+    private func durationLabel(_ seconds: Int) -> some View {
+        let minutes = seconds / 60
+        let text = minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
+        return Text(text)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .monospacedDigit()
+            .accessibilityLabel("Kesto \(text)")
     }
 
     private var noteSection: some View {
@@ -402,12 +427,14 @@ struct WorkoutView: View {
         }
     }
 
+    /// Yksi liike auki kerrallaan.
+    ///
+    /// Salilla tehdään yhtä liikettä kerrallaan, ja avattu liike vie
+    /// ruudusta ison osan — usea auki tarkoitti vierittämistä ja edellisten
+    /// sulkemista käsin. Kutistettu liike kertoo silti tavoitteen ja
+    /// toteuman otsikossaan, joten mitään ei jää piiloon.
     private func toggle(_ id: String) {
-        if expanded.contains(id) {
-            expanded.remove(id)
-        } else {
-            expanded.insert(id)
-        }
+        expanded = expanded.contains(id) ? [] : [id]
     }
 
     /// Salikäytössä oleellinen on seuraava kesken oleva liike — se avataan
