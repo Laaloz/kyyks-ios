@@ -232,6 +232,23 @@ struct WorkoutView: View {
     }
 
     @ViewBuilder
+    /// Otsikon alarivi: tavoite, ja kutistetusta liikkeestä myös toteuma.
+    ///
+    /// Supersetissä liikkeillä on omat tavoitteensa, joten yhteistä tavoitetta
+    /// ei näytetä otsikossa — se jää riveille eikä otsikko väitä väärää.
+    private func headerSubtitle(_ block: ExerciseBlock) -> String? {
+        guard !block.isSuperset, let exercise = block.exercises.first else { return nil }
+        let isCollapsed = !expanded.contains(block.id)
+        var parts: [String] = []
+        if let target = exercise.sharedTarget {
+            parts.append(target)
+        }
+        if isCollapsed, let done = exercise.loggedRepsSummary {
+            parts.append("tehty \(done)")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
+    }
+
     private func blockHeader(_ block: ExerciseBlock) -> some View {
         HStack(spacing: 8) {
             Button {
@@ -251,13 +268,26 @@ struct WorkoutView: View {
                         }
                         Text(block.title)
                             .lineLimit(2)
+                        // Tavoite kerran liikettä kohti, ei joka riville. Kun
+                        // liike on kutistettuna, mukaan tulee myös se mitä
+                        // oikeasti tehtiin — muuten tehdyn treenin läpikäynti
+                        // vaatisi jokaisen liikkeen avaamisen erikseen.
+                        if let subtitle = headerSubtitle(block) {
+                            Text(subtitle)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
                     }
 
                     Spacer(minLength: 4)
 
+                    // Laskuri ei ole arvosana: valmis on normaalitila eikä
+                    // ansaitse väriä. Väri on varattu tavoitepoikkeamalle.
                     Text("\(block.doneCount)/\(block.logs.count)")
                         .monospacedDigit()
-                        .foregroundStyle(block.isComplete ? Color.green : Color.secondary)
+                        .foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
             }
@@ -307,6 +337,7 @@ struct WorkoutView: View {
             ForEach(exercise.logs) { log in
                 SetRow(
                     log: log,
+                    showsTarget: exercise.sharedTarget == nil,
                     onToggle: {
                         if let rest = model.toggleDone(logId: log.id) {
                             withAnimation(.snappy) {

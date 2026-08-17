@@ -1,9 +1,17 @@
 import SwiftUI
 
-/// Yksi sarjarivi treeninäkymässä: vasen puoli kuittaa, oikean puolen
-/// lukema avaa toistojen ja kuorman muokkauksen.
+/// Yksi sarjarivi treeninäkymässä.
+///
+/// Järjestys vasemmalta oikealle seuraa tekemisen järjestystä: sarjan numero
+/// kertoo missä mennään, sen jälkeen kirjataan lukema, ja kuittaus on
+/// viimeisenä oikeassa reunassa. Kuittaus oli aiemmin vasemmalla, jolloin
+/// palaute välähti ruudun toisella laidalla kuin mihin käyttäjä juuri koski —
+/// ja oikea reuna on myös peukalolle helpoin.
 struct SetRow: View {
     let log: WorkoutSetLog
+    /// Tavoite rivillä vain kun liikkeen sarjat eroavat toisistaan; muuten se
+    /// on liikkeen otsikossa eikä toistu joka rivillä.
+    var showsTarget: Bool = true
     let onToggle: () -> Void
     let onEdit: () -> Void
 
@@ -14,50 +22,58 @@ struct SetRow: View {
         // ahtaudu tekstin päälle.
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 8) {
-                toggleArea
-                editChip
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                label
+                HStack(spacing: 12) {
+                    editChip
+                    toggleButton
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         } else {
             HStack(spacing: 12) {
-                toggleArea
+                label
+                Spacer(minLength: 8)
                 editChip
+                toggleButton
             }
             .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         }
     }
 
-    // Kuittaus ja muokkaus ovat erilliset kosketusalueet: vasen puoli
-    // kuittaa, oikean puolen lukema avaa toistojen/kuorman muokkauksen.
-    private var toggleArea: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 12) {
-                // Kuittaus on korostusvärillä, ei vihreällä. Vihreä on
-                // arvosana, ja kun se on lähes joka rivillä, se ei kerro
-                // mitään — samalla se veisi huomion siltä värilliseltä
-                // merkiltä, joka oikeasti kantaa tiedon (tavoitteen alitus).
-                // Väri varataan arvioinnille, muoto kertoo tilan.
-                Image(systemName: log.isLogged ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(log.isLogged ? Color.accentColor : Color.secondary)
-                    .contentTransition(.symbolEffect(.replace))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(log.setLabel)
-                        .font(.subheadline.weight(.medium))
-                    Text(targetText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-
-                Spacer(minLength: 0)
+    private var label: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(log.setLabel)
+                .font(.subheadline.weight(.medium))
+            if showsTarget {
+                Text(targetText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
-            .contentShape(Rectangle())
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(showsTarget ? "Sarja \(log.setLabel), tavoite \(targetText)" : "Sarja \(log.setLabel)")
+    }
+
+    // Kuittaus ja muokkaus ovat erilliset kosketusalueet: lukema avaa
+    // muokkauksen, ympyrä kirjaa sarjan tavoitteen mukaisena.
+    private var toggleButton: some View {
+        Button(action: onToggle) {
+            // Kuittaus on korostusvärillä, ei vihreällä. Vihreä on
+            // arvosana, ja kun se on lähes joka rivillä, se ei kerro
+            // mitään — samalla se veisi huomion siltä värilliseltä
+            // merkiltä, joka oikeasti kantaa tiedon (tavoitteen alitus).
+            // Väri varataan arvioinnille, muoto kertoo tilan.
+            Image(systemName: log.isLogged ? "checkmark.circle.fill" : "circle")
+                .font(.title2)
+                .foregroundStyle(log.isLogged ? Color.accentColor : Color.secondary)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Sarja \(log.setLabel), tavoite \(targetText)")
+        .accessibilityLabel("Sarja \(log.setLabel)")
         .accessibilityValue(log.isLogged ? "Kirjattu" : "Kirjaamatta")
         .accessibilityHint(log.isLogged ? "Poista kirjaus kaksoisnapauttamalla" : "Kirjaa sarja tavoitteen mukaisena kaksoisnapauttamalla")
     }
@@ -128,9 +144,6 @@ struct SetRow: View {
 
     private func formatLoad(_ load: Double?) -> String {
         guard let load, load > 0 else { return "—" }
-        let text = load.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(load))
-            : String(format: "%.1f", load).replacingOccurrences(of: ".", with: ",")
-        return "\(text) kg"
+        return WorkoutSetLog.loadText(load)
     }
 }

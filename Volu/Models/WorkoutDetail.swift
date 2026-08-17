@@ -95,6 +95,15 @@ struct WorkoutSetLog: Decodable, Identifiable, Equatable {
         return "\(Int(targetReps))"
     }
 
+    /// Kuorma tekstinä, esim. "23 kg". Jaettu, koska sekä rivi että liikkeen
+    /// otsikko näyttävät sen ja kahtena toteutuksena ne ehtisivät erota.
+    static func loadText(_ load: Double) -> String {
+        let text = load.truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(load))
+            : String(format: "%.1f", load).replacingOccurrences(of: ".", with: ",")
+        return "\(text) kg"
+    }
+
     /// Onko sarja tehty. Kirjattu arvo riittää — erillinen kuittaus on
     /// virhelähde, ei tieto.
     ///
