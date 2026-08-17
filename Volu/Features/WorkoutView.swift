@@ -352,11 +352,11 @@ struct WorkoutView: View {
                     .listRowSeparator(.hidden)
                     .accessibilityLabel("Kaikki toistot täynnä. Nosta painoa ensi kerralla.")
             }
-            SetGrid(
+            SetTable(
                 logs: exercise.logs,
                 previous: { model.previousSet(for: $0) },
                 onEdit: { editingLog = $0 },
-                onQuickLog: { log in
+                onToggle: { log in
                     if let rest = model.toggleDone(logId: log.id) {
                         withAnimation(.snappy) {
                             restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
