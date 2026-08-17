@@ -31,6 +31,7 @@ struct LoginView: View {
     @State private var password = ""
     @State private var errorMessage: String?
     @State private var isSubmitting = false
+    @State private var showPasswordReset = false
     @FocusState private var focused: Field?
 
     private enum Field { case name, email, password }
@@ -99,22 +100,16 @@ struct LoginView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(isSubmitting || !canSubmit)
 
-                // Salasanan palautus puuttui sovelluksesta kokonaan: sähköpostilla
-                // rekisteröitynyt käyttäjä ei päässyt tunnukseensa käsiksi millään,
-                // eikä mikään kertonut että palautus on olemassa.
-                //
-                // Palautus tehdään selaimessa eikä täällä, koska julkista
-                // pyyntöreittiä suojaa hCaptcha — ilman sitä osoitteita voisi
-                // pommittaa nollausviesteillä. Sähköpostiosoitetta ei välitetä
-                // osoiterivillä mukana; se on henkilötieto eikä kuulu URL:iin.
+                // Pyyntö tehdään tässä eikä selaimessa: aiempi versio avasi
+                // webin kirjautumissivun, jolloin käyttäjä joutui painamaan
+                // samaa nappia uudelleen toisessa näkymässä.
                 if mode == .signIn {
-                    Link(destination: LegalLinks.passwordReset) {
-                        Text("Unohditko salasanan?")
-                            .font(.subheadline)
-                            .frame(maxWidth: .infinity)
+                    Button("Unohditko salasanan?") {
+                        showPasswordReset = true
                     }
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity)
                     .padding(.top, 2)
-                    .accessibilityHint("Avaa salasanan palautuksen selaimessa")
                 }
 
                 divider
@@ -156,6 +151,12 @@ struct LoginView: View {
             }
         .padding(24)
         .animation(.snappy(duration: 0.25), value: mode)
+        .sheet(isPresented: $showPasswordReset) {
+            // Osoite mukaan siitä mitä käyttäjä juuri kirjoitti — harvoin
+            // kannattaa kysyä uudelleen jotain mikä on jo ruudulla.
+            PasswordResetSheet(auth: auth, prefilledEmail: email)
+                .presentationDetents([.height(300)])
+        }
     }
 
     private var header: some View {
