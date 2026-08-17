@@ -44,10 +44,9 @@ else
   brew install xcodegen
 fi
 
-xcodegen --version
-echo "=== ci_post_clone: generoidaan projekti ==="
-xcodegen generate
-
+# Konfiguraatio ENNEN generointia: XcodeGen validoi project.yml:n
+# viittaamat xcconfig-tiedostot, ja puuttuva tiedosto kaataa generoinnin
+# virheeseen "Invalid config file".
 # xcconfigissa "//" aloittaa kommentin, joten kauttaviivat on katkaistava
 # $()-kikalla — muuten osoitteesta jäisi jäljelle vain "https:".
 escape_url() {
@@ -66,5 +65,10 @@ CONFIG
 
 # Avain ei kuulu lokiin, joten tarkistetaan vain että rivit syntyivät.
 echo "Config.xcconfig kirjoitettu, rivejä: $(wc -l < Config/Config.xcconfig)"
+
+xcodegen --version
+echo "=== ci_post_clone: generoidaan projekti ==="
+xcodegen generate
+
 ls -d Volu.xcodeproj
 echo "=== ci_post_clone: valmis ==="
