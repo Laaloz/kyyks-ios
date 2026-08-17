@@ -19,4 +19,11 @@ enum LegalLinks {
     /// Applen vakioehdot. Sovelluksella ei ole omia käyttöehtoja, ja Apple
     /// hyväksyy tämän nimenomaisesti tilaussovelluksen ehdoiksi.
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+
+    /// Salasanan palautus tehdään verkossa: "Unohditko salasanasi?" on
+    /// kirjautumissivulla näkyvissä ilman navigointia, ja pyyntöreittiä suojaa
+    /// hCaptcha jota sovelluksessa ei ole.
+    static var passwordReset: URL {
+        AppConfig.apiBaseURL
+    }
 }

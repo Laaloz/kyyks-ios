@@ -99,6 +99,24 @@ struct LoginView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(isSubmitting || !canSubmit)
 
+                // Salasanan palautus puuttui sovelluksesta kokonaan: sähköpostilla
+                // rekisteröitynyt käyttäjä ei päässyt tunnukseensa käsiksi millään,
+                // eikä mikään kertonut että palautus on olemassa.
+                //
+                // Palautus tehdään selaimessa eikä täällä, koska julkista
+                // pyyntöreittiä suojaa hCaptcha — ilman sitä osoitteita voisi
+                // pommittaa nollausviesteillä. Sähköpostiosoitetta ei välitetä
+                // osoiterivillä mukana; se on henkilötieto eikä kuulu URL:iin.
+                if mode == .signIn {
+                    Link(destination: LegalLinks.passwordReset) {
+                        Text("Unohditko salasanan?")
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.top, 2)
+                    .accessibilityHint("Avaa salasanan palautuksen selaimessa")
+                }
+
                 divider
 
                 VStack(spacing: 10) {
