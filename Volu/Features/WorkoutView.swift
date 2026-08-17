@@ -352,7 +352,7 @@ struct WorkoutView: View {
                     .listRowSeparator(.hidden)
                     .accessibilityLabel("Kaikki toistot täynnä. Nosta painoa ensi kerralla.")
             }
-            SetChips(
+            SetGrid(
                 logs: exercise.logs,
                 previous: { model.previousSet(for: $0) },
                 onEdit: { editingLog = $0 },
