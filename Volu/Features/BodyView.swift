@@ -21,10 +21,10 @@ struct BodyView: View {
                     }
                 }
 
-                if let latest = model.measurements.first {
+                if !model.measurements.isEmpty {
                     Section("Viimeisin") {
-                        metricRow("Paino", latest.weightKg, "kg", change: model.weightChange)
-                        metricRow("Vyötärö", latest.waistCm, "cm", change: model.waistChange)
+                        metricRow("Paino", model.latestWeight, "kg", change: model.weightChange)
+                        metricRow("Vyötärö", model.latestWaist, "cm", change: model.waistChange)
                         metricRow("Pituus", model.heightCm, "cm", change: nil)
                     }
                 }
@@ -238,6 +238,20 @@ final class BodyModel: CachedModel {
     let resourcePath = "/api/mobile/measurements"
     let loadFailureMessage = "Mittausten haku epäonnistui."
     var hasContent: Bool { !measurements.isEmpty }
+
+    /// Kunkin mitan tuorein kirjattu arvo, ei tuoreimman rivin arvo.
+    ///
+    /// Rivi kantaa vain sen mitä silloin kirjattiin: Healthista tuotu paino ei
+    /// sisällä vyötäröä, joten uusin rivi näytti vyötäröksi viivaa vaikka arvo
+    /// oli tallessa muutaman päivän takaa. Sama vika oli pituudessa, ja sielläkin
+    /// syy oli se että arvoa haettiin väärältä riviltä.
+    /// Vain testeille: mittausten asetus ilman verkkoa.
+    func setMeasurementsForTesting(_ rows: [BodyMeasurement]) {
+        measurements = rows
+    }
+
+    var latestWeight: Double? { measurements.compactMap(\.weightKg).first }
+    var latestWaist: Double? { measurements.compactMap(\.waistCm).first }
 
     /// Historiaan vain rivit joilla on painoa tai vyötäröä.
     var trackedMeasurements: [BodyMeasurement] {

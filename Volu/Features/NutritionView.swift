@@ -87,7 +87,17 @@ struct NutritionView: View {
             }
             .navigationTitle("Ravinto")
             .navigationBarTitleDisplayMode(.inline)
+            // Näppäimistö pois vierittämällä ja omalla napillaan. SwiftUI:n
+            // listassa "napauta ulkopuolelta" ei ole luotettava ele, koska
+            // rivit vievät kosketuksen — nämä kaksi toimivat aina.
+            .scrollDismissesKeyboard(.interactively)
             .toolbar { dateToolbar }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Valmis") { isQuickFocused = false }
+                }
+            }
             .safeAreaInset(edge: .bottom) {
                 // Tabin tärkein toiminto peukalon ulottuville; samalla yläpalkin
                 // "+" katosi päivänuolen vierestä, jossa se aiheutti vääriä osumia.
@@ -141,8 +151,10 @@ struct NutritionView: View {
                 }
                 .animation(.snappy(duration: 0.2), value: canSubmitQuickQuery)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                .background(.bar)
+                // Väli myös ylös: ilman sitä tausta alkoi kentän reunasta ja
+                // näytti irralliselta kaistaleelta, erityisesti tummassa.
+                .padding(.vertical, 10)
+                .background(.regularMaterial)
             }
             .sheet(item: $selectedEntry) { entry in
                 MealDetailSheet(

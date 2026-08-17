@@ -103,6 +103,33 @@ struct WorkoutsListView: View {
                         ForEach(upcoming) { workoutRow($0) }
                     }
                 }
+                // Käytössä oleva ohjelma näkyviin: koko välilehti pyörii sen
+                // ympärillä, mutta se oli vain "Oma ohjelma" -näkymän sisällä
+                // kahden napautuksen takana — käyttäjä ei nähnyt mistään mikä
+                // ohjelma on käytössä. Napautus avaa saman näkymän.
+                if let active = programs.activeProgram {
+                    Section("Ohjelma") {
+                        Button {
+                            showCreateProgram = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(active.title)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                Text(active.workoutNames)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Käytössä oleva ohjelma: \(active.title), \(active.workoutNames)")
+                        .accessibilityHint("Avaa ohjelman")
+                    }
+                }
+
                 // Kehitys ennen lokeja: se on kiinteä kohde, jota etsitään
                 // nimellä. Lokien välissä sen paikka liikkuu sitä mukaa kun
                 // suorituksia ja treenejä kertyy, eikä sitä enää löydä.

@@ -293,3 +293,36 @@ final class RestTimerPersistenceTests: XCTestCase {
         XCTAssertFalse(RestTimerManager().isActive)
     }
 }
+
+/// Kehon "Viimeisin"-osion arvot. Rivi kantaa vain sen mitä silloin
+/// kirjattiin, joten kunkin mitan tuorein arvo on haettava erikseen.
+@MainActor
+final class LatestMeasurementTests: XCTestCase {
+    private func rows(_ json: String) -> [BodyMeasurement] {
+        try! JSONDecoder().decode([BodyMeasurement].self, from: Data(json.utf8))
+    }
+
+    func testEachMetricUsesItsOwnLatestValue() {
+        let model = BodyModel()
+        // Uusin rivi on Healthista tuotu paino ilman vyötäröä.
+        model.setMeasurementsForTesting(rows("""
+        [
+          {"id":"1","weightKg":78.3,"waistCm":null,"measuredAt":"2026-08-16T08:14:17Z"},
+          {"id":"2","weightKg":79.5,"waistCm":85.5,"measuredAt":"2026-08-07T13:35:35Z"}
+        ]
+        """))
+
+        XCTAssertEqual(model.latestWeight, 78.3)
+        XCTAssertEqual(model.latestWaist, 85.5)
+    }
+
+    func testMissingMetricStaysNil() {
+        let model = BodyModel()
+        model.setMeasurementsForTesting(rows("""
+        [{"id":"1","weightKg":80,"waistCm":null,"measuredAt":"2026-08-16T08:14:17Z"}]
+        """))
+
+        XCTAssertEqual(model.latestWeight, 80)
+        XCTAssertNil(model.latestWaist)
+    }
+}
