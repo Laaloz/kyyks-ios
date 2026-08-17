@@ -107,16 +107,21 @@ struct SetTable: View {
                 }
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
                 // Sama leveys joka rivillä: eri levyiset ja oikeaan reunaan
-                // tasatut kentät saivat sarakkeen vasemman reunan sahaamaan,
-                // mikä näytti rikkinäiseltä.
-                .frame(maxWidth: .infinity, minHeight: 44)
+                // tasatut kentät saivat sarakkeen vasemman reunan sahaamaan.
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
                 // Solu näyttää syöttökentältä, koska se on syöttökenttä.
                 // Ilman taustaa lukema oli pelkkää tekstiä, eikä mikään
                 // kertonut että sitä napauttamalla kirjataan.
                 .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                // Väli taustan ympärille ennen kosketusalueen korkeutta:
+                // muuten tausta täytti koko rivin ja peräkkäisten rivien
+                // kentät kiinnittyivät toisiinsa yhdeksi harmaaksi palkiksi.
+                // Napautusalue pysyy 44 pisteessä.
+                .padding(.vertical, 5)
+                .frame(minHeight: 44)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
