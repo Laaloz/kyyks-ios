@@ -148,17 +148,21 @@ final class WorkoutModel: CachedModel {
         let previous = setLogs[index]
 
         if previous.isLogged {
+            // Vain kuittaus perutaan. Arvot jäävät paikalleen, koska ne ovat
+            // palvelimen esitäyttö edelliseltä kerralta — niiden nollaaminen
+            // hävittäisi ehdotuksen, eikä kirjaamaton sarja näytä arvojaan
+            // muutenkaan.
             setLogs[index].done = false
-            setLogs[index].actualReps = nil
-            setLogs[index].actualLoad = nil
         } else {
             setLogs[index].done = true
             setLogs[index].actualReps = previous.targetReps
-            // Kuorma tavoitteesta, tai jos ohjelmassa ei ole painoja, siitä
-            // mitä samalla sarjalla nostettiin viimeksi. Ilman tätä kuittaus
-            // kirjaisi pelkät toistot, ja paino olisi haettava lomakkeelta
-            // joka sarjalla erikseen.
-            setLogs[index].actualLoad = previous.targetLoad ?? previousSet(for: previous)?.actualLoad
+            // Kuorma ensisijaisesti esitäytöstä: se on se mitä samalla sarjalla
+            // nostettiin viimeksi, ja juuri se on kuittauksen oletus. Sitten
+            // ohjelman tavoitekuorma, ja vasta lopuksi haku edellisestä
+            // treenistä. Ilman tätä kuittaus kirjaisi pelkät toistot.
+            setLogs[index].actualLoad = previous.actualLoad
+                ?? previous.targetLoad
+                ?? previousSet(for: previous)?.actualLoad
         }
         sync(setLogs[index], revertTo: previous)
 

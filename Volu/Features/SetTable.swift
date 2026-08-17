@@ -32,6 +32,13 @@ struct SetTable: View {
         !dynamicTypeSize.isAccessibilitySize
     }
 
+    /// Ensimmäinen kuittaamaton sarja on se, jota treenaaja on juuri tekemässä.
+    /// Se on ainoa rivi jolla on merkitystä juuri nyt, joten se saa korostuksen
+    /// — muut ovat joko tehtyjä tai vasta edessä.
+    private var nextSetId: String? {
+        logs.first { !$0.isLogged }?.id
+    }
+
     var body: some View {
         // Ei erotinviivoja rivien välissä: tulossolulla on oma tausta ja väli,
         // joten rivit erottuvat jo. Sisennetty viiva ei osunut sarakkeisiin ja
@@ -39,7 +46,7 @@ struct SetTable: View {
         VStack(spacing: 0) {
             header
             ForEach(logs) { log in
-                row(log)
+                row(log, isNext: log.id == nextSetId)
             }
         }
     }
@@ -65,15 +72,17 @@ struct SetTable: View {
         // Toissijainen, ei tertiäärinen: sama peruste kuin arvoriveillä —
         // tertiäärin kontrasti jää alle luettavan rajan.
         .foregroundStyle(.secondary)
-        .padding(.bottom, 6)
+        .padding(.bottom, 8)
         .accessibilityHidden(true)
     }
 
-    private func row(_ log: WorkoutSetLog) -> some View {
+    private func row(_ log: WorkoutSetLog, isNext: Bool) -> some View {
         HStack(spacing: 8) {
             Text(log.setLabel)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                // Vuorossa oleva sarja myös numerossa: silmä hakee rivin
+                // vasemmasta reunasta, ei keskeltä.
+                .foregroundStyle(isNext ? .primary : .secondary)
                 .monospacedDigit()
                 .frame(width: 40, alignment: .leading)
                 .accessibilityHidden(true)
@@ -103,8 +112,8 @@ struct SetTable: View {
                             .foregroundStyle(mark.color)
                     }
                     Text(valueText(log))
-                        .font(.callout.weight(log.isLogged ? .semibold : .regular))
-                        .foregroundStyle(valueColor(log))
+                        .font(.callout.weight(log.isLogged || isNext ? .semibold : .regular))
+                        .foregroundStyle(valueColor(log, isNext: isNext))
                         .monospacedDigit()
                 }
                 .lineLimit(1)
@@ -113,11 +122,19 @@ struct SetTable: View {
                 // tasatut kentät saivat sarakkeen vasemman reunan sahaamaan.
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.vertical, 7)
                 // Solu näyttää syöttökentältä, koska se on syöttökenttä.
                 // Ilman taustaa lukema oli pelkkää tekstiä, eikä mikään
-                // kertonut että sitä napauttamalla kirjataan.
-                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                // kertonut että sitä napauttamalla kirjataan. Vuorossa oleva
+                // sarja saa korostusvärin ja reunuksen: se on ainoa rivi jolla
+                // on merkitystä juuri nyt.
+                .background(cellBackground(log, isNext: isNext), in: RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    if isNext {
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1.5)
+                    }
+                }
                 // Väli taustan ympärille ennen kosketusalueen korkeutta:
                 // muuten tausta täytti koko rivin ja peräkkäisten rivien
                 // kentät kiinnittyivät toisiinsa yhdeksi harmaaksi palkiksi.
@@ -127,7 +144,9 @@ struct SetTable: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(valueAccessibilityText(log))
+            .accessibilityLabel(
+                isNext ? "Vuorossa, \(valueAccessibilityText(log))" : valueAccessibilityText(log)
+            )
             .accessibilityHint("Avaa toistojen ja kuorman muokkauksen")
 
             Button {
@@ -137,7 +156,11 @@ struct SetTable: View {
                 // tavoitepoikkeamalle, ja muoto kertoo tilan.
                 Image(systemName: log.isLogged ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(log.isLogged ? Color.accentColor : Color.secondary)
+                    // Vuorossa olevan sarjan ympyrä on korostusvärillä: se on
+                    // kehotus, ei pelkkä tilan näyttö.
+                    .foregroundStyle(
+                        log.isLogged ? Color.accentColor : (isNext ? Color.accentColor : Color.secondary)
+                    )
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
@@ -151,19 +174,37 @@ struct SetTable: View {
     }
 
     /// Kirjattu sarja näyttää toteuman, kirjaamaton tavoitteen.
+    ///
+    /// Ehto on `isLogged` eikä arvon olemassaolo: palvelin esitäyttää arvot
+    /// edelliseltä kerralta, ja niiden näyttäminen tuloksena väittäisi että
+    /// sarja on jo tehty. Edellisen kerran luku on omassa sarakkeessaan.
     private func valueText(_ log: WorkoutSetLog) -> String {
-        guard let reps = log.actualReps else { return log.targetRepsLabel }
+        guard log.isLogged, let reps = log.actualReps else { return log.targetRepsLabel }
         guard let load = log.actualLoad, load > 0 else { return "\(Int(reps))" }
         return "\(Int(reps)) × \(WorkoutSetLog.loadText(load))"
     }
 
-    private func valueColor(_ log: WorkoutSetLog) -> Color {
+    private func valueColor(_ log: WorkoutSetLog, isNext: Bool) -> Color {
         if let mark = outcomeMark(log) { return mark.color }
+        // Vuorossa oleva sarja on täydellä kontrastilla, vaikka lukema on vasta
+        // tavoite: harmaa teksti kertoi päinvastaista kuin pitäisi — juuri se
+        // rivi on se, jota treenaaja on tekemässä.
+        if isNext { return .primary }
         return log.isLogged ? .primary : .secondary
     }
 
+    /// Tehty sarja vaimenee, vuorossa oleva korostuu, tulevat jäävät väliin.
+    private func cellBackground(_ log: WorkoutSetLog, isNext: Bool) -> AnyShapeStyle {
+        if isNext { return AnyShapeStyle(Color.accentColor.opacity(0.12)) }
+        if log.isLogged { return AnyShapeStyle(.quaternary.opacity(0.35)) }
+        return AnyShapeStyle(.quaternary.opacity(0.6))
+    }
+
     private func outcomeMark(_ log: WorkoutSetLog) -> (symbol: String, color: Color)? {
-        switch log.outcome {
+        // Vain kuitatulle sarjalle: esitäytetty arvo ei ole suoritus, eikä
+        // siitä saa piirtää poikkeamamerkkiä jota käyttäjä ei ole tehnyt.
+        guard log.isLogged else { return nil }
+        return switch log.outcome {
         case .onTarget: nil
         case .below: ("arrow.down", .orange)
         case .above: ("arrow.up", .green)

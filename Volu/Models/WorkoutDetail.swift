@@ -163,15 +163,18 @@ struct WorkoutSetLog: Decodable, Identifiable, Equatable {
         return "\(text) kg"
     }
 
-    /// Onko sarja tehty. Kirjattu arvo riittää — erillinen kuittaus on
-    /// virhelähde, ei tieto.
+    /// Onko sarja tehty.
     ///
-    /// Ilman tätä vanhat rivit näkyivät tyhjinä ympyröinä vaikka toistot ja
-    /// kuorma olivat tallessa: valmiiksi merkitty treeni ilmoitti "0/16
-    /// sarjaa" ja arvot olivat haaleina kuin niitä ei olisi kirjattu.
-    var isLogged: Bool {
-        done || actualReps != nil || actualLoad != nil
-    }
+    /// Vain `done` kelpaa, koska **palvelin esitäyttää `actualReps`in ja
+    /// `actualLoad`in edellisen kerran tuloksilla heti treenin alkaessa** —
+    /// ne ovat ehdotus, eivät suoritus. Aiemmin tässä hyväksyttiin myös
+    /// esitäytetty arvo, jolloin koko treeni näytti kuitatulta ensimmäisestä
+    /// sekunnista ja lepoajastin jäi käynnistymättä: kuittausnappi vain
+    /// poisti kirjauksen sen sijaan että olisi tehnyt sen.
+    ///
+    /// Vanhat rivit, joilla oli arvot mutta ei `done`ia, korjattiin kantaan
+    /// 17.8.2026 — siksi tämä sääntö on nyt turvallinen.
+    var isLogged: Bool { done }
 
     /// Miten sarja suhteutuu ohjelman tavoitteeseen.
     ///

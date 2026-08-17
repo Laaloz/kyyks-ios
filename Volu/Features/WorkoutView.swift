@@ -381,7 +381,7 @@ struct WorkoutView: View {
                 }
             )
             .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
+            .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 10, trailing: 16))
         }
     }
 

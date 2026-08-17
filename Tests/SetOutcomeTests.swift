@@ -89,10 +89,6 @@ final class SetLoggedStateTests: XCTestCase {
         )
     }
 
-    func testValuesWithoutFlagCountAsLogged() {
-        XCTAssertTrue(log(reps: 9, load: 23, done: false).isLogged)
-    }
-
     func testFlagWithoutValuesCountsAsLogged() {
         XCTAssertTrue(log(reps: nil, load: nil, done: true).isLogged)
     }
@@ -101,8 +97,17 @@ final class SetLoggedStateTests: XCTestCase {
         XCTAssertFalse(log(reps: nil, load: nil, done: false).isLogged)
     }
 
-    func testLoadAloneCountsAsLogged() {
-        XCTAssertTrue(log(reps: nil, load: 23, done: false).isLogged)
+    /// Palvelin esitäyttää toistot ja kuorman edellisen kerran tuloksilla heti
+    /// treenin alkaessa. Ne ovat ehdotus, eivät suoritus.
+    ///
+    /// Kun tässä hyväksyttiin myös esitäytetty arvo, koko treeni näytti
+    /// kuitatulta ensimmäisestä sekunnista: kuittausnappi poisti kirjauksen
+    /// sen sijaan että olisi tehnyt sen, eikä lepoajastin käynnistynyt
+    /// kertaakaan.
+    func testPrefilledValuesAreNotLoggedWithoutFlag() {
+        XCTAssertFalse(log(reps: 9, load: 23, done: false).isLogged)
+        XCTAssertFalse(log(reps: nil, load: 23, done: false).isLogged)
+        XCTAssertFalse(log(reps: 9, load: nil, done: false).isLogged)
     }
 }
 
