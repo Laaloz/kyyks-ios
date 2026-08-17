@@ -283,6 +283,15 @@ struct WorkoutView: View {
 
                     Spacer(minLength: 4)
 
+                    // Kehotus näkyy myös kutistettuna: merkki riittää listaan,
+                    // koko lause on kortin sisällä.
+                    if block.exercises.contains(where: \.isReadyForHeavierLoad) {
+                        Image(systemName: "arrow.up.circle")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.green)
+                            .accessibilityLabel("Kaikki toistot täynnä, nosta painoa ensi kerralla")
+                    }
+
                     // Laskuri ei ole arvosana: valmis on normaalitila eikä
                     // ansaitse väriä. Väri on varattu tavoitepoikkeamalle.
                     Text("\(block.doneCount)/\(block.logs.count)")
@@ -334,6 +343,15 @@ struct WorkoutView: View {
                     .foregroundStyle(.secondary)
                     .listRowSeparator(.hidden)
             }
+            // Kaksoisprogression kehotus liikkeen omalla kortilla: se koskee
+            // juuri tätä liikettä eikä koko treeniä.
+            if exercise.isReadyForHeavierLoad {
+                Label("Kaikki toistot täynnä — nosta painoa ensi kerralla", systemImage: "arrow.up.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.green)
+                    .listRowSeparator(.hidden)
+                    .accessibilityLabel("Kaikki toistot täynnä. Nosta painoa ensi kerralla.")
+            }
             ForEach(exercise.logs) { log in
                 SetRow(
                     log: log,
@@ -348,6 +366,10 @@ struct WorkoutView: View {
                     },
                     onEdit: { editingLog = log }
                 )
+                // Tiiviimpi rivi: sarjat ovat lyhyitä ja niitä on monta, joten
+                // listan oletusvälit tekivät kortista väljän ja tyhjän
+                // näköisen. Kosketusalueet pysyvät 44 pt:ssä.
+                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 12))
             }
         }
     }

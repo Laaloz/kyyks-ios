@@ -12,9 +12,10 @@ struct SetRow: View {
     /// Tavoite rivillä vain kun liikkeen sarjat eroavat toisistaan; muuten se
     /// on liikkeen otsikossa eikä toistu joka rivillä.
     var showsTarget: Bool = true
-    /// Edellisen kerran tulos tälle sarjalle. Näytetään vain kirjaamattomalle
-    /// riville: kirjatun rivin oma lukema kertoo jo enemmän, ja kaksi lukemaa
-    /// vierekkäin sekoittaisi sen kumpi on tämän päivän.
+    /// Edellisen kerran tulos tälle sarjalle. Näkyy myös kirjatulla rivillä:
+    /// vertailu on juuri se mitä sarjan jälkeen katsotaan, ja "viimeksi"-etuliite
+    /// erottaa sen tämän päivän lukemasta. Samalla se täyttää rivin vasemman
+    /// puolen, joka jäi tyhjäksi kun tavoite siirtyi liikkeen otsikkoon.
     var previous: PreviousSet?
     let onToggle: () -> Void
     let onEdit: () -> Void
@@ -55,7 +56,7 @@ struct SetRow: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            if !log.isLogged, let previousText = previous?.summary {
+            if let previousText = previous?.summary {
                 Text("viimeksi \(previousText)")
                     .font(.footnote)
                     .foregroundStyle(.tertiary)
@@ -70,7 +71,7 @@ struct SetRow: View {
     private var labelAccessibilityText: String {
         var parts = ["Sarja \(log.setLabel)"]
         if showsTarget { parts.append("tavoite \(targetText)") }
-        if !log.isLogged, let previousText = previous?.summary {
+        if let previousText = previous?.summary {
             parts.append("viimeksi \(previousText)")
         }
         return parts.joined(separator: ", ")
@@ -110,7 +111,7 @@ struct SetRow: View {
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(mark.color)
                     }
-                    Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
+                    Text(loggedText(reps: reps))
                         .foregroundStyle(outcomeMark?.color ?? (log.isLogged ? Color.primary : Color.secondary))
                 } else {
                     Text("Kirjaa")
@@ -145,7 +146,7 @@ struct SetRow: View {
     /// ruudunlukijalle.
     private var accessibilityValueLabel: String {
         guard let reps = log.actualReps else { return "Kirjaa toistot ja kuorma" }
-        var text = "Toteuma \(Int(reps)) toistoa, \(formatLoad(log.actualLoad))"
+        var text = "Toteuma \(loggedText(reps: reps))"
         switch log.outcome {
         case .below: text += ", alle tavoitteen \(log.targetRepsLabel)"
         case .above: text += ", yli tavoitteen \(log.targetRepsLabel)"
@@ -160,6 +161,14 @@ struct SetRow: View {
             parts.append("\(formatLoad(load))")
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// "9 × 23 kg", tai pelkkä toistomäärä kun kuormaa ei ole. Kehonpaino- ja
+    /// laiteliikkeissä ohjelmassa ei aina ole kuormaa, ja "5 × —" näytti
+    /// rikkinäiseltä siinä missä "5" on täysi tieto.
+    private func loggedText(reps: Double) -> String {
+        guard let load = log.actualLoad, load > 0 else { return "\(Int(reps))" }
+        return "\(Int(reps)) × \(WorkoutSetLog.loadText(load))"
     }
 
     private func formatLoad(_ load: Double?) -> String {

@@ -25,7 +25,10 @@ struct StartWorkoutSheet: View {
                     }
                 }
 
-                ForEach(programs.programs) { program in
+                // Vain käytössä oleva ohjelma: uusi ohjelma arkistoi vanhan,
+                // joten arkistoidun treenin aloittaminen olisi ristiriidassa
+                // sen kanssa mitä ohjelman vaihto lupaa.
+                ForEach(programs.programs.filter(\.isActive)) { program in
                     Section(program.title) {
                         ForEach(program.workouts) { workout in
                             Button {
@@ -61,13 +64,13 @@ struct StartWorkoutSheet: View {
                             showCreateProgram = true
                         } label: {
                             Label(
-                                programs.programs.isEmpty ? "Luo ensimmäinen ohjelma" : "Uusi ohjelma",
+                                programs.activeProgram == nil ? "Luo ensimmäinen ohjelma" : "Uusi ohjelma",
                                 systemImage: "plus.circle"
                             )
                         }
                     } footer: {
                         Text(
-                            programs.programs.isEmpty
+                            programs.activeProgram == nil
                                 ? "Valitse valmis pohja tai aloita tyhjästä. Treenit ilmestyvät tähän heti tallennuksen jälkeen."
                                 : "Uusi ohjelma tulee käyttöön heti, ja nykyinen ohjelma arkistoidaan. Tehdyt treenit säilyvät."
                         )
@@ -76,7 +79,7 @@ struct StartWorkoutSheet: View {
             }
             .navigationTitle("Aloita treeni")
             .navigationBarTitleDisplayMode(.inline)
-            .overlay { if programs.isLoading && programs.programs.isEmpty { ProgressView() } }
+            .overlay { if programs.isLoading && programs.activeProgram == nil { ProgressView() } }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Peru") { dismiss() }

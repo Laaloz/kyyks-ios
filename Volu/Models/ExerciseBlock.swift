@@ -53,6 +53,37 @@ struct ExerciseGroup: Identifiable {
         return text
     }
 
+    /// Onko liike valmis kuorman nostoon ensi kerralla.
+    ///
+    /// Kaksoisprogressio: kun kaikki sarjat yltävät tavoitealueen yläpäähän,
+    /// kuorma on käynyt kevyeksi ja seuraava askel on lisätä painoa eikä
+    /// toistoja. Sääntö on tiukka — *kaikki* sarjat, ei keskiarvo — koska
+    /// väärä kehotus nostaa painoa johtaa epäonnistuneeseen sarjaan.
+    ///
+    /// Vaatii toistohaarukan: ilman ylärajaa ei ole mitään mihin yltää.
+    ///
+    /// Tavoitekuormaa **ei** vaadita. Ohjelmassa ei aina ole painoja — niin on
+    /// tässäkin sovelluksessa tavallista — ja kuorman vaatiminen tarkoittaisi
+    /// ettei kehotus laukeaisi sellaisella ohjelmalla koskaan. Kun tavoitekuorma
+    /// on, sitä käytetään suojana: täydet toistot ohjelmaa kevyemmällä painolla
+    /// eivät kerro että paino on liian kevyt.
+    var isReadyForHeavierLoad: Bool {
+        guard !logs.isEmpty else { return false }
+        guard logs.contains(where: { $0.targetRepsMax != nil }) else { return false }
+
+        return logs.allSatisfy { log in
+            guard let actual = log.actualReps else { return false }
+            let ceiling = log.targetRepsMax ?? log.targetReps
+            let heldLoad: Bool
+            if let target = log.targetLoad, target > 0 {
+                heldLoad = (log.actualLoad ?? 0) >= target
+            } else {
+                heldLoad = true
+            }
+            return actual >= ceiling && heldLoad
+        }
+    }
+
     /// Kirjatut toistot järjestyksessä, esim. "9 · 9 · 11".
     ///
     /// Kutistettu liike ei muuten kerro mitään, ja tehdyn treenin läpikäynti

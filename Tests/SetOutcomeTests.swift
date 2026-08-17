@@ -129,3 +129,69 @@ final class WorkoutDetailDecodingTests: XCTestCase {
         XCTAssertEqual(detail.workout.title, "Koko")
     }
 }
+
+/// Kehotus kuorman nostoon. Sääntö on tiukka tarkoituksella: väärä kehotus
+/// johtaa epäonnistuneeseen sarjaan seuraavalla kerralla.
+final class LoadProgressionTests: XCTestCase {
+    private func log(_ label: String, reps: Double?, load: Double?, max: Double? = 10) -> WorkoutSetLog {
+        WorkoutSetLog(
+            id: "s\(label)", templateExerciseId: "e1", setId: "set\(label)", exerciseId: "ex",
+            exerciseName: "Penkkipunnerrus", supersetGroup: nil, setLabel: label,
+            targetReps: 8, targetRepsMin: 8, targetRepsMax: max,
+            targetLoad: 60, targetRestSeconds: 90,
+            actualReps: reps, actualLoad: load, done: reps != nil
+        )
+    }
+
+    private func group(_ logs: [WorkoutSetLog]) -> ExerciseGroup {
+        ExerciseGroup(id: "e1", name: "Penkkipunnerrus", logs: logs)
+    }
+
+    func testAllSetsAtCeilingSuggestsHeavierLoad() {
+        let sets = group([log("1", reps: 10, load: 60), log("2", reps: 10, load: 60)])
+        XCTAssertTrue(sets.isReadyForHeavierLoad)
+    }
+
+    func testOneSetShortDoesNotSuggest() {
+        let sets = group([log("1", reps: 10, load: 60), log("2", reps: 9, load: 60)])
+        XCTAssertFalse(sets.isReadyForHeavierLoad)
+    }
+
+    func testUnloggedSetDoesNotSuggest() {
+        let sets = group([log("1", reps: 10, load: 60), log("2", reps: nil, load: nil)])
+        XCTAssertFalse(sets.isReadyForHeavierLoad)
+    }
+
+    func testCeilingReachedAtLighterLoadDoesNotSuggest() {
+        // Täydet toistot kevyemmällä painolla eivät kerro että paino on kevyt.
+        let sets = group([log("1", reps: 10, load: 50), log("2", reps: 10, load: 50)])
+        XCTAssertFalse(sets.isReadyForHeavierLoad)
+    }
+
+    func testExceedingCeilingAlsoSuggests() {
+        let sets = group([log("1", reps: 12, load: 60), log("2", reps: 11, load: 60)])
+        XCTAssertTrue(sets.isReadyForHeavierLoad)
+    }
+
+    func testSuggestsWithoutTargetLoad() {
+        // Ohjelmassa ei aina ole painoja; kuorman vaatiminen tarkoittaisi
+        // ettei kehotus laukeaisi sellaisella ohjelmalla koskaan.
+        let noTarget = { (label: String, reps: Double) in
+            WorkoutSetLog(
+                id: "s\(label)", templateExerciseId: "e1", setId: "set\(label)", exerciseId: "ex",
+                exerciseName: "Jalkaprässi", supersetGroup: nil, setLabel: label,
+                targetReps: 8, targetRepsMin: 8, targetRepsMax: 10,
+                targetLoad: nil, targetRestSeconds: 90,
+                actualReps: reps, actualLoad: nil, done: true
+            )
+        }
+        let sets = group([noTarget("1", 10), noTarget("2", 10)])
+        XCTAssertTrue(sets.isReadyForHeavierLoad)
+    }
+
+    func testWithoutRepRangeDoesNotSuggest() {
+        // Ilman ylärajaa ei ole mitään mihin yltää.
+        let sets = group([log("1", reps: 10, load: 60, max: nil), log("2", reps: 10, load: 60, max: nil)])
+        XCTAssertFalse(sets.isReadyForHeavierLoad)
+    }
+}
