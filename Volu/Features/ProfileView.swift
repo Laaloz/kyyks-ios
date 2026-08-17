@@ -6,6 +6,7 @@ import SwiftUI
 /// mittauskirjauksesta kertaluontoisena profiilitietona, joten tämä on ainoa
 /// paikka jossa sen voi asettaa.
 struct ProfileView: View {
+    @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
     let auth: AuthManager
 
     @State private var model = ProfileModel()
@@ -130,6 +131,20 @@ struct ProfileView: View {
                     Text("Apple Health")
                 } footer: {
                     Text("Askeleet, uni, paino ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Oikeudet myönnetään ja perutaan iOS:n asetuksista — sovellus ei voi muuttaa niitä.")
+                }
+
+                Section("Ulkoasu") {
+                    // Laitekohtainen asetus, ei tilikohtainen: sama käyttäjä
+                    // voi haluta eri ulkoasun puhelimeen ja tablettiin.
+                    // Oletus seuraa järjestelmää, mutta salilla halutaan usein
+                    // tumma vaikka puhelin olisi muuten vaalealla.
+                    Picker("Teema", selection: $appearance) {
+                        ForEach(AppearanceSetting.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Sovelluksen ulkoasu")
                 }
 
                 Section("Muistutukset") {

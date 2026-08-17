@@ -73,6 +73,9 @@ struct VoluApp: App {
     /// listan, joten sääntö on yhdessä paikassa eikä arvattuna kahdessa.
     @State private var needsOnboarding = false
     @State private var selectedTab = Tab.today
+    /// Ulkoasu pakotetaan sovelluksen juuressa, jotta se koskee myös
+    /// sheettejä ja kirjautumisnäkymää — ei vain välilehtiä.
+    @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
 
     private enum Tab { case today, workouts, nutrition, body }
 
@@ -166,6 +169,8 @@ struct VoluApp: App {
             // muotoillaan suomeksi riippumatta laitteen kielestä — muuten
             // riveillä luki "Tuesday, Aug 11" suomenkielisen tekstin seassa.
             .environment(\.locale, Locale(identifier: "fi_FI"))
+            // Ulkoasu juuressa: koskee myös sheettejä ja kirjautumisnäkymää.
+            .preferredColorScheme(appearance.colorScheme)
             .task { auth.bootstrap() }
         }
     }

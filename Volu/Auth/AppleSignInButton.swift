@@ -10,6 +10,7 @@ import SwiftUI
 /// jolloin toisaalta kaapattua tokenia ei voi käyttää uudelleen ilman
 /// alkuperäistä satunnaislukua. Ilman noncea Supabase hylkää tokenin.
 struct AppleSignInButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     let auth: AuthManager
     let onError: (String) -> Void
 
@@ -24,7 +25,9 @@ struct AppleSignInButton: View {
         } onCompletion: { result in
             handle(result)
         }
-        .signInWithAppleButtonStyle(.black)
+        // Applen ohje: musta vaalealla, valkoinen tummalla. Lukittuna mustaksi
+        // painike hukkuisi tummassa ulkoasussa taustaansa.
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
         .frame(height: 52)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
