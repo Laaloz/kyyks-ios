@@ -94,4 +94,56 @@ struct WorkoutSetLog: Decodable, Identifiable, Equatable {
         }
         return "\(Int(targetReps))"
     }
+
+    /// Onko sarja tehty. Kirjattu arvo riittää — erillinen kuittaus on
+    /// virhelähde, ei tieto.
+    ///
+    /// Ilman tätä vanhat rivit näkyivät tyhjinä ympyröinä vaikka toistot ja
+    /// kuorma olivat tallessa: valmiiksi merkitty treeni ilmoitti "0/16
+    /// sarjaa" ja arvot olivat haaleina kuin niitä ei olisi kirjattu.
+    var isLogged: Bool {
+        done || actualReps != nil || actualLoad != nil
+    }
+
+    /// Miten sarja suhteutuu ohjelman tavoitteeseen.
+    ///
+    /// `onTarget` on tarkoituksella myös "ei tiedossa": kirjaamaton sarja ei
+    /// ole poikkeus, ja merkki kuuluu vain poikkeukselle. Jos tavoitteessa
+    /// pysyminen merkittäisiin, merkki olisi lähes joka rivillä eikä kertoisi
+    /// enää mitään.
+    enum Outcome {
+        case onTarget
+        case below
+        case above
+    }
+
+    /// Toistot suhteessa tavoitealueeseen — mutta vain silloin kun kuorma ei
+    /// selitä eroa.
+    ///
+    /// Tämä on koko arvion ydin: 6 toistoa tavoitteen 8–10 sijaan **suuremmalla
+    /// kuormalla** ei ole alisuoritus vaan tavallinen vaihtokauppa. Jos sen
+    /// merkitsisi punaisella, käyttäjä oppisi olemaan uskomatta merkkiä — ja
+    /// silloin se ei auta myöskään silloin kun se on oikeassa.
+    var outcome: Outcome {
+        guard let actual = actualReps else { return .onTarget }
+
+        let low = targetRepsMin ?? targetReps
+        let high = targetRepsMax ?? targetReps
+
+        // Kuormaa verrataan vain kun molemmat on tiedossa; kehonpainoliikkeillä
+        // tavoitekuormaa ei ole, jolloin toistot ratkaisevat yksin.
+        let heavier: Bool
+        let lighter: Bool
+        if let target = targetLoad, target > 0, let done = actualLoad, done > 0 {
+            heavier = done > target
+            lighter = done < target
+        } else {
+            heavier = false
+            lighter = false
+        }
+
+        if actual < low, !heavier { return .below }
+        if actual > high, !lighter { return .above }
+        return .onTarget
+    }
 }

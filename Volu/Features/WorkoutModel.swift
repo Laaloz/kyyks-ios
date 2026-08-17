@@ -14,7 +14,7 @@ final class WorkoutModel: CachedModel {
     var noteDraft = ""
     private var noteUpdatedAt: String?
 
-    var doneCount: Int { setLogs.filter(\.done).count }
+    var doneCount: Int { setLogs.filter(\.isLogged).count }
     var isCompleted: Bool { workout?.status == "completed" }
     var isEditable: Bool { workout?.status == "in_progress" }
 
@@ -126,31 +126,40 @@ final class WorkoutModel: CachedModel {
         sync(setLogs[index], revertTo: previous)
 
         // Sama sääntö kuin kuittauksessa: viimeisestä sarjasta ei lepoa.
-        guard becameDone, !setLogs.allSatisfy(\.done) else { return nil }
+        guard becameDone, !setLogs.allSatisfy(\.isLogged) else { return nil }
         let rest = Int(previous.targetRestSeconds ?? 90)
         return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }
 
-    /// Optimistinen kuittaus: paikallinen tila heti, synkka taustalla,
-    /// virheessä tila palautetaan. Kuitattaessa toteuma esitäytetään
+    /// Optimistinen kirjaus: paikallinen tila heti, synkka taustalla,
+    /// virheessä tila palautetaan. Kirjattaessa toteuma esitäytetään
     /// tavoitteesta, jos käyttäjä ei ole syöttänyt omaa.
-    /// Palauttaa lepoajan, jos sarja merkittiin tehdyksi (ajastimen käynnistys).
+    ///
+    /// Napin tila luetaan `isLogged`istä eikä `done`sta, ja perutessa myös
+    /// arvot tyhjennetään. Muuten nappi voisi olla eri mieltä kuin ruutu:
+    /// arvolliseen mutta kuittaamattomaan riviin napautus olisi vaihtanut
+    /// pelkän lipun eikä mikään olisi muuttunut näkyvästi.
+    /// Palauttaa lepoajan, jos sarja siirtyi kirjatuksi (ajastimen käynnistys).
     @discardableResult
     func toggleDone(logId: String) -> (restSeconds: Int, exerciseName: String)? {
         guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return nil }
         let previous = setLogs[index]
 
-        setLogs[index].done.toggle()
-        if setLogs[index].done {
-            if setLogs[index].actualReps == nil { setLogs[index].actualReps = previous.targetReps }
-            if setLogs[index].actualLoad == nil { setLogs[index].actualLoad = previous.targetLoad }
+        if previous.isLogged {
+            setLogs[index].done = false
+            setLogs[index].actualReps = nil
+            setLogs[index].actualLoad = nil
+        } else {
+            setLogs[index].done = true
+            setLogs[index].actualReps = previous.targetReps
+            setLogs[index].actualLoad = previous.targetLoad
         }
         sync(setLogs[index], revertTo: previous)
 
-        guard setLogs[index].done else { return nil }
+        guard setLogs[index].isLogged else { return nil }
         // Viimeisen sarjan jälkeen lepoa ei tarvita — treeni on ohi.
         // Muuten ajastin käynnistyy aina; treenin päättäminen sammuttaa sen.
-        guard !setLogs.allSatisfy(\.done) else { return nil }
+        guard !setLogs.allSatisfy(\.isLogged) else { return nil }
         let rest = Int(previous.targetRestSeconds ?? 90)
         return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
     }

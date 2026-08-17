@@ -42,7 +42,10 @@ struct ExerciseBlock: Identifiable {
     let exercises: [ExerciseGroup]
 
     var logs: [WorkoutSetLog] { exercises.flatMap(\.logs) }
-    var doneCount: Int { logs.filter(\.done).count }
+    /// Kirjattu, ei kuitattu: sama sääntö kuin rivillä ja
+    /// kokonaisedistymässä, muuten otsikko on eri mieltä kuin sen alla
+    /// olevat rivit.
+    var doneCount: Int { logs.filter(\.isLogged).count }
     var isComplete: Bool { !logs.isEmpty && doneCount == logs.count }
     var title: String { exercises.map(\.name).joined(separator: " + ") }
 }

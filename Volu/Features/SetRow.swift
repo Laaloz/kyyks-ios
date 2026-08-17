@@ -18,13 +18,13 @@ struct SetRow: View {
                 editChip
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
+            .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         } else {
             HStack(spacing: 12) {
                 toggleArea
                 editChip
             }
-            .sensoryFeedback(.impact(weight: .medium), trigger: log.done)
+            .sensoryFeedback(.impact(weight: .medium), trigger: log.isLogged)
         }
     }
 
@@ -33,9 +33,14 @@ struct SetRow: View {
     private var toggleArea: some View {
         Button(action: onToggle) {
             HStack(spacing: 12) {
-                Image(systemName: log.done ? "checkmark.circle.fill" : "circle")
+                // Kuittaus on korostusvärillä, ei vihreällä. Vihreä on
+                // arvosana, ja kun se on lähes joka rivillä, se ei kerro
+                // mitään — samalla se veisi huomion siltä värilliseltä
+                // merkiltä, joka oikeasti kantaa tiedon (tavoitteen alitus).
+                // Väri varataan arvioinnille, muoto kertoo tilan.
+                Image(systemName: log.isLogged ? "checkmark.circle.fill" : "circle")
                     .font(.title3)
-                    .foregroundStyle(log.done ? Color.green : Color.secondary)
+                    .foregroundStyle(log.isLogged ? Color.accentColor : Color.secondary)
                     .contentTransition(.symbolEffect(.replace))
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -53,16 +58,24 @@ struct SetRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Sarja \(log.setLabel), tavoite \(targetText)")
-        .accessibilityValue(log.done ? "Kuitattu" : "Kuittaamatta")
-        .accessibilityHint(log.done ? "Poista kuittaus kaksoisnapauttamalla" : "Kuittaa sarja kaksoisnapauttamalla")
+        .accessibilityValue(log.isLogged ? "Kirjattu" : "Kirjaamatta")
+        .accessibilityHint(log.isLogged ? "Poista kirjaus kaksoisnapauttamalla" : "Kirjaa sarja tavoitteen mukaisena kaksoisnapauttamalla")
     }
 
     private var editChip: some View {
         Button(action: onEdit) {
-            Group {
+            HStack(spacing: 4) {
                 if let reps = log.actualReps {
+                    // Nuoli ei ole koriste vaan värin pari: väri yksin ei
+                    // erotu värisokealle eikä kirkkaassa auringossa, ja
+                    // suunta kertoo saman asian ilman väriä.
+                    if let mark = outcomeMark {
+                        Image(systemName: mark.symbol)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(mark.color)
+                    }
                     Text("\(Int(reps)) × \(formatLoad(log.actualLoad))")
-                        .foregroundStyle(log.done ? Color.primary : Color.secondary)
+                        .foregroundStyle(outcomeMark?.color ?? (log.isLogged ? Color.primary : Color.secondary))
                 } else {
                     Text("Kirjaa")
                         .foregroundStyle(.tint)
@@ -76,11 +89,33 @@ struct SetRow: View {
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(
-            log.actualReps.map { "Toteuma \(Int($0)) toistoa, \(formatLoad(log.actualLoad))" }
-                ?? "Kirjaa toistot ja kuorma"
-        )
+        .accessibilityLabel(accessibilityValueLabel)
         .accessibilityHint("Avaa toistojen ja kuorman muokkauksen")
+    }
+
+    /// Merkki vain poikkeukselle: tavoitealueella pysynyt sarja on tavallinen
+    /// tapaus eikä ansaitse väriä. Molemmat poikkeamat ovat yhtä toimintaan
+    /// ohjaavia — alitus kertoo että kuorma oli liian kova, ylitys että se on
+    /// aika nostaa.
+    private var outcomeMark: (symbol: String, color: Color)? {
+        switch log.outcome {
+        case .onTarget: nil
+        case .below: ("arrow.down", .orange)
+        case .above: ("arrow.up", .green)
+        }
+    }
+
+    /// Poikkeama sanotaan myös ääneen: väri ja nuoli eivät välity
+    /// ruudunlukijalle.
+    private var accessibilityValueLabel: String {
+        guard let reps = log.actualReps else { return "Kirjaa toistot ja kuorma" }
+        var text = "Toteuma \(Int(reps)) toistoa, \(formatLoad(log.actualLoad))"
+        switch log.outcome {
+        case .below: text += ", alle tavoitteen \(log.targetRepsLabel)"
+        case .above: text += ", yli tavoitteen \(log.targetRepsLabel)"
+        case .onTarget: break
+        }
+        return text
     }
 
     private var targetText: String {

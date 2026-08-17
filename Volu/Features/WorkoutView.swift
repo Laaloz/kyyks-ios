@@ -203,7 +203,7 @@ struct WorkoutView: View {
         } message: {
             switch confirmation {
             case .complete:
-                let remaining = model.setLogs.filter { !$0.done }.count
+                let remaining = model.setLogs.filter { !$0.isLogged }.count
                 Text(remaining > 0 ? "\(remaining) sarjaa on vielä kuittaamatta." : "Kaikki sarjat on kuitattu.")
             case .cancel:
                 Text("Treeni merkitään keskeytetyksi. Kirjatut sarjat säilyvät.")
@@ -263,7 +263,7 @@ struct WorkoutView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(block.isSuperset ? "Supersetti: \(block.title)" : block.title)
-            .accessibilityValue("\(block.doneCount) / \(block.logs.count) sarjaa kuitattu")
+            .accessibilityValue("\(block.doneCount) / \(block.logs.count) sarjaa kirjattu")
             .accessibilityHint(expanded.contains(block.id) ? "Sulje kaksoisnapauttamalla" : "Avaa kaksoisnapauttamalla")
 
             if model.isEditable {
