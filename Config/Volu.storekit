@@ -1,79 +1,65 @@
 {
-  "identifier" : "A1D2F0C4",
-  "nonRenewingSubscriptions" : [
-
-  ],
-  "products" : [
-
-  ],
-  "settings" : {
-    "_applicationInternalID" : "0",
-    "_developerTeamID" : "0",
-    "_lastSynchronizedDate" : 0
+  "identifier": "A1D2F0C4",
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_applicationInternalID": "0",
+    "_developerTeamID": "0",
+    "_lastSynchronizedDate": 0
   },
-  "subscriptionGroups" : [
+  "subscriptionGroups": [
     {
-      "id" : "20000001",
-      "localizations" : [
-
-      ],
-      "name" : "Volu Pro",
-      "subscriptions" : [
+      "id": "20000001",
+      "localizations": [],
+      "name": "Volu Pro",
+      "subscriptions": [
         {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "5.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "30000001",
-          "introductoryOffer" : null,
-          "localizations" : [
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "4.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "30000001",
+          "introductoryOffer": null,
+          "localizations": [
             {
-              "description" : "AI-ruoka-arvio kuvasta ja tekstistä.",
-              "displayName" : "Volu Pro – kuukausi",
-              "locale" : "fi"
+              "description": "AI-ruoka-arvio kuvasta ja tekstistä.",
+              "displayName": "Volu Pro – kuukausi",
+              "locale": "fi"
             }
           ],
-          "productID" : "fi.volu.app.pro.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Volu Pro kuukausi",
-          "subscriptionGroupID" : "20000001",
-          "type" : "RecurringSubscription"
+          "productID": "fi.volu.app.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Volu Pro kuukausi",
+          "subscriptionGroupID": "20000001",
+          "type": "RecurringSubscription"
         },
         {
-          "adHocOffers" : [
-
-          ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "49.00",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "30000002",
-          "introductoryOffer" : null,
-          "localizations" : [
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "42.00",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "30000002",
+          "introductoryOffer": null,
+          "localizations": [
             {
-              "description" : "AI-ruoka-arvio kuvasta ja tekstistä.",
-              "displayName" : "Volu Pro – vuosi",
-              "locale" : "fi"
+              "description": "AI-ruoka-arvio kuvasta ja tekstistä.",
+              "displayName": "Volu Pro – vuosi",
+              "locale": "fi"
             }
           ],
-          "productID" : "fi.volu.app.pro.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Volu Pro vuosi",
-          "subscriptionGroupID" : "20000001",
-          "type" : "RecurringSubscription"
+          "productID": "fi.volu.app.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Volu Pro vuosi",
+          "subscriptionGroupID": "20000001",
+          "type": "RecurringSubscription"
         }
       ]
     }
   ],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }
