@@ -352,25 +352,20 @@ struct WorkoutView: View {
                     .listRowSeparator(.hidden)
                     .accessibilityLabel("Kaikki toistot täynnä. Nosta painoa ensi kerralla.")
             }
-            ForEach(exercise.logs) { log in
-                SetRow(
-                    log: log,
-                    showsTarget: exercise.sharedTarget == nil,
-                    previous: model.previousSet(for: log),
-                    onToggle: {
-                        if let rest = model.toggleDone(logId: log.id) {
-                            withAnimation(.snappy) {
-                                restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
-                            }
+            SetChips(
+                logs: exercise.logs,
+                previous: { model.previousSet(for: $0) },
+                onEdit: { editingLog = $0 },
+                onQuickLog: { log in
+                    if let rest = model.toggleDone(logId: log.id) {
+                        withAnimation(.snappy) {
+                            restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
                         }
-                    },
-                    onEdit: { editingLog = log }
-                )
-                // Tiiviimpi rivi: sarjat ovat lyhyitä ja niitä on monta, joten
-                // listan oletusvälit tekivät kortista väljän ja tyhjän
-                // näköisen. Kosketusalueet pysyvät 44 pt:ssä.
-                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 12))
-            }
+                    }
+                }
+            )
+            .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 8, trailing: 16))
         }
     }
 
