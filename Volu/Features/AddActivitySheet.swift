@@ -12,6 +12,7 @@ struct AddActivitySheet: View {
     @State private var activityType: ExtraActivityType
     @State private var durationText: String
     @State private var kcalText: String
+    @State private var distanceText: String
     @State private var occurredAt: Date
     @State private var notes: String
     @State private var isSaving = false
@@ -26,8 +27,30 @@ struct AddActivitySheet: View {
         // Kalorit esitäytetään kirjatulla arvolla: tyhjänä palvelin laskisi
         // arvion uudelleen ja korvaisi käyttäjän oman lukeman.
         _kcalText = State(initialValue: existing.map { String(Int($0.estimatedKcal)) } ?? "")
+        // Kenttä näytetään lajin omassa yksikössä: uinti metreinä, muut
+        // kilometreinä. Kantaan menee aina metrejä.
+        let existingType = existing.flatMap { ExtraActivityType(rawValue: $0.activityType) }
+        _distanceText = State(initialValue: {
+            guard let meters = existing?.distanceMeters, meters > 0 else { return "" }
+            if existingType?.distanceMode == .swim { return String(Int(meters.rounded())) }
+            return String(format: "%.2f", meters / 1000)
+                .replacingOccurrences(of: ".", with: ",")
+        }())
         _occurredAt = State(initialValue: existing.flatMap { parseAPIDate($0.occurredAt) } ?? .now)
         _notes = State(initialValue: existing?.notes ?? "")
+    }
+
+    private var distanceUnit: String {
+        activityType.distanceMode == .swim ? "m" : "km"
+    }
+
+    /// Kenttä on lajin yksikössä, kanta metreissä — muunnos tehdään tässä,
+    /// jotta se on yhdessä paikassa eikä tallennuksen ja esikatselun välillä
+    /// voi syntyä eroa.
+    private var distanceMeters: Double? {
+        let value = Double(distanceText.replacingOccurrences(of: ",", with: "."))
+        guard let value, value > 0 else { return nil }
+        return activityType.distanceMode == .swim ? value : value * 1000
     }
 
     private var durationMinutes: Double? {
@@ -57,7 +80,33 @@ struct AddActivitySheet: View {
                         Text("min").foregroundStyle(.secondary)
                     }
 
+                    // Matka vain lajeille joille se on mielekäs: joogalle tai
+                    // kamppailulle kenttä olisi pelkkää kohinaa.
+                    if activityType.distanceMode != .none {
+                        HStack {
+                            Text("Matka")
+                            Spacer()
+                            TextField(distanceUnit, text: $distanceText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .monospacedDigit()
+                                .frame(width: 80)
+                            Text(distanceUnit).foregroundStyle(.secondary)
+                        }
+                    }
+
                     DatePicker("Ajankohta", selection: $occurredAt, in: ...Date.now)
+                } footer: {
+                    // Vauhti on matkan ja keston osamäärä, joten sitä ei
+                    // kysytä erikseen — näytetään heti kun molemmat on annettu.
+                    if let pace = ActivityMetrics.paceText(
+                        meters: distanceMeters,
+                        minutes: durationMinutes,
+                        mode: activityType.distanceMode
+                    ) {
+                        Text("Vauhti \(pace)")
+                            .monospacedDigit()
+                    }
                 }
 
                 Section {
@@ -114,6 +163,7 @@ struct AddActivitySheet: View {
             let manualKcal: Double?
             let occurredAt: String
             let notes: String?
+            let distanceMeters: Double?
         }
 
         let client = APIClient(auth: auth)
@@ -123,7 +173,10 @@ struct AddActivitySheet: View {
                 durationMinutes: minutes,
                 manualKcal: Double(kcalText).flatMap { $0 > 0 ? $0 : nil },
                 occurredAt: ISO8601DateFormatter().string(from: occurredAt),
-                notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes
+                notes: notes.trimmingCharacters(in: .whitespaces).isEmpty ? nil : notes,
+                // Palvelin nollaa matkan itse jos laji ei kulje matkaa, joten
+                // lajin vaihto joogaksi ei jätä vanhaa kilometrilukemaa roikkumaan.
+                distanceMeters: distanceMeters
             )
             if let existing {
                 _ = try await client.patch("/api/extra-activities/\(existing.id)", body: body)
@@ -179,5 +232,22 @@ enum ExtraActivityType: String, CaseIterable, Identifiable {
         case .mobility: "Liikkuvuus"
         case .other: "Muu"
         }
+    }
+
+    /// Sama jako kuin webin katalogissa (`lib/extra-activities.ts`).
+    /// Crosstrainer ja porraslaite jäävät ilman matkaa: laitteen oma lukema ei
+    /// päädy Healthiin, joten kenttä olisi lähes aina tyhjä.
+    var distanceMode: ActivityDistanceMode {
+        switch self {
+        case .run, .walk, .treadmill, .hike, .ski: .pace
+        case .cycle, .indoor_cycle, .mtb, .downhill_ski, .skate, .paddle, .row: .speed
+        case .swim: .swim
+        case .stair_climber, .elliptical, .disc_golf, .climb,
+             .yoga, .hiit, .combat, .dance, .mobility, .other: .none
+        }
+    }
+
+    static func distanceMode(for rawValue: String) -> ActivityDistanceMode {
+        ExtraActivityType(rawValue: rawValue)?.distanceMode ?? .none
     }
 }

@@ -78,7 +78,41 @@ final class HealthManager {
         if let bodyMass = HKQuantityType.quantityType(forIdentifier: .bodyMass) {
             types.insert(bodyMass)
         }
+        // Matka ja syke: kello mittaa ne joka lenkiltä, ja juoksijalle ne
+        // kertovat suorituksesta enemmän kuin kesto. Matkatyyppejä on useita,
+        // koska HealthKit erottelee ne lajin mukaan.
+        for identifier in Self.distanceIdentifiers {
+            if let type = HKQuantityType.quantityType(forIdentifier: identifier) {
+                types.insert(type)
+            }
+        }
+        if let heartRate = HKQuantityType.quantityType(forIdentifier: .heartRate) {
+            types.insert(heartRate)
+        }
         return types
+    }
+
+    /// Matkatyypit, joista suorituksen matka voi löytyä. Yhdellä suorituksella
+    /// on vain yksi näistä, mutta kumpi se on riippuu lajista.
+    /// Hiihto, melonta, soutu ja luistelu tulivat HealthKitiin vasta iOS 18:ssa.
+    /// Kohde on iOS 17, joten ne otetaan mukaan vain kun ne ovat olemassa —
+    /// vanhemmalla käyttöjärjestelmällä niiden matka jää yksinkertaisesti pois.
+    private static var distanceIdentifiers: [HKQuantityTypeIdentifier] {
+        var identifiers: [HKQuantityTypeIdentifier] = [
+            .distanceWalkingRunning,
+            .distanceCycling,
+            .distanceSwimming,
+            .distanceDownhillSnowSports,
+        ]
+        if #available(iOS 18.0, *) {
+            identifiers += [
+                .distanceCrossCountrySkiing,
+                .distancePaddleSports,
+                .distanceRowing,
+                .distanceSkatingSports,
+            ]
+        }
+        return identifiers
     }
 
     /// Kysyy lukuluvat. Onnistuminen tarkoittaa vain sitä, että käyttäjä vastasi
@@ -235,6 +269,21 @@ final class HealthManager {
                 .sumQuantity()?
                 .doubleValue(for: .kilocalorie())
 
+            // Matka löytyy vain yhdestä tyypistä lajia kohti, eikä lajia
+            // tarvitse päätellä: ensimmäinen tyyppi jolla on summa on oikea.
+            let distanceMeters = Self.distanceIdentifiers
+                .lazy
+                .compactMap { identifier -> Double? in
+                    workout.statistics(for: HKQuantityType(identifier))?
+                        .sumQuantity()?
+                        .doubleValue(for: .meter())
+                }
+                .first { $0 > 0 }
+
+            let averageHeartRate = workout.statistics(for: HKQuantityType(.heartRate))?
+                .averageQuantity()?
+                .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
+
             struct Body: Encodable {
                 let activityType: String
                 let durationMinutes: Double
@@ -242,6 +291,8 @@ final class HealthManager {
                 let occurredAt: String
                 let source: String
                 let externalId: String
+                let distanceMeters: Double?
+                let averageHeartRate: Double?
             }
 
             do {
@@ -253,7 +304,9 @@ final class HealthManager {
                     manualKcal: kcal.map { $0.rounded() },
                     occurredAt: ISO8601DateFormatter().string(from: workout.startDate),
                     source: "healthkit",
-                    externalId: workout.uuid.uuidString
+                    externalId: workout.uuid.uuidString,
+                    distanceMeters: distanceMeters,
+                    averageHeartRate: averageHeartRate
                 ))
                 // Palvelin vastaa skipped:true jo tuoduille — ei virhe.
                 if !(String(data: data, encoding: .utf8)?.contains("\"skipped\":true") ?? false) {

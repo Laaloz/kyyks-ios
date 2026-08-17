@@ -50,6 +50,10 @@ struct ExtraActivity: Decodable, Identifiable {
     let occurredAt: String
     /// Vain muokkausta varten; listoissa ei näytetä.
     let notes: String?
+    /// Matka metreinä. Puuttuu kun laji ei kulje matkaa tai sitä ei mitattu.
+    let distanceMeters: Double?
+    /// Keskisyke, yleensä Apple Healthista.
+    let averageHeartRate: Double?
 }
 
 /// Kääre, joka pudottaa dekoodaukseen kaatuvat alkiot hiljaa pois sen sijaan,
