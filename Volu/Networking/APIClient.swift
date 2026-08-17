@@ -33,6 +33,17 @@ struct APIClient {
         try await request("POST", path, body: body, timeout: timeout)
     }
 
+    /// Kutsu joka toimii myös ilman istuntoa.
+    ///
+    /// Salasanan palautus tehdään määritelmällisesti kirjautumattomana. Ilman
+    /// tätä pyyntö ei lähtenyt laitteelta lainkaan: tokenin haku heittää kun
+    /// istuntoa ei ole, joten virhe näytti verkkovirheeltä eikä palvelin
+    /// nähnyt pyynnöstä mitään — pahin vikamuoto, koska sitä ei voi jäljittää
+    /// lokeista.
+    func postWithoutSession(_ path: String, body: some Encodable) async throws -> Data {
+        try await request("POST", path, body: body, allowsAnonymous: true)
+    }
+
     func put(_ path: String, body: some Encodable) async throws -> Data {
         try await request("PUT", path, body: body)
     }
@@ -54,7 +65,8 @@ struct APIClient {
         _ method: String,
         _ path: String,
         body: (some Encodable)?,
-        timeout: TimeInterval? = nil
+        timeout: TimeInterval? = nil,
+        allowsAnonymous: Bool = false
     ) async throws -> Data {
         // URL(string:relativeTo:) säilyttää query-parametrit (appending(path:) enkoodaisi "?":n).
         guard let url = URL(string: path, relativeTo: AppConfig.apiBaseURL) else {
@@ -65,8 +77,17 @@ struct APIClient {
         if let timeout {
             request.timeoutInterval = timeout
         }
-        let token = try await auth.accessToken()
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        // Tunnistautuvilla reiteillä puuttuva istunto on virhe, joka on parempi
+        // havaita heti kuin lähettää pyyntö joka varmasti torjutaan. Julkisilla
+        // reiteillä token liitetään vain jos se sattuu olemaan.
+        if allowsAnonymous {
+            if let token = try? await auth.accessToken() {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+        } else {
+            let token = try await auth.accessToken()
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)

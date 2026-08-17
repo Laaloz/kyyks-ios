@@ -89,7 +89,8 @@ struct PasswordResetSheet: View {
 
         struct Body: Encodable { let email: String }
         do {
-            _ = try await APIClient(auth: auth).post(
+            // Ilman istuntoa: käyttäjä on kirjautumisnäkymässä eikä tokenia ole.
+            _ = try await APIClient(auth: auth).postWithoutSession(
                 "/api/mobile/password-reset",
                 body: Body(email: email.trimmingCharacters(in: .whitespaces))
             )
