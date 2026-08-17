@@ -66,6 +66,15 @@ CONFIG
 # Avain ei kuulu lokiin, joten tarkistetaan vain että rivit syntyivät.
 echo "Config.xcconfig kirjoitettu, rivejä: $(wc -l < Config/Config.xcconfig)"
 
+# Buildinumero pilven juoksevasta numerosta. project.yml:ssä se on kiinteä 1,
+# ja App Store Connect hylkää saman numeron toistamisen — toinen lataus
+# kaatuisi siis aina, ja syy löytyisi vasta virheilmoituksesta.
+if [ -n "$CI_BUILD_NUMBER" ]; then
+  echo "=== ci_post_clone: buildinumero $CI_BUILD_NUMBER ==="
+  sed -i '' "s/CURRENT_PROJECT_VERSION: \".*\"/CURRENT_PROJECT_VERSION: \"$CI_BUILD_NUMBER\"/" project.yml
+  grep CURRENT_PROJECT_VERSION project.yml
+fi
+
 xcodegen --version
 echo "=== ci_post_clone: generoidaan projekti ==="
 xcodegen generate

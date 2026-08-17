@@ -42,6 +42,8 @@
 	<string>Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Apple Healthin tietoja luetaan, jotta askeleesi, unesi, painosi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Volussa ilman käsin kirjaamista.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Volu ei tallenna mitään Apple Healthiin. Tietoja ainoastaan luetaan, jotta askeleesi, unesi, painosi ja suorituksesi näkyvät sovelluksessa.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.</string>
 	<key>SupabaseAnonKey</key>

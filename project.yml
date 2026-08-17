@@ -97,6 +97,10 @@ targets:
         # Ei vientirajoitusten alaista salausta (vain HTTPS). Ilman tätä
         # App Store Connect kysyy saman asian jokaisen latauksen yhteydessä.
         ITSAppUsesNonExemptEncryption: false
+        # Apple vaatii myös kirjoitustekstin, koska sovelluksella on
+        # HealthKit-oikeus — vaikka Volu ei kirjoita Healthiin mitään. Ilman
+        # tätä lataus App Store Connectiin hylätään (Missing purpose string).
+        NSHealthUpdateUsageDescription: Volu ei tallenna mitään Apple Healthiin. Tietoja ainoastaan luetaan, jotta askeleesi, unesi, painosi ja suorituksesi näkyvät sovelluksessa.
         NSHealthShareUsageDescription: Apple Healthin tietoja luetaan, jotta askeleesi, unesi, painosi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Volussa ilman käsin kirjaamista.
         NSCameraUsageDescription: Kameraa käytetään aterian kuvaamiseen, jotta AI voi arvioida ruoan ja sen makrot.
         NSPhotoLibraryUsageDescription: Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.

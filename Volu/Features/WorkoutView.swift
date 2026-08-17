@@ -435,14 +435,17 @@ struct WorkoutView: View {
 
     /// Kesto tekstinä. Alle tunnin treeni "48 min", pidempi "1 h 12 min" —
     /// sekunnit eivät kiinnosta treenin pituudessa.
-    private func durationLabel(_ seconds: Int) -> some View {
+    private func durationText(_ seconds: Int) -> String {
         let minutes = seconds / 60
-        let text = minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
-        return Text(text)
+        return minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
+    }
+
+    private func durationLabel(_ seconds: Int) -> some View {
+        Text(durationText(seconds))
             .font(.footnote)
             .foregroundStyle(.secondary)
             .monospacedDigit()
-            .accessibilityLabel("Kesto \(text)")
+            .accessibilityLabel("Kesto \(durationText(seconds))")
     }
 
     private var noteSection: some View {
