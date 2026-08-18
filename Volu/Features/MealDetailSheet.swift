@@ -5,20 +5,22 @@ import SwiftUI
 /// ja listalla pyyhkäisynä.
 struct MealDetailSheet: View {
     let entry: NutritionEntry
-    let onSave: (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> Void
+    /// Palauttaa virheviestin tai `nil` kun tallennus onnistui.
+    let onSave: (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> String?
     let onDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText: String
     @State private var mealTag: MealTag
     @State private var isSaving = false
+    @State private var errorMessage: String?
     @State private var showDeleteConfirmation = false
 
     private var isFood: Bool { entry.kind == "food" }
 
     init(
         entry: NutritionEntry,
-        onSave: @escaping (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> Void,
+        onSave: @escaping (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> String?,
         onDelete: @escaping () -> Void
     ) {
         self.entry = entry
@@ -32,6 +34,16 @@ struct MealDetailSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // Ylimmäksi kuten muissakin näkymissä: virhe koskee juuri
+                // tehtyä tallennusyritystä, ja arvot ovat yhä muokattavina alla.
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 Section {
                     Text(entry.name)
                         .font(.headline)
@@ -84,10 +96,18 @@ struct MealDetailSheet: View {
                     Button("Tallenna") {
                         Task {
                             isSaving = true
+                            errorMessage = nil
                             let amount = Self.parse(amountText)
-                            await onSave(isFood ? amount : nil, isFood ? nil : amount, mealTag)
+                            let failure = await onSave(isFood ? amount : nil, isFood ? nil : amount, mealTag)
                             isSaving = false
-                            dismiss()
+                            // Suljetaan vain onnistuessa: epäonnistuneen
+                            // tallennuksen jälkeen sulkeutuva näkymä näyttää
+                            // onnistumiselta ja vie mukanaan syötetyt arvot.
+                            if let failure {
+                                errorMessage = failure
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(isSaving || !hasChanges)

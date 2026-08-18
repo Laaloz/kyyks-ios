@@ -92,8 +92,14 @@ final class NutritionModel: CachedModel {
 
     /// Annoskoon ja ateriapaikan korjaus. Makrot lasketaan palvelimella,
     /// joten tuore data haetaan tallennuksen jälkeen.
-    func updateEntry(_ entry: NutritionEntry, grams: Double?, servings: Double?, mealTag: MealTag) async {
-        guard let api else { return }
+    /// Palauttaa virheviestin tai `nil` kun tallennus onnistui.
+    ///
+    /// Kutsuja tarvitsee tiedon: epäonnistunut tallennus ei saa sulkea
+    /// muokkausnäkymää, koska silloin käyttäjän syöttämät arvot katoavat ja hän
+    /// joutuu kirjoittamaan ne uudelleen.
+    @discardableResult
+    func updateEntry(_ entry: NutritionEntry, grams: Double?, servings: Double?, mealTag: MealTag) async -> String? {
+        guard let api else { return nil }
         struct Body: Encodable {
             let grams: Double?
             let servings: Double?
@@ -105,8 +111,11 @@ final class NutritionModel: CachedModel {
                 body: Body(grams: grams, servings: servings, mealTag: mealTag.rawValue)
             )
             await refreshAfterChange()
+            return nil
         } catch {
-            errorMessage = "Muutoksen tallennus epäonnistui."
+            let message = (error as? APIError)?.serverMessage ?? "Muutoksen tallennus epäonnistui."
+            errorMessage = message
+            return message
         }
     }
 
