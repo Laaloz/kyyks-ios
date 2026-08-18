@@ -18,6 +18,17 @@ struct TodayView: View {
     var body: some View {
         NavigationStack {
             List {
+                // Ylimmäksi kuten muissakin näkymissä. Listan lopussa tämä jäi
+                // Tänään-välilehdellä kolmen osion taakse eikä näkynyt ilman
+                // vierittämistä — ja viesti nimenomaan pyytää vetämään alas,
+                // mitä ei voi tehdä jos ei näe sitä.
+                if let error = model.errorMessage {
+                    Section {
+                        Text(error)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
                 if let user = model.currentUser {
                     Section {
                         VStack(alignment: .leading, spacing: 2) {
@@ -186,11 +197,6 @@ struct TodayView: View {
                     }
                 }
 
-                if let error = model.errorMessage {
-                    Section {
-                        Text(error).foregroundStyle(.red)
-                    }
-                }
             }
             .navigationTitle("Tänään")
             .overlay {
