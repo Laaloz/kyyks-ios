@@ -126,6 +126,20 @@ struct WorkoutView: View {
                 }
             }
         }
+        // Näppäimistö pois vierittämällä ja napauttamalla muualle. Sarjakentät
+        // ovat numeronäppäimistöjä, joissa ei ole rivinvaihtoa — ilman näitä
+        // näppäimistö jäi ruudulle peittämään puolet sarjoista.
+        .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil,
+                    from: nil,
+                    for: nil
+                )
+            }
+        )
         .navigationTitle(workoutTitle)
         .navigationBarTitleDisplayMode(.inline)
         // Treenin aikana koko ruutu on kirjaamista varten — välilehtipalkki pois.

@@ -137,10 +137,10 @@ final class ProgramDraftChangeTests: XCTestCase {
 /// kirjauksen luotettavuutta.
 @MainActor
 final class RestTimerTriggerTests: XCTestCase {
-    private func log(_ label: String) -> WorkoutSetLog {
+    private func log(_ label: String, exercise: String = "Penkkipunnerrus", template: String = "e1") -> WorkoutSetLog {
         WorkoutSetLog(
-            id: "s\(label)", templateExerciseId: "e1", setId: "set\(label)", exerciseId: "ex",
-            exerciseName: "Penkkipunnerrus", supersetGroup: nil, setLabel: label,
+            id: "s\(label)", templateExerciseId: template, setId: "set\(label)", exerciseId: "ex",
+            exerciseName: exercise, supersetGroup: nil, setLabel: label,
             targetReps: 5, targetRepsMin: 5, targetRepsMax: 7,
             targetLoad: 60, targetRestSeconds: 90,
             actualReps: nil, actualLoad: nil, done: false
@@ -157,6 +157,22 @@ final class RestTimerTriggerTests: XCTestCase {
         XCTAssertNotNil(model.toggleDone(logId: "s2"))
         // Viimeisestä ei: treeni on ohi eikä lepoa tarvita.
         XCTAssertNil(model.toggleDone(logId: "s3"))
+    }
+
+    /// Ajastin lukee "Seuraava: …", joten nimen on kerrottava mitä tehdään
+    /// seuraavaksi — ei sitä mikä juuri tehtiin.
+    func testRestNamesTheNextExerciseNotTheFinishedOne() {
+        let model = WorkoutModel()
+        model.setLogsForTesting([
+            log("1", exercise: "Penkkipunnerrus", template: "e1"),
+            log("2", exercise: "Penkkipunnerrus", template: "e1"),
+            log("3", exercise: "Kulmasoutu", template: "e2"),
+        ])
+
+        // Kesken liikkeen: seuraava sarja on samaa liikettä.
+        XCTAssertEqual(model.toggleDone(logId: "s1")?.exerciseName, "Penkkipunnerrus")
+        // Liikkeen viimeinen sarja: seuraavaksi vaihtuu liike.
+        XCTAssertEqual(model.toggleDone(logId: "s2")?.exerciseName, "Kulmasoutu")
     }
 
     func testUncheckingDoesNotStartRest() {

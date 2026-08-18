@@ -135,9 +135,9 @@ final class WorkoutModel: CachedModel {
         sync(setLogs[index], revertTo: previous)
 
         // Sama sääntö kuin kuittauksessa: viimeisestä sarjasta ei lepoa.
-        guard becameDone, !setLogs.allSatisfy(\.isLogged) else { return nil }
+        guard becameDone, let nextExercise = nextPendingExerciseName() else { return nil }
         let rest = Int(previous.targetRestSeconds ?? 90)
-        return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
+        return (restSeconds: rest > 0 ? rest : 90, exerciseName: nextExercise)
     }
 
     /// Optimistinen kirjaus: paikallinen tila heti, synkka taustalla,
@@ -174,11 +174,25 @@ final class WorkoutModel: CachedModel {
         sync(setLogs[index], revertTo: previous)
 
         guard setLogs[index].isLogged else { return nil }
-        // Viimeisen sarjan jälkeen lepoa ei tarvita — treeni on ohi.
-        // Muuten ajastin käynnistyy aina; treenin päättäminen sammuttaa sen.
-        guard !setLogs.allSatisfy(\.isLogged) else { return nil }
+        // Viimeisen sarjan jälkeen lepoa ei tarvita — treeni on ohi. Sama
+        // tarkistus antaa myös ajastimen otsikon: jos kuittaamattomia ei ole,
+        // seuraavaa liikettä ei ole olemassa.
+        guard let nextExercise = nextPendingExerciseName() else { return nil }
         let rest = Int(previous.targetRestSeconds ?? 90)
-        return (restSeconds: rest > 0 ? rest : 90, exerciseName: previous.exerciseName)
+        return (restSeconds: rest > 0 ? rest : 90, exerciseName: nextExercise)
+    }
+
+    /// Minkä liikkeen sarja on seuraavana vuorossa.
+    ///
+    /// Lepoajastin lukee "Seuraava: …", joten nimen on tultava seuraavasta
+    /// kuittaamattomasta sarjasta — ei siitä joka juuri tehtiin. Aiemmin se
+    /// näytti äsken päättyneen liikkeen nimen, mikä oli väärin aina kun sarja
+    /// oli liikkeen viimeinen.
+    ///
+    /// Nil kun kaikki on kuitattu: treeni on ohi, eikä lepoa tai seuraavaa
+    /// liikettä ole.
+    private func nextPendingExerciseName() -> String? {
+        setLogs.first { !$0.isLogged }?.exerciseName
     }
 
     /// Keston korjaus. Palvelin vaatii istunnon versiotiedon, joten

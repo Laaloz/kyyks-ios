@@ -206,7 +206,16 @@ private struct SetRow: View {
             .foregroundStyle(valueColor)
             .focused($focus, equals: field)
             .submitLabel(.done)
-            .onSubmit { commit() }
+            .onSubmit { focus = nil }
+            .toolbar {
+                // Numeronäppäimistössä ei ole rivinvaihtoa, joten ilman tätä
+                // ainoa ulospääsy oli vierittäminen. "Valmis" on iOS:n
+                // vakiintunut paikka sille.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Valmis") { focus = nil }
+                }
+            }
             .frame(width: width)
             .padding(.vertical, 7)
             // Solu näyttää syöttökentältä, koska se on syöttökenttä. Vuorossa
