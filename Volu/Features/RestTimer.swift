@@ -39,7 +39,6 @@ final class RestTimerManager {
         totalSeconds = seconds
         self.exerciseName = exerciseName
         persist()
-        scheduleNotification(after: seconds)
         startActivity(from: start)
     }
 
@@ -48,7 +47,6 @@ final class RestTimerManager {
         endsAt = current.addingTimeInterval(TimeInterval(seconds))
         totalSeconds += seconds
         persist()
-        scheduleNotification(after: remainingSeconds())
         updateActivity()
     }
 
@@ -59,6 +57,10 @@ final class RestTimerManager {
         UserDefaults.standard.removeObject(forKey: Self.endsAtKey)
         UserDefaults.standard.removeObject(forKey: Self.totalKey)
         UserDefaults.standard.removeObject(forKey: Self.nameKey)
+        // Ajastin ei enää lähetä ilmoitusta: aika näkyy ruudulla, Dynamic
+        // Islandissa ja lukitusnäytöllä, joten erillinen banneri kertoi saman
+        // asian kolmannen kerran. Peruutus jää siltä varalta että edellinen
+        // versio ehti ajastaa ilmoituksen ennen päivitystä.
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationId])
         endActivity()
     }
@@ -132,25 +134,6 @@ final class RestTimerManager {
         }
     }
 
-    private func scheduleNotification(after seconds: Int) {
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Self.notificationId])
-        guard seconds > 0 else { return }
-
-        Task {
-            let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
-            guard granted else { return }
-
-            let content = UNMutableNotificationContent()
-            content.title = "Lepo ohi"
-            content.body = exerciseName.isEmpty ? "Seuraava sarja." : "Seuraava sarja: \(exerciseName)"
-            content.sound = .default
-            content.interruptionLevel = .timeSensitive
-
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(seconds), repeats: false)
-            try? await center.add(UNNotificationRequest(identifier: Self.notificationId, content: content, trigger: trigger))
-        }
-    }
 }
 
 /// Ruudun alareunassa kelluva lepopalkki: jäljellä oleva aika, eteneminen,

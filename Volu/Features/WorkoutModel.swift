@@ -208,7 +208,11 @@ final class WorkoutModel: CachedModel {
     }
 
     func completeWorkout() async {
-        guard let api, let updatedAt = workout?.updatedAt else { return }
+        // Istunnon versiotieto, ei treenirivin: palvelin vertaa arvoa session
+        // updated_at:hen (`p_expected_session_updated_at`). Treenirivin
+        // aikaleima ei liiku sarjoja kirjatessa, joten se oli lopetushetkellä
+        // aina vanhentunut ja viimeistely kaatui stale_session-virheeseen.
+        guard let api, let updatedAt = session?.updatedAt else { return }
         isCompleting = true
         defer { isCompleting = false }
         // Odottavat kirjaukset ensin: valmiiksi merkitty treeni ilman viimeisiä

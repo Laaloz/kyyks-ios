@@ -16,8 +16,10 @@ struct WorkoutView: View {
     @State private var model = WorkoutModel()
     @State private var editingLog: WorkoutSetLog?
     @State private var pickerMode: ExercisePickerMode?
-    @State private var expanded: Set<String> = []
-    @State private var didAutoExpand = false
+    /// Kentät ovat oletuksena näkyvissä; nämä kaksi joukkoa ovat käyttäjän
+    /// tekemiä poikkeuksia oletukseen kumpaankin suuntaan.
+    @State private var collapsedByUser: Set<String> = []
+    @State private var expandedByUser: Set<String> = []
     @State private var confirmation: Confirmation?
     /// Jaettu sovelluksen juuresta: lepo jatkuu ja näkyy myös kun treeninäkymä
     /// suljetaan. Omana tilana ajastin jäi päälle näkymän mukana piiloon, ja
@@ -51,7 +53,7 @@ struct WorkoutView: View {
                 // otsikko ei siksi voinut näyttää samalta kuin muut rivit.
                 Section {
                     blockHeaderRow(block)
-                    if expanded.contains(block.id) {
+                    if isExpanded(block) {
                         blockContent(block)
                     }
                 }
@@ -90,7 +92,16 @@ struct WorkoutView: View {
             if model.isEditable && !model.setLogs.isEmpty {
                 Section {
                     Button {
-                        confirmation = .complete
+                        // Varmistus vain kun jotain on kuittaamatta: silloin se
+                        // kertoo jotain mitä käyttäjä ei näe. Kaikki kuitattuna
+                        // se kysyy asiaa johon vastaus on jo annettu — nappia
+                        // painettiin juuri.
+                        if model.setLogs.allSatisfy(\.isLogged) {
+                            restTimer.stop()
+                            Task { await model.completeWorkout() }
+                        } else {
+                            confirmation = .complete
+                        }
                     } label: {
                         Group {
                             if model.isCompleting {
@@ -151,7 +162,6 @@ struct WorkoutView: View {
             await model.restorePendingWrites()
             await model.load()
             await model.flushPendingWrites()
-            autoExpandFirstUnfinished()
         }
         // Paluu taustalta on tavallisin hetki, jolloin verkko on taas käytössä:
         // puhelin taskussa sarjojen välissä, kenttä palaa salin ovella.
@@ -249,7 +259,7 @@ struct WorkoutView: View {
     /// ei näytetä otsikossa — se jää riveille eikä otsikko väitä väärää.
     private func headerSubtitle(_ block: ExerciseBlock) -> String? {
         guard !block.isSuperset, let exercise = block.exercises.first else { return nil }
-        let isCollapsed = !expanded.contains(block.id)
+        let isCollapsed = !isExpanded(block)
         var parts: [String] = []
         if let target = exercise.sharedTarget {
             parts.append(target)
@@ -263,12 +273,12 @@ struct WorkoutView: View {
     private func blockHeaderRow(_ block: ExerciseBlock) -> some View {
         HStack(spacing: 8) {
             Button {
-                withAnimation(.snappy(duration: 0.2)) { toggle(block.id) }
+                withAnimation(.snappy(duration: 0.2)) { toggle(block) }
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
-                        .rotationEffect(.degrees(expanded.contains(block.id) ? 90 : 0))
+                        .rotationEffect(.degrees(isExpanded(block) ? 90 : 0))
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -306,19 +316,28 @@ struct WorkoutView: View {
                             .accessibilityLabel("Kaikki toistot täynnä, nosta painoa ensi kerralla")
                     }
 
-                    // Laskuri ei ole arvosana: valmis on normaalitila eikä
-                    // ansaitse väriä. Väri on varattu tavoitepoikkeamalle.
-                    Text("\(block.doneCount)/\(block.logs.count)")
-                        .font(.subheadline)
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                    // Valmis liike merkitään rastilla, kesken oleva laskurilla.
+                    // "3/3" vaati lukemaan kaksi lukua ja vertaamaan ne
+                    // keskenään, jotta näki onko liike tehty — rasti kertoo sen
+                    // vilkaisulla, ja lukema jää sinne missä sillä on merkitys.
+                    if block.doneCount == block.logs.count, block.doneCount > 0 {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.tint)
+                            .accessibilityHidden(true)
+                    } else {
+                        Text("\(block.doneCount)/\(block.logs.count)")
+                            .font(.subheadline)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(block.isSuperset ? "Supersetti: \(block.title)" : block.title)
             .accessibilityValue("\(block.doneCount) / \(block.logs.count) sarjaa kirjattu")
-            .accessibilityHint(expanded.contains(block.id) ? "Sulje kaksoisnapauttamalla" : "Avaa kaksoisnapauttamalla")
+            .accessibilityHint(isExpanded(block) ? "Sulje kaksoisnapauttamalla" : "Avaa kaksoisnapauttamalla")
 
             if model.isEditable {
                 Menu {
@@ -474,25 +493,28 @@ struct WorkoutView: View {
         }
     }
 
-    /// Yksi liike auki kerrallaan.
+    /// Kentät suoraan näkyviin, valmis liike pois tieltä.
     ///
-    /// Salilla tehdään yhtä liikettä kerrallaan, ja avattu liike vie
-    /// ruudusta ison osan — usea auki tarkoitti vierittämistä ja edellisten
-    /// sulkemista käsin. Kutistettu liike kertoo silti tavoitteen ja
-    /// toteuman otsikossaan, joten mitään ei jää piiloon.
-    private func toggle(_ id: String) {
-        expanded = expanded.contains(id) ? [] : [id]
+    /// Aiemmin auki oli yksi liike kerrallaan ja loput piti avata
+    /// napauttamalla. Se säästi tilaa, mutta teki kirjaamisesta kaksivaiheista:
+    /// ensin etsi liike, sitten avaa se, vasta sitten kirjaa. Nyt kentät ovat
+    /// valmiina, ja tilaa vapautuu siitä mikä on jo tehty.
+    ///
+    /// Käyttäjän oma napautus voittaa aina automatiikan — kumpaankin suuntaan,
+    /// jotta valmiin liikkeen voi avata tarkistamaan mitä siihen tuli.
+    private func isExpanded(_ block: ExerciseBlock) -> Bool {
+        if expandedByUser.contains(block.id) { return true }
+        if collapsedByUser.contains(block.id) { return false }
+        return !block.isComplete
     }
 
-    /// Salikäytössä oleellinen on seuraava kesken oleva liike — se avataan
-    /// valmiiksi, loput pysyvät kiinni.
-    private func autoExpandFirstUnfinished() {
-        guard !didAutoExpand, !model.blocks.isEmpty else { return }
-        didAutoExpand = true
-        if let next = model.blocks.first(where: { !$0.isComplete }) {
-            expanded.insert(next.id)
-        } else if let first = model.blocks.first {
-            expanded.insert(first.id)
+    private func toggle(_ block: ExerciseBlock) {
+        if isExpanded(block) {
+            expandedByUser.remove(block.id)
+            collapsedByUser.insert(block.id)
+        } else {
+            collapsedByUser.remove(block.id)
+            expandedByUser.insert(block.id)
         }
     }
 }
