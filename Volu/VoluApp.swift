@@ -76,6 +76,10 @@ struct VoluApp: App {
     /// Ulkoasu pakotetaan sovelluksen juuressa, jotta se koskee myös
     /// sheettejä ja kirjautumisnäkymää — ei vain välilehtiä.
     @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
+    /// Korostusväri samasta paikasta samasta syystä kuin ulkoasu: sheetit ja
+    /// kirjautumisnäkymä ovat oman esityksensä juuria, eivätkä perisi sitä
+    /// välilehdiltä.
+    @AppStorage(AccentSetting.storageKey) private var accent = AccentSetting.green
 
     private enum Tab { case today, workouts, nutrition, body }
 
@@ -171,6 +175,7 @@ struct VoluApp: App {
             .environment(\.locale, Locale(identifier: "fi_FI"))
             // Ulkoasu juuressa: koskee myös sheettejä ja kirjautumisnäkymää.
             .preferredColorScheme(appearance.colorScheme)
+            .tint(accent.color)
             .task { auth.bootstrap() }
         }
     }

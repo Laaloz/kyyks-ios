@@ -7,6 +7,7 @@ import SwiftUI
 /// paikka jossa sen voi asettaa.
 struct ProfileView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
+    @AppStorage(AccentSetting.storageKey) private var accent = AccentSetting.green
     let auth: AuthManager
 
     /// Julkaisuversio ja buildinumero. Buildinumero on se joka erottaa
@@ -115,6 +116,7 @@ struct ProfileView: View {
                         Text("Mies").tag(String?.some("male"))
                         Text("Muu").tag(String?.some("other"))
                     }
+                    .tint(Color.secondary)
                 } header: {
                     Text("Makrolaskennan tiedot")
                 } footer: {
@@ -155,6 +157,37 @@ struct ProfileView: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityLabel("Sovelluksen ulkoasu")
+
+                    // Väri valitaan värinä eikä nimenä: seitsemän nimeä
+                    // listassa kertoisi vähemmän kuin seitsemän täplää, ja
+                    // valinnan koko pointti on miltä se näyttää.
+                    LabeledContent("Korostusväri") {
+                        HStack(spacing: 10) {
+                            ForEach(AccentSetting.allCases) { option in
+                                Button {
+                                    accent = option
+                                } label: {
+                                    Circle()
+                                        .fill(option.color)
+                                        .frame(width: 24, height: 24)
+                                        .overlay {
+                                            // Merkki vain valitulle, ja renkaana
+                                            // eikä värinä: värisokealle pelkkä
+                                            // sävyero ei kerro valintaa.
+                                            if accent == option {
+                                                Circle()
+                                                    .strokeBorder(Color.primary, lineWidth: 2)
+                                                    .padding(-3)
+                                            }
+                                        }
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(option.label)
+                                .accessibilityAddTraits(accent == option ? [.isButton, .isSelected] : .isButton)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
 
                 Section("Muistutukset") {
@@ -168,6 +201,10 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    // Valitsimien arvot ovat neutraaleja kuten muutkin arvot
+                    // tässä näkymässä ("180 cm", "30 v", "Volu Pro"):
+                    // korostusväri on varattu arvioinnille ja toiminnoille,
+                    // eikä valitsimen arvo ole kumpaakaan.
                     Picker("Tavoite", selection: Binding(
                         get: { profile.goal ?? "maintain" },
                         set: { newValue in Task { await model.setGoal(newValue, activityLevel: nil) } }
@@ -176,6 +213,7 @@ struct ProfileView: View {
                         Text("Pysy nykyisessä").tag("maintain")
                         Text("Kasvata lihasta").tag("gain")
                     }
+                    .tint(Color.secondary)
                     Picker("Aktiivisuus", selection: Binding(
                         get: { profile.activityLevel ?? "moderate" },
                         set: { newValue in Task { await model.setGoal(nil, activityLevel: newValue) } }
@@ -184,6 +222,7 @@ struct ProfileView: View {
                         Text("Kohtalainen").tag("moderate")
                         Text("Aktiivinen").tag("high")
                     }
+                    .tint(Color.secondary)
                 } header: {
                     Text("Ravintotavoite")
                 } footer: {
@@ -193,6 +232,7 @@ struct ProfileView: View {
                         Text("Tavoite lasketaan, kun makrolaskennan tiedot ovat täydelliset.")
                     }
                 }
+
 
                 Section {
                     LabeledContent("Taso") {
