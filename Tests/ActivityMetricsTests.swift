@@ -87,3 +87,59 @@ final class ActivityMetricsTests: XCTestCase {
         XCTAssertEqual(ExtraActivityType.distanceMode(for: "ei_ole"), .none)
     }
 }
+
+
+/// Listarivin lukemat. Rivillä oli viisi lukua väliviivoin, eikä kokonaiskuvaa
+/// hahmottanut vilkaisulla; loput siirtyivät avattuun näkymään.
+final class ActivityRowPartsTests: XCTestCase {
+    func testDistanceSportShowsDistanceAndDuration() {
+        XCTAssertEqual(
+            ActivityMetrics.rowParts(meters: 12000, minutes: 85, kcal: 811, mode: .pace),
+            ["12,0 km", "1 h 25 min"]
+        )
+    }
+
+    func testDurationUsesHoursEverywhere() {
+        // "85 min" on luku jonka lukija joutuu jakamaan päässään.
+        XCTAssertEqual(formatDuration(minutes: 85), "1 h 25 min")
+        XCTAssertEqual(formatDuration(minutes: 45), "45 min")
+        // Tasatunti ilman turhaa nollaa.
+        XCTAssertEqual(formatDuration(minutes: 120), "2 h")
+        // Sekuntipohjainen muoto on sama laskenta, ei toinen sääntö.
+        XCTAssertEqual(formatDuration(seconds: 85 * 60), "1 h 25 min")
+    }
+
+    func testSwimDistanceStaysInMetres() {
+        XCTAssertEqual(
+            ActivityMetrics.rowParts(meters: 1500, minutes: 40, kcal: 400, mode: .swim),
+            ["1500 m", "40 min"]
+        )
+    }
+
+    func testWithoutDistanceShowsDurationAndKcal() {
+        // Joogassa kesto on ainoa mittaus, joten sen pariksi tulee kalorit.
+        XCTAssertEqual(
+            ActivityMetrics.rowParts(meters: nil, minutes: 60, kcal: 180, mode: .none),
+            ["1 h", "180 kcal"]
+        )
+    }
+
+    func testDistanceSportWithoutMeasuredDistance() {
+        // Ennen 17.8. tuoduilla juoksuilla matka puuttui: rivin on silti
+        // kerrottava jotain eikä jäätävä tyhjäksi.
+        XCTAssertEqual(
+            ActivityMetrics.rowParts(meters: nil, minutes: 85, kcal: 811, mode: .pace),
+            ["1 h 25 min", "811 kcal"]
+        )
+    }
+
+    func testRowNeverShowsMoreThanTwoValues() {
+        // Koko korjauksen syy: rivi pysyy kahdessa luvussa lajista riippumatta.
+        for mode in [ActivityDistanceMode.none, .pace, .speed, .swim] {
+            XCTAssertEqual(
+                ActivityMetrics.rowParts(meters: 12000, minutes: 85, kcal: 811, mode: mode).count,
+                2
+            )
+        }
+    }
+}

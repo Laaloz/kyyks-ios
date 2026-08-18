@@ -441,22 +441,15 @@ struct WorkoutView: View {
         }
     }
 
-    /// Kesto tekstinä. Alle tunnin treeni "48 min", pidempi "1 h 12 min" —
-    /// sekunnit eivät kiinnosta treenin pituudessa.
-    private func durationText(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        return minutes >= 60 ? "\(minutes / 60) h \(minutes % 60) min" : "\(minutes) min"
-    }
-
     /// Kesto on napautettava kun treeni on kesken. Harmaana se näytti
     /// tavalliselta tekstiltä eikä mikään kertonut että kestoa voi korjata —
     /// muuallakin sovelluksessa napautettava on korostusvärillä.
     private func durationLabel(_ seconds: Int, isEditable: Bool) -> some View {
-        Text(durationText(seconds))
+        Text(formatDuration(minutes: seconds / 60))
             .font(.footnote)
             .foregroundStyle(isEditable ? Color.accentColor : Color.secondary)
             .monospacedDigit()
-            .accessibilityLabel("Kesto \(durationText(seconds))")
+            .accessibilityLabel("Kesto \(formatDuration(minutes: seconds / 60))")
     }
 
     private var noteSection: some View {

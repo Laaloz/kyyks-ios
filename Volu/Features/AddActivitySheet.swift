@@ -97,14 +97,12 @@ struct AddActivitySheet: View {
 
                     DatePicker("Ajankohta", selection: $occurredAt, in: ...Date.now)
                 } footer: {
-                    // Vauhti on matkan ja keston osamäärä, joten sitä ei
-                    // kysytä erikseen — näytetään heti kun molemmat on annettu.
-                    if let pace = ActivityMetrics.paceText(
-                        meters: distanceMeters,
-                        minutes: durationMinutes,
-                        mode: activityType.distanceMode
-                    ) {
-                        Text("Vauhti \(pace)")
+                    // Kentässä kirjoitetaan minuutteja, koska se on se mitä
+                    // käyttäjä korjaa. Tuntimuoto kentän alla kertoo mitä luku
+                    // tarkoittaa — vain kun se eroaa kirjoitetusta, jottei sama
+                    // asia lue kahdesti.
+                    if let minutes = durationMinutes, minutes >= 60 {
+                        Text(formatDuration(minutes: Int(minutes)))
                             .monospacedDigit()
                     }
                 }
@@ -119,6 +117,26 @@ struct AddActivitySheet: View {
                             .monospacedDigit()
                             .frame(width: 90)
                         Text("kcal").foregroundStyle(.secondary)
+                    }
+
+                    // Vauhti omana rivinään eikä osion alaviitteenä. Alaviite
+                    // on pientä harmaata tekstiä osion alla, ja lukema jäi siellä
+                    // huomaamatta — sitä etsittiin riveiltä muiden lukemien
+                    // seasta. Sitä ei kysytä, koska se on matkan ja keston
+                    // osamäärä: tallennettu johdannainen vanhenisi hiljaa heti
+                    // kun kestoa korjataan.
+                    if let pace = ActivityMetrics.paceText(
+                        meters: distanceMeters,
+                        minutes: durationMinutes,
+                        mode: activityType.distanceMode
+                    ) {
+                        HStack {
+                            Text("Vauhti")
+                            Spacer()
+                            Text(pace)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     // Syke näytetään mutta sitä ei muokata: se tulee kellosta

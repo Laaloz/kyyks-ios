@@ -348,16 +348,14 @@ struct WorkoutsListView: View {
     }
 
     private func activityRow(_ activity: ExtraActivity) -> some View {
-        // Matka ja vauhti ensin: juoksijalle ne kertovat suorituksesta
-        // enemmän kuin kesto, ja arvioidut kalorit ovat listan heikoin luku.
-        let metrics = ActivityMetrics.detailParts(
+        // Vain kaksi lukua: vauhti, syke ja kalorit näkyvät kun suoritus
+        // avataan. Viisi lukua väliviivoin ei kerro vilkaisulla mitään.
+        let detail = ActivityMetrics.rowParts(
             meters: activity.distanceMeters,
             minutes: activity.durationMinutes,
-            heartRate: activity.averageHeartRate,
+            kcal: activity.estimatedKcal,
             mode: ExtraActivityType.distanceMode(for: activity.activityType)
-        )
-        let detail = (metrics + ["\(Int(activity.durationMinutes)) min", "\(Int(activity.estimatedKcal)) kcal"])
-            .joined(separator: " · ")
+        ).joined(separator: " · ")
         let name = ExtraActivityType.label(for: activity.activityType)
         return VStack(alignment: .leading, spacing: 2) {
             // Suurilla tekstikoilla rinnakkain ei mahdu: vierekkäinen asettelu
@@ -380,12 +378,9 @@ struct WorkoutsListView: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            ([name] + metrics + [
-                "\(Int(activity.durationMinutes)) minuuttia",
-                "\(Int(activity.estimatedKcal)) kilokaloria",
-            ]).joined(separator: ", ")
-        )
+        // Ruudunlukija kuulee saman kuin ruudulla näkyy: rivin lyhentäminen
+        // näkyvästi mutta ei ääneen tekisi näistä kahdesta eri näkymää.
+        .accessibilityLabel(([name] + detail.components(separatedBy: " · ")).joined(separator: ", "))
     }
 
     private func workoutRow(_ workout: ScheduledWorkout) -> some View {

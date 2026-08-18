@@ -45,9 +45,13 @@ struct DurationEditSheet: View {
                     stepButton("plus", step: 5)
                 }
 
-                Text("minuuttia")
+                // Yksikkö kertoo mitä numero on; tuntimuoto kertoo mitä se
+                // tarkoittaa. Jälkimmäinen vain kun se eroaa numerosta —
+                // "45 min" kahdesti peräkkäin ei kanna tietoa.
+                Text(minutes.map { $0 >= 60 ? formatDuration(minutes: $0) : "minuuttia" } ?? "minuuttia")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
 
                 if let errorMessage {
                     Text(errorMessage)

@@ -53,8 +53,31 @@ enum ActivityMetrics {
         return String(format: "%d.%02d %@", totalSeconds / 60, totalSeconds % 60, suffix)
     }
 
-    /// Rivin lisätiedot järjestyksessä matka, vauhti, syke. Tyhjät jätetään
-    /// pois, jotta rivi ei täyty väliviivoista silloin kun mittauksia ei ole.
+    /// Listarivin lukemat: **kaksi mitattua faktaa, ei enempää.**
+    ///
+    /// Rivillä oli aiemmin matka, vauhti, syke, kesto ja kalorit — viisi lukua
+    /// väliviivoin, joista kokonaiskuvaa ei hahmota vilkaisulla. Loput näkyvät
+    /// kun suoritus avataan.
+    ///
+    /// Valinta lajin mukaan: matkalajissa matka ja kesto ovat ne kaksi jotka
+    /// on oikeasti mitattu — vauhti on niiden osamäärä ja kalorit arvio.
+    /// Lajissa jolla ei ole matkaa kesto on ainoa mittaus, joten sen pariksi
+    /// tulee kalorit.
+    static func rowParts(
+        meters: Double?,
+        minutes: Double?,
+        kcal: Double,
+        mode: ActivityDistanceMode
+    ) -> [String] {
+        let duration = minutes.map { formatDuration(minutes: Int($0)) }
+        if let distance = distanceText(meters: meters, mode: mode) {
+            return [distance] + (duration.map { [$0] } ?? [])
+        }
+        return (duration.map { [$0] } ?? []) + ["\(Int(kcal)) kcal"]
+    }
+
+    /// Avatun näkymän lukemat järjestyksessä matka, vauhti, syke. Tyhjät
+    /// jätetään pois, jotta näkymä ei täyty riveistä joilla ei ole arvoa.
     static func detailParts(
         meters: Double?,
         minutes: Double?,

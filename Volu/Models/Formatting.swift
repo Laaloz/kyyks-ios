@@ -57,9 +57,18 @@ func formatPercent(_ value: Double) -> String {
 }
 
 /// "7 h 12 min" — tunnit ja minuutit, ei sekunteja.
-func formatDuration(seconds: Double) -> String {
-    let totalMinutes = Int((seconds / 60).rounded())
+///
+/// Kesto näytetään aina tässä muodossa: "85 min" on luku jonka lukija joutuu
+/// jakamaan päässään, eikä treenin tai lenkin pituus ole koskaan niin tarkka
+/// asia että minuuttiluku olisi sinänsä kiinnostava.
+func formatDuration(minutes totalMinutes: Int) -> String {
     let hours = totalMinutes / 60
     let minutes = totalMinutes % 60
-    return hours > 0 ? "\(hours) h \(minutes) min" : "\(minutes) min"
+    if hours == 0 { return "\(minutes) min" }
+    // Tasatunti ilman nollaa: "2 h" eikä "2 h 0 min".
+    return minutes == 0 ? "\(hours) h" : "\(hours) h \(minutes) min"
+}
+
+func formatDuration(seconds: Double) -> String {
+    formatDuration(minutes: Int((seconds / 60).rounded()))
 }
