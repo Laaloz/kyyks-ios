@@ -76,8 +76,36 @@ struct ProgramWorkoutSummary: Decodable, Identifiable {
     let name: String
     let splitType: String?
     let exerciseCount: Int
-    /// Vain muokkaus tarvitsee; aloitus pärjää liikemäärällä.
+    /// Muokkaus tarvitsee, ja aloitus näyttää näistä arvion ja sisällön.
     let exercises: [ProgramTemplate.TemplateExercise]?
+
+    /// Arvioitu kesto: sarjat × ~4 min + 8 min lämmittely, vähintään 20 min.
+    /// Sama kaava kuin webin ohjelmaeditorissa (`estimatedMinutes`) — kaksi eri
+    /// arviota samasta treenistä olisi ristiriita, ei tarkennus.
+    ///
+    /// Nil kun liikkeitä ei ole haettu: arvaus liikemäärästä olisi eri luku
+    /// kuin editorissa näkyvä.
+    var estimatedMinutes: Int? {
+        guard let exercises, !exercises.isEmpty else { return nil }
+        let setCount = exercises.reduce(0) { $0 + $1.setCount }
+        return max(20, setCount * 4 + 8)
+    }
+
+    /// Aloitusrivin lukemat: liikemäärä ja arvio, kun arvio on saatavilla.
+    var startSummary: String {
+        let exerciseText = "\(exerciseCount) liikettä"
+        guard let estimatedMinutes else { return exerciseText }
+        return "\(exerciseText) · noin \(formatDuration(minutes: estimatedMinutes))"
+    }
+
+    /// Mitä treeni sisältää, ilman että sitä tarvitsee avata. Kolme ensimmäistä
+    /// riittää tunnistamiseen — koko lista veisi rivin useaksi.
+    var previewText: String? {
+        guard let exercises, !exercises.isEmpty else { return nil }
+        let shown = exercises.prefix(3).map(\.exerciseName)
+        let rest = exercises.count - shown.count
+        return rest > 0 ? shown.joined(separator: " · ") + " +\(rest)" : shown.joined(separator: " · ")
+    }
 }
 
 /// /api/workouts/start -vastaus.

@@ -39,6 +39,10 @@ struct ScheduledWorkout: Decodable, Identifiable {
     // Vain /api/mobile/workouts/{id} palauttaa tämän; tarvitaan optimistiseen
     // lukitukseen (expectedUpdatedAt) valmiiksi merkinnässä.
     let updatedAt: String?
+    /// Valmiin treenin kesto sessiosta. Valinnainen kahdesta syystä: kesken
+    /// olevalla treenillä ei ole lopullista kestoa, ja levyllä oleva vanha
+    /// välimuistivastaus on tallennettu ennen tätä kenttää.
+    let durationSeconds: Double?
 }
 
 struct ExtraActivity: Decodable, Identifiable {

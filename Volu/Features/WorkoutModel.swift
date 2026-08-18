@@ -17,6 +17,13 @@ final class WorkoutModel: CachedModel {
     private var noteUpdatedAt: String?
 
     var doneCount: Int { setLogs.filter(\.isLogged).count }
+    /// Arvioitu kesto sarjamäärästä, sama kaava kuin ohjelman treeneillä
+    /// (`ProgramWorkoutSummary.estimatedMinutes`). Vain kesken olevalle: valmiin
+    /// treenin todellisen keston rinnalla arvio ei kerro enää mitään.
+    var estimatedMinutes: Int? {
+        guard isEditable, !setLogs.isEmpty else { return nil }
+        return max(20, setLogs.count * 4 + 8)
+    }
     var isCompleted: Bool { workout?.status == "completed" }
     var isEditable: Bool { workout?.status == "in_progress" }
 

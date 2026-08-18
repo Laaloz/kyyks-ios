@@ -410,6 +410,15 @@ struct WorkoutView: View {
                         .buttonStyle(.plain)
                         .accessibilityHint("Muokkaa treenin kestoa")
                     }
+                    // Arvio kuluneen keston perään: "12 min / noin 50 min"
+                    // kertoo paljonko on jäljellä. Valmiissa treenissä arviota
+                    // ei näytetä — todellinen kesto on jo tiedossa.
+                    if let estimatedMinutes = model.estimatedMinutes {
+                        Text("/ noin \(formatDuration(minutes: estimatedMinutes))")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                     Spacer()
                     Text("\(model.doneCount)/\(model.setLogs.count) sarjaa")
                         .font(.footnote)

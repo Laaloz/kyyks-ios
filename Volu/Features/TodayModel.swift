@@ -103,7 +103,14 @@ final class TodayModel: CachedModel {
             .compactMap { workout -> TodayEntry? in
                 guard let date = ISO8601DateFormatter.dateOnly.date(from: String(workout.scheduledDate.prefix(10)))
                 else { return nil }
-                return TodayEntry(id: "w-\(workout.id)", title: workout.title, detail: nil, date: date)
+                return TodayEntry(
+                    id: "w-\(workout.id)",
+                    title: workout.title,
+                    // Sama mitta kuin suorituksella: tehty treeni ilman yhtään
+                    // lukemaa näytti listalla pelkältä otsikolta lenkin vieressä.
+                    detail: workout.durationSeconds.map { formatDuration(seconds: $0) },
+                    date: date
+                )
             }
 
         let activityEntries = activities.compactMap { activity -> TodayEntry? in
@@ -111,7 +118,14 @@ final class TodayModel: CachedModel {
             return TodayEntry(
                 id: "a-\(activity.id)",
                 title: ExtraActivityType.label(for: activity.activityType),
-                detail: "\(Int(activity.durationMinutes)) min · \(Int(activity.estimatedKcal)) kcal",
+                // Sama sääntö kuin treenilistan rivillä: kaksi mitattua lukua,
+                // tunteina ja minuutteina.
+                detail: ActivityMetrics.rowParts(
+                    meters: activity.distanceMeters,
+                    minutes: activity.durationMinutes,
+                    kcal: activity.estimatedKcal,
+                    mode: ExtraActivityType.distanceMode(for: activity.activityType)
+                ).joined(separator: " · "),
                 date: date
             )
         }

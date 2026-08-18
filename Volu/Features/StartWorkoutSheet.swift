@@ -38,9 +38,21 @@ struct StartWorkoutSheet: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(workout.name)
                                             .foregroundStyle(.primary)
-                                        Text("\(workout.exerciseCount) liikettä")
+                                        // Liikemäärä ja arvioitu kesto: kumpi
+                                        // treeni ehtii tänään, ratkeaa näillä
+                                        // kahdella eikä nimellä.
+                                        Text(workout.startSummary)
                                             .font(.footnote)
                                             .foregroundStyle(.secondary)
+                                        // Sisältö näkyviin ilman avaamista —
+                                        // aiemmin treenin sai selville vasta
+                                        // aloittamalla sen.
+                                        if let preview = workout.previewText {
+                                            Text(preview)
+                                                .font(.caption)
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(2)
+                                        }
                                     }
                                     Spacer()
                                     if startingWorkoutId == workout.id {

@@ -396,6 +396,13 @@ struct WorkoutsListView: View {
                 Text(workout.title).font(.subheadline.weight(.medium))
                 HStack(spacing: 6) {
                     Text(formatDate(workout.scheduledDate))
+                    // Kesto samalla rivillä päivämäärän kanssa, kuten
+                    // suorituksilla: tehty treeni ilman yhtään lukemaa erottui
+                    // listalla lenkin vierestä pelkkänä otsikkona.
+                    if let seconds = workout.durationSeconds, seconds > 0 {
+                        Text("· \(formatDuration(seconds: seconds))")
+                            .monospacedDigit()
+                    }
                     // Merkintä vain poikkeukselle: "Tehdyt"-osiossa jokainen
                     // rivi on tehty, joten check ei kantanut informaatiota.
                     // Kesken jäänyt sen sijaan erottuu.
