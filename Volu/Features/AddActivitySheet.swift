@@ -80,6 +80,22 @@ struct AddActivitySheet: View {
                         Text("min").foregroundStyle(.secondary)
                     }
 
+                    // Tuntimuoto omana rivinään heti kentän alla — ei osion
+                    // alaviitteenä. Alaviite on pientä harmaata tekstiä koko
+                    // osion alla, ja lukema jäi siellä huomaamatta; sama virhe
+                    // korjattiin jo vauhdilta. Näytetään vain kun muoto eroaa
+                    // kirjoitetusta, jottei sama asia lue kahdesti.
+                    if let minutes = durationMinutes, minutes >= 60 {
+                        HStack {
+                            Text("Tunteina")
+                            Spacer()
+                            Text(formatDuration(minutes: Int(minutes)))
+                                .monospacedDigit()
+                        }
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                    }
+
                     // Matka vain lajeille joille se on mielekäs: joogalle tai
                     // kamppailulle kenttä olisi pelkkää kohinaa.
                     if activityType.distanceMode != .none {
@@ -96,15 +112,6 @@ struct AddActivitySheet: View {
                     }
 
                     DatePicker("Ajankohta", selection: $occurredAt, in: ...Date.now)
-                } footer: {
-                    // Kentässä kirjoitetaan minuutteja, koska se on se mitä
-                    // käyttäjä korjaa. Tuntimuoto kentän alla kertoo mitä luku
-                    // tarkoittaa — vain kun se eroaa kirjoitetusta, jottei sama
-                    // asia lue kahdesti.
-                    if let minutes = durationMinutes, minutes >= 60 {
-                        Text(formatDuration(minutes: Int(minutes)))
-                            .monospacedDigit()
-                    }
                 }
 
                 Section {
