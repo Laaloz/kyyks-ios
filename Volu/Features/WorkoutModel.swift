@@ -218,13 +218,45 @@ final class WorkoutModel: CachedModel {
         // Odottavat kirjaukset ensin: valmiiksi merkitty treeni ilman viimeisiä
         // sarjoja on huonompi lopputulos kuin hetken odotus.
         await flushPendingWrites()
+        struct Body: Encodable { let expectedUpdatedAt: String }
         do {
-            struct Body: Encodable { let expectedUpdatedAt: String }
             _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: updatedAt))
             await refreshAfterChange()
+        } catch APIError.status(409, _) {
+            // Istunto ehti muuttua muualla. Käyttäjää ei ole syytä pyytää
+            // päivittämään näkymää käsin: haetaan tuore versiotieto ja
+            // yritetään kerran uudelleen. Vain jos sekään ei onnistu, kyse on
+            // jostain muusta kuin vanhentuneesta aikaleimasta.
+            await refresh()
+            guard let fresh = session?.updatedAt, fresh != updatedAt else {
+                errorMessage = "Valmiiksi merkintä epäonnistui — päivitä näkymä ja yritä uudelleen."
+                return
+            }
+            do {
+                _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: fresh))
+                await refreshAfterChange()
+            } catch {
+                errorMessage = completionFailureMessage(error)
+            }
         } catch {
-            errorMessage = "Valmiiksi merkintä epäonnistui — päivitä näkymä ja yritä uudelleen."
+            errorMessage = completionFailureMessage(error)
         }
+    }
+
+    /// Palvelimen oma selitys ensin, oma yleisilmaus vasta jos sitä ei ole.
+    ///
+    /// Yleisilmaus "päivitä näkymä ja yritä uudelleen" peitti syyn kolmesti
+    /// peräkkäin: se neuvoi samaa riippumatta siitä oliko kyse vanhentuneesta
+    /// versiotiedosta, puuttuvasta istunnosta vai oikeuksista. Sama virhe on
+    /// korjattu tässä sovelluksessa jo kerran muualla (872171d).
+    private func completionFailureMessage(_ error: Error) -> String {
+        if let serverMessage = (error as? APIError)?.serverMessage {
+            return serverMessage
+        }
+        if case APIError.status(let code, _)? = error as? APIError {
+            return "Valmiiksi merkintä epäonnistui (virhe \(code)) — yritä uudelleen."
+        }
+        return "Valmiiksi merkintä epäonnistui — tarkista verkkoyhteys ja yritä uudelleen."
     }
 
     func saveNote() async {
@@ -308,7 +340,16 @@ final class WorkoutModel: CachedModel {
         guard let api else { return }
         do {
             struct Body: Encodable { let sets: [PendingSetPatch] }
-            _ = try await api.patch("/api/workouts/\(workoutId)/sets", body: Body(sets: [patch]))
+            let response = try await api.patch("/api/workouts/\(workoutId)/sets", body: Body(sets: [patch]))
+            // Istunnon versiotieto talteen. Ilman tätä muistissa oleva aikaleima
+            // jäi siihen hetkeen jolloin treeni ladattiin, ja jokainen kirjaus
+            // vanhensi sen — jolloin viimeistely lähetti vanhentuneen arvon ja
+            // palvelin hylkäsi sen stale_session-virheeseen.
+            struct SetsResponse: Decodable { let updatedAt: String? }
+            if let decoded = try? JSONDecoder().decode(SetsResponse.self, from: response),
+               let sessionUpdatedAt = decoded.updatedAt {
+                session?.updatedAt = sessionUpdatedAt
+            }
             // Vain jos tämä oli viimeisin muutos tälle sarjalle: nopea
             // peräkkäinen kirjaus ehtii korvata arvon kesken pyynnön, eikä
             // vanhentunut vastaus saa poistaa uudempaa odottavaa arvoa.

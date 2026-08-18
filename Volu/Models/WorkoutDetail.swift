@@ -135,7 +135,9 @@ struct WorkoutSession: Decodable {
     /// välimuistivastaus levyllä ei sisällä niitä.
     let pausedAt: String?
     let pausedDurationSeconds: Double?
-    let updatedAt: String?
+    /// Muuttuu jokaisen kirjauksen myötä: sarjan tallennus palauttaa istunnon
+    /// uuden aikaleiman, ja se on se versiotieto jonka viimeistely lähettää.
+    var updatedAt: String?
 
     /// Treenin kesto sekunteina. Sama sääntö kuin webissä
     /// (`calculateSessionDurationSeconds`): loppuhetki on valmistuminen, tauko
