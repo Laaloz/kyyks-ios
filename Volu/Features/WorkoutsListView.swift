@@ -165,6 +165,17 @@ struct WorkoutsListView: View {
                             Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
                         }
                     }
+
+                    // Valmentajalle ja adminille: muiden ohjelmat ja se, keillä
+                    // kukin ohjelma on käytössä. Aiemmin jakamiseen pääsi käsiksi
+                    // vain webin työpöydältä.
+                    if model.currentUser?.canCoachOthers == true {
+                        NavigationLink {
+                            CoachProgramsView(auth: auth)
+                        } label: {
+                            Label("Treenaajien ohjelmat", systemImage: "person.2")
+                        }
+                    }
                 }
 
                 // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,

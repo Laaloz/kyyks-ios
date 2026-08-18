@@ -45,9 +45,19 @@ struct ProgramDraft: Equatable {
 
     /// Olemassa olevasta ohjelmasta: muokkaus alkaa nykyisestä sisällöstä.
     static func from(_ program: Program) -> ProgramDraft {
+        from(title: program.title, workouts: program.workouts)
+    }
+
+    /// Valmentajan hallitsemasta ohjelmasta. Sisältö on samaa muotoa kuin
+    /// omassa ohjelmassa — vain reitti ja oikeudet eroavat.
+    static func from(_ program: CoachProgram) -> ProgramDraft {
+        from(title: program.title, workouts: program.workouts)
+    }
+
+    private static func from(title: String, workouts: [ProgramWorkoutSummary]) -> ProgramDraft {
         ProgramDraft(
-            title: program.title,
-            workouts: program.workouts.map { workout in
+            title: title,
+            workouts: workouts.map { workout in
                 DraftWorkout(
                     name: workout.name,
                     splitType: workout.splitType ?? "custom",

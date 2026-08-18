@@ -4,13 +4,19 @@ import SwiftUI
 // yli 500 riviin, ja luonti ja muokkaus ovat eri huolenaiheita.
 
 /// Luonnoksen muokkaus: treenit, liikkeet ja tavoitesarjat.
-struct ProgramDraftEditor: View {
+///
+/// `extraSections` on valmentajan ohjelmaa varten: se lisää treenaajavalinnan
+/// nimen alle. Editori ei tunne valmennuskäsitteitä itse — muuten sama näkymä
+/// palvelisi kahta eri tarkoitusta yhdellä rungolla, ja itsenäisen treenaajan
+/// polkuun valuisi kenttiä joita hänellä ei ole.
+struct ProgramDraftEditor<ExtraSections: View>: View {
     let auth: AuthManager
     @Binding var draft: ProgramDraft
     let isSaving: Bool
     let errorMessage: String?
     let isEditingActiveProgram: Bool
     let onSave: (_ activate: Bool) -> Void
+    @ViewBuilder let extraSections: () -> ExtraSections
 
     @State private var picker: PickerTarget?
     /// Kumpaa tallennusvaihtoehtoa painettiin — spinneri kuuluu siihen nappiin.
@@ -50,6 +56,8 @@ struct ProgramDraftEditor: View {
             Section("Ohjelman nimi") {
                 TextField("Nimi", text: $draft.title)
             }
+
+            extraSections()
 
             ForEach(Array(draft.workouts.enumerated()), id: \.element.id) { index, workout in
                 Section {
@@ -239,3 +247,26 @@ private struct ExerciseTargetEditor: View {
     }
 }
 
+
+/// Ilman lisäosioita: itsenäisen treenaajan oma ohjelma, jolla ei ole
+/// kohdistusta. Erillinen init pitää nykyiset kutsupaikat ennallaan.
+extension ProgramDraftEditor where ExtraSections == EmptyView {
+    init(
+        auth: AuthManager,
+        draft: Binding<ProgramDraft>,
+        isSaving: Bool,
+        errorMessage: String?,
+        isEditingActiveProgram: Bool,
+        onSave: @escaping (_ activate: Bool) -> Void
+    ) {
+        self.init(
+            auth: auth,
+            draft: draft,
+            isSaving: isSaving,
+            errorMessage: errorMessage,
+            isEditingActiveProgram: isEditingActiveProgram,
+            onSave: onSave,
+            extraSections: { EmptyView() }
+        )
+    }
+}

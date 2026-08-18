@@ -27,6 +27,11 @@ struct UserProfile: Decodable, Identifiable {
     let role: String
     let fullName: String
     let email: String
+
+    /// Hallitseeko käyttäjä muiden ohjelmia. Itsenäinen treenaaja tekee omansa,
+    /// mutta ei kenenkään muun — siksi tämä ei ole sama asia kuin
+    /// `ProgramsModel.canManagePrograms`.
+    var canCoachOthers: Bool { role == "coach" || role == "admin" }
 }
 
 struct ScheduledWorkout: Decodable, Identifiable {
