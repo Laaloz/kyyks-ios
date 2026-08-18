@@ -98,6 +98,14 @@ struct WorkoutsListView: View {
                 if !inProgress.isEmpty {
                     Section("Käynnissä") {
                         ForEach(inProgress) { workoutRow($0) }
+                        // Toissijainen: alanappi jatkaa kesken olevaa, joten
+                        // uuden aloitus tarvitsee oman polkunsa. Palvelin peruu
+                        // kesken olevan treenin ja kertoo sen nimen.
+                        Button {
+                            showStartSheet = true
+                        } label: {
+                            Label("Aloita toinen treeni", systemImage: "arrow.triangle.2.circlepath")
+                        }
                     }
                 }
                 if !upcoming.isEmpty {
@@ -250,16 +258,30 @@ struct WorkoutsListView: View {
             }
             .navigationTitle("Treeni")
             .safeAreaInset(edge: .bottom) {
-                // Treenin aloitus on tämän välilehden ensisijainen toiminto,
-                // joten se on peukalon ulottuvilla — ei yläkulman "+"-napissa,
-                // jossa se näytti toissijaisemmalta kuin listan "Lisää suoritus".
+                // Välilehden ensisijainen toiminto peukalon ulottuvilla — ei
+                // yläkulman "+"-napissa, jossa se näytti toissijaisemmalta kuin
+                // listan "Lisää suoritus".
+                //
+                // Kesken olevan treenin aikana ensisijainen toiminto on sen
+                // jatkaminen, ei uuden aloittaminen: "Aloita treeni" oli
+                // ristiriidassa saman ruudun "Käynnissä"-osion kanssa. Uuden
+                // aloittaminen säilyy listarivinä, koska palvelin sallii sen ja
+                // peruu kesken olevan — väärin valittu treeni pitää voida
+                // vaihtaa.
                 Button {
-                    showStartSheet = true
+                    if let current = inProgress.first {
+                        startedWorkout = StartedWorkout(id: current.id, title: current.title)
+                    } else {
+                        showStartSheet = true
+                    }
                 } label: {
-                    Label("Aloita treeni", systemImage: "figure.strengthtraining.traditional")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                    Label(
+                        inProgress.isEmpty ? "Aloita treeni" : "Jatka treeniä",
+                        systemImage: inProgress.isEmpty ? "figure.strengthtraining.traditional" : "play.fill"
+                    )
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
                 .padding(.horizontal, 16)
