@@ -306,6 +306,12 @@ final class WorkoutModel: CachedModel {
                 let snapshot = pendingSets
                 await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)
             }
+            // Levyvälimuisti kertoo yhä kuittausta edeltävän tilan, ja se on
+            // se mitä näkymä näyttää kun treeniin palataan. Ilman tätä kuittaus
+            // katosi hetkeksi ja ilmestyi uudelleen vasta verkkohaun jälkeen
+            // (mitattu 1,4–5,8 s) — näyttäen siltä kuin kirjaus ei olisi
+            // mennyt perille.
+            await patchCachedSetLog(patch)
             // Onnistunut lähetys on todiste siitä että verkko toimii juuri nyt.
             // Salin huonossa kentässä aiemmat kirjaukset ovat jääneet
             // odottamaan, eikä niiden pidä odottaa näkymästä poistumista.
@@ -322,6 +328,36 @@ final class WorkoutModel: CachedModel {
             // Jää odottamaan. Arvoa ei palauteta: se on ruudulla ja levyllä,
             // ja se lähtee uudelleen kun treeni avataan seuraavan kerran.
         }
+    }
+
+    /// Päivittää yhden sarjarivin arvot levyvälimuistissa olevaan vastaukseen.
+    private func patchCachedSetLog(_ patch: PendingSetPatch) async {
+        guard let cached = await ResponseCache.shared.read(cacheKey),
+              let updated = Self.applyingPatch(patch, to: cached)
+        else { return }
+        await ResponseCache.shared.write(cacheKey, data: updated)
+    }
+
+    /// Sarjarivin arvot vastauksen JSONiin, muuta koskematta.
+    ///
+    /// Muokataan JSONia eikä mallia siksi, että välimuistiin kuuluu palvelimen
+    /// vastaus sellaisenaan. Mallin uudelleenkoodaus vaatisi jokaiselta tyypiltä
+    /// `Encodable`n ja tuottaisi toisen totuuden vastauksen muodosta — sellaisen
+    /// joka voi erota palvelimen omasta hiljaa.
+    ///
+    /// Palauttaa `nil` jos rakenne ei ole odotettu; silloin välimuisti jää
+    /// entiselleen eikä mikään hajoa.
+    nonisolated static func applyingPatch(_ patch: PendingSetPatch, to data: Data) -> Data? {
+        guard var root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              var rows = root["setLogs"] as? [[String: Any]],
+              let index = rows.firstIndex(where: { $0["id"] as? String == patch.logId })
+        else { return nil }
+
+        rows[index]["actualReps"] = patch.actualReps ?? NSNull()
+        rows[index]["actualLoad"] = patch.actualLoad ?? NSNull()
+        rows[index]["done"] = patch.done
+        root["setLogs"] = rows
+        return try? JSONSerialization.data(withJSONObject: root)
     }
 
     /// Levyllä odottavat kirjaukset käyttöön ja uudelleen matkaan.
