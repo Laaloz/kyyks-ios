@@ -40,6 +40,18 @@ final class TodayModel: CachedModel {
     /// (tämä malli elää näkymää pidempään). Virheessä rivi palautuu ja syy kerrotaan.
     func finishWorkout(_ action: WorkoutEndAction, workoutId: String) {
         guard let api else { return }
+
+        // Valmis treeni ei katoa listalta vaan siirtyy "Tehdyt"-osioon, ja se on
+        // jo tallennettu näkymässä. Jäljellä on siis vain haku — ilman sitä rivi
+        // jäisi listalle keskeneräiseksi kunnes välilehti ladataan uudelleen.
+        if action == .completed {
+            Task {
+                await ResponseCache.shared.remove("workout-\(workoutId)")
+                await refreshAfterChange()
+            }
+            return
+        }
+
         let previousWorkouts = workouts
         workouts.removeAll { $0.id == workoutId }
 
@@ -50,6 +62,8 @@ final class TodayModel: CachedModel {
                     _ = try await api.post("/api/workouts/\(workoutId)/cancel")
                 case .deleted:
                     _ = try await api.delete("/api/workouts/\(workoutId)")
+                case .completed:
+                    return
                 }
                 await ResponseCache.shared.remove("workout-\(workoutId)")
                 await refreshAfterChange()

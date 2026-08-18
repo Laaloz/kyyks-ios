@@ -14,7 +14,6 @@ struct WorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = WorkoutModel()
-    @State private var editingLog: WorkoutSetLog?
     @State private var pickerMode: ExercisePickerMode?
     /// Kentät ovat oletuksena näkyvissä; nämä kaksi joukkoa ovat käyttäjän
     /// tekemiä poikkeuksia oletukseen kumpaankin suuntaan.
@@ -98,7 +97,7 @@ struct WorkoutView: View {
                         // painettiin juuri.
                         if model.setLogs.allSatisfy(\.isLogged) {
                             restTimer.stop()
-                            Task { await model.completeWorkout() }
+                            Task { await complete() }
                         } else {
                             confirmation = .complete
                         }
@@ -175,19 +174,6 @@ struct WorkoutView: View {
             }
             .presentationDetents([.height(300)])
         }
-        .sheet(item: $editingLog) { log in
-            SetEditSheet(log: log) { reps, load in
-                // Kirjaus merkitsee sarjan tehdyksi → lepoajastin käynnistyy
-                // samoin kuin kuittauksesta.
-                if let rest = model.updateSet(logId: log.id, reps: reps, load: load) {
-                    withAnimation(.snappy) {
-                        restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
-                    }
-                }
-            }
-            .presentationDetents([.height(320)])
-            .presentationDragIndicator(.visible)
-        }
         .sheet(item: $pickerMode) { mode in
             ExercisePickerSheet(auth: auth, mode: mode) { exercise in
                 switch mode {
@@ -204,7 +190,7 @@ struct WorkoutView: View {
                 Button("Merkitse valmiiksi") {
                     // Treeni päättyy — käynnissä oleva lepoajastin sammuu.
                     restTimer.stop()
-                    Task { await model.completeWorkout() }
+                    Task { await complete() }
                 }
             case .cancel:
                 Button("Keskeytä treeni", role: .destructive) {
@@ -389,7 +375,15 @@ struct WorkoutView: View {
             SetTable(
                 logs: exercise.logs,
                 previous: { model.previousSet(for: $0) },
-                onEdit: { editingLog = $0 },
+                onCommit: { log, reps, load in
+                    // Sama polku kuin ennen modaalista: kirjaus merkitsee
+                    // sarjan tehdyksi ja käynnistää lepoajastimen.
+                    if let rest = model.updateSet(logId: log.id, reps: reps, load: load) {
+                        withAnimation(.snappy) {
+                            restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
+                        }
+                    }
+                },
                 onToggle: { log in
                     if let rest = model.toggleDone(logId: log.id) {
                         withAnimation(.snappy) {
@@ -502,6 +496,18 @@ struct WorkoutView: View {
     ///
     /// Käyttäjän oma napautus voittaa aina automatiikan — kumpaankin suuntaan,
     /// jotta valmiin liikkeen voi avata tarkistamaan mitä siihen tuli.
+    /// Valmiiksi merkintä ja paluu listaan.
+    ///
+    /// Näkymä jäi auki, jolloin ruudulle jäi juuri päättyneen treenin
+    /// historiaversio — sama näkymä ilman kirjausmahdollisuutta. Treeni on
+    /// tehty, joten seuraava askel on lista, ei sen katselu. Lista päivitetään
+    /// samalla, muuten treeni näkyisi siellä yhä keskeneräisenä.
+    private func complete() async {
+        guard await model.completeWorkout() else { return }
+        onFinished?(.completed, workoutId)
+        dismiss()
+    }
+
     private func isExpanded(_ block: ExerciseBlock) -> Bool {
         if expandedByUser.contains(block.id) { return true }
         if collapsedByUser.contains(block.id) { return false }

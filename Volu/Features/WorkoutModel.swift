@@ -207,12 +207,13 @@ final class WorkoutModel: CachedModel {
         }
     }
 
-    func completeWorkout() async {
+    @discardableResult
+    func completeWorkout() async -> Bool {
         // Istunnon versiotieto, ei treenirivin: palvelin vertaa arvoa session
         // updated_at:hen (`p_expected_session_updated_at`). Treenirivin
         // aikaleima ei liiku sarjoja kirjatessa, joten se oli lopetushetkellä
         // aina vanhentunut ja viimeistely kaatui stale_session-virheeseen.
-        guard let api, let updatedAt = session?.updatedAt else { return }
+        guard let api, let updatedAt = session?.updatedAt else { return false }
         isCompleting = true
         defer { isCompleting = false }
         // Odottavat kirjaukset ensin: valmiiksi merkitty treeni ilman viimeisiä
@@ -222,6 +223,7 @@ final class WorkoutModel: CachedModel {
         do {
             _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: updatedAt))
             await refreshAfterChange()
+            return true
         } catch APIError.status(409, _) {
             // Istunto ehti muuttua muualla. Käyttäjää ei ole syytä pyytää
             // päivittämään näkymää käsin: haetaan tuore versiotieto ja
@@ -230,16 +232,19 @@ final class WorkoutModel: CachedModel {
             await refresh()
             guard let fresh = session?.updatedAt, fresh != updatedAt else {
                 errorMessage = "Valmiiksi merkintä epäonnistui — päivitä näkymä ja yritä uudelleen."
-                return
+                return false
             }
             do {
                 _ = try await api.post("/api/workouts/\(workoutId)/complete", body: Body(expectedUpdatedAt: fresh))
                 await refreshAfterChange()
+                return true
             } catch {
                 errorMessage = completionFailureMessage(error)
+                return false
             }
         } catch {
             errorMessage = completionFailureMessage(error)
+            return false
         }
     }
 

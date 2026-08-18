@@ -7,6 +7,10 @@ import Foundation
 enum WorkoutEndAction {
     case cancelled
     case deleted
+    /// Valmiiksi merkitty. Toisin kuin keskeytys ja poisto, tämä on jo
+    /// tallennettu palvelimelle näkymässä — listan tarvitsee vain päivittyä,
+    /// eikä riviä poisteta: treeni siirtyy "Käynnissä"-osiosta "Tehdyt"-osioon.
+    case completed
 }
 
 enum ExercisePickerMode: Identifiable {
