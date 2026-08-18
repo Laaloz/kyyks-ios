@@ -47,18 +47,27 @@ extension CachedModel {
     /// `refreshAfterChange()`ia — siellä hiljaisuus on väärä vastaus.
     @discardableResult
     func refresh() async -> Bool {
-        guard let api else { return false }
+        await refreshCapturingError() == nil
+    }
+
+    /// Kuten `refresh()`, mutta palauttaa virheen sen sijaan että hukkaisi sen.
+    ///
+    /// Pelkkä Bool riitti niin kauan kuin epäonnistumiseen ei tarvinnut
+    /// reagoida. Kun se alkoi näkyä käyttäjälle, jäljelle jäi ilmoitus joka ei
+    /// kerro syytä — sama umpikuja johon treenin viimeistely ajautui.
+    private func refreshCapturingError() async -> Error? {
+        guard let api else { return APIError.transport }
         do {
             let data = try await api.get(resourcePath)
             await ResponseCache.shared.write(cacheKey, data: data)
             apply(data)
             errorMessage = nil
-            return true
+            return nil
         } catch {
             if !hasContent {
                 errorMessage = loadFailureMessage
             }
-            return false
+            return error
         }
     }
 
@@ -74,9 +83,28 @@ extension CachedModel {
     /// Yksi uusintayritys ennen luovuttamista: tavallisin syy on hetkellinen
     /// katko, ja verkko on juuri äsken toiminut kun muutos meni läpi.
     func refreshAfterChange() async {
-        if await refresh() { return }
-        try? await Task.sleep(for: .milliseconds(600))
-        if await refresh() { return }
-        errorMessage = "Muutos tallentui, mutta näkymä ei päivittynyt — vedä alas päivittääksesi."
+        if await refreshCapturingError() == nil { return }
+        // Odotus oli 600 ms. Se riittää hetkelliseen katkoon, muttei siihen
+        // että palvelin on hidas — jolloin molemmat yritykset osuvat samaan
+        // ruuhkaan ja käyttäjä näkee virheen vaikka mikään ei ole rikki.
+        try? await Task.sleep(for: .milliseconds(1500))
+        guard let error = await refreshCapturingError() else { return }
+        errorMessage = Self.refreshFailureText(for: error)
+    }
+
+    /// Syy mukaan ilmoitukseen: aikakatkaisu, palvelimen virhe ja kadonnut
+    /// treeni näyttivät kaikki samalta, eikä niitä voinut erottaa raportista.
+    private static func refreshFailureText(for error: Error) -> String {
+        let base = "Muutos tallentui, mutta näkymä ei päivittynyt"
+        if let serverMessage = (error as? APIError)?.serverMessage {
+            return "\(base) — \(serverMessage)"
+        }
+        if case APIError.status(let code, _)? = error as? APIError {
+            return "\(base) (virhe \(code)) — vedä alas päivittääksesi."
+        }
+        if (error as? URLError)?.code == .timedOut {
+            return "\(base): palvelin ei ehtinyt vastata — vedä alas päivittääksesi."
+        }
+        return "\(base) — vedä alas päivittääksesi."
     }
 }
