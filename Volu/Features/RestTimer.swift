@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import UserNotifications
 
@@ -33,11 +34,13 @@ final class RestTimerManager {
 
     func start(seconds: Int, exerciseName: String) {
         guard seconds > 0 else { return }
-        endsAt = Date.now.addingTimeInterval(TimeInterval(seconds))
+        let start = Date.now
+        endsAt = start.addingTimeInterval(TimeInterval(seconds))
         totalSeconds = seconds
         self.exerciseName = exerciseName
         persist()
         scheduleNotification(after: seconds)
+        startActivity(from: start)
     }
 
     func extend(by seconds: Int) {
@@ -46,6 +49,7 @@ final class RestTimerManager {
         totalSeconds += seconds
         persist()
         scheduleNotification(after: remainingSeconds())
+        updateActivity()
     }
 
     func stop() {
@@ -56,6 +60,7 @@ final class RestTimerManager {
         UserDefaults.standard.removeObject(forKey: Self.totalKey)
         UserDefaults.standard.removeObject(forKey: Self.nameKey)
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationId])
+        endActivity()
     }
 
     private func persist() {
@@ -75,6 +80,55 @@ final class RestTimerManager {
             exerciseName = UserDefaults.standard.string(forKey: Self.nameKey) ?? ""
         } else {
             stop()
+        }
+    }
+
+    // MARK: - Live Activity
+    //
+    // Ajastin näkyy Dynamic Islandissa ja lukitusnäytöllä, jolloin lepo on
+    // nähtävissä myös sovelluksen ulkopuolelta. Aika lasketaan päättymishetkestä,
+    // joten aktiviteettia ei tarvitse päivittää sekunneittain — vain kun lepoa
+    // pidennetään.
+
+    private var activity: Activity<RestActivityAttributes>? {
+        Activity<RestActivityAttributes>.activities.first
+    }
+
+    private func contentState(from start: Date) -> RestActivityAttributes.ContentState? {
+        guard let endsAt else { return nil }
+        return .init(endsAt: endsAt, startedAt: start, exerciseName: exerciseName)
+    }
+
+    private func startActivity(from start: Date) {
+        // Käyttäjä voi kytkeä Live Activityt pois iOS:n asetuksista. Se ei ole
+        // virhe eikä estä lepoajastinta: palkki ja ilmoitus toimivat silti.
+        guard ActivityAuthorizationInfo().areActivitiesEnabled,
+              let state = contentState(from: start)
+        else { return }
+
+        endActivity()
+        _ = try? Activity.request(
+            attributes: RestActivityAttributes(),
+            content: .init(state: state, staleDate: endsAt),
+            pushType: nil
+        )
+    }
+
+    private func updateActivity() {
+        guard let activity, let endsAt else { return }
+        let state = RestActivityAttributes.ContentState(
+            endsAt: endsAt,
+            startedAt: activity.content.state.startedAt,
+            exerciseName: exerciseName
+        )
+        Task { await activity.update(.init(state: state, staleDate: endsAt)) }
+    }
+
+    private func endActivity() {
+        // `.immediate`: ohitettu lepo katoaa heti, ei jää roikkumaan
+        // lukitusnäytölle muistuttamaan asiasta joka on jo ohi.
+        for activity in Activity<RestActivityAttributes>.activities {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
         }
     }
 

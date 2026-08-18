@@ -46,6 +46,8 @@
 	<string>Volu ei tallenna mitään Apple Healthiin. Tietoja ainoastaan luetaan, jotta askeleesi, unesi, painosi ja suorituksesi näkyvät sovelluksessa.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>SupabaseAnonKey</key>
 	<string>$(VOLU_SUPABASE_ANON_KEY)</string>
 	<key>SupabaseURL</key>
