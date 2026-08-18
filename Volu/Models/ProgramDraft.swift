@@ -139,6 +139,11 @@ struct CreateProgramRequest: Encodable {
                     exercises: workout.exercises.map { exercise in
                         Exercise(
                             exerciseId: exercise.exerciseId,
+                            // Nimi mukaan pyyntöön: palvelin ei hae sitä
+                            // katalogista, vaan nimeää nimettömän liikkeen
+                            // "Liike N":ksi. Ilman tätä tallennus pyyhki
+                            // liikkeiden nimet koko ohjelmasta.
+                            exerciseName: exercise.name,
                             instruction: "",
                             repMode: "range",
                             setCount: exercise.setCount,
@@ -161,6 +166,9 @@ struct CreateProgramRequest: Encodable {
 
     struct Exercise: Encodable {
         let exerciseId: String
+        /// Pakollinen käytännössä: palvelin käyttää tätä liikkeen nimenä eikä
+        /// hae sitä katalogista exerciseId:n perusteella.
+        let exerciseName: String
         let instruction: String
         let repMode: String
         let setCount: Int
