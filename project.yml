@@ -53,9 +53,13 @@ targets:
     platform: iOS
     sources:
       - Volu
+      # Live Activityn tietomalli käännetään molempiin kohteisiin, jottei
+      # rakenne voi erota sovelluksen ja laajennoksen välillä.
+      - Shared
     dependencies:
       - package: Supabase
         product: Supabase
+      - target: VoluWidgets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: fi.volu.app
@@ -101,6 +105,9 @@ targets:
         # Ei vientirajoitusten alaista salausta (vain HTTPS). Ilman tätä
         # App Store Connect kysyy saman asian jokaisen latauksen yhteydessä.
         ITSAppUsesNonExemptEncryption: false
+        # Ilman tätä ActivityKit kieltäytyy käynnistämästä aktiviteettia, eikä
+        # virhe näy muuna kuin siitä ettei mitään tapahdu.
+        NSSupportsLiveActivities: true
         # Apple vaatii myös kirjoitustekstin, koska sovelluksella on
         # HealthKit-oikeus — vaikka Volu ei kirjoita Healthiin mitään. Ilman
         # tätä lataus App Store Connectiin hylätään (Missing purpose string).
@@ -119,3 +126,35 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: fi.volu.app
             CFBundleURLSchemes: [fi.volu.app]
+
+  # Widget-laajennos on olemassa vain lepoajastimen Live Activitya varten.
+  # Oma bundle ID ja oma allekirjoitus: DEVELOPMENT_TEAM on naulattava tännekin,
+  # samasta syystä kuin sovellukseen — xcodegen generoi projektin uudelleen.
+  VoluWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - VoluWidgets
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fi.volu.app.widgets
+        DEVELOPMENT_TEAM: 4498TZK9KC
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.10"
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: true
+    info:
+      path: VoluWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Volu
+        # Versionumerot asetuksista, ei plistin oletuksesta 1.0. App Store
+        # hylkää latauksen jos laajennoksen versio poikkeaa sovelluksen
+        # versiosta, ja ci_post_clone.sh kirjoittaa buildinumeron project.ymliin
+        # — myös tähän kohteeseen, koska sed korvaa kaikki esiintymät.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
