@@ -122,6 +122,9 @@ struct OnboardingView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isSaving || !canSubmit)
                 .padding(.horizontal, 16)
+                // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa
+                // napin reunasta ja näyttää irralliselta kaistaleelta.
+                .padding(.top, 10)
                 .padding(.bottom, 8)
                 .background(.bar)
             }
