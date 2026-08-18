@@ -69,6 +69,10 @@ struct VoluApp: App {
     @State private var programs = ProgramsModel()
     @State private var subscriptions = SubscriptionStore()
     @State private var push = PushManager()
+    /// Lepoajastin kuuluu juureen eikä treeninäkymään: lepo jatkuu kun käyttäjä
+    /// käy toisella välilehdellä, ja palkin on näyttävä siellä missä hän on —
+    /// muuten ainoa jäljelle jäävä merkki levosta on ilmoitus, jota ei voi perua.
+    @State private var restTimer = RestTimerManager()
     /// Puuttuvat makrotiedot = aloituskysely on tekemättä. Palvelin kertoo
     /// listan, joten sääntö on yhdessä paikassa eikä arvattuna kahdessa.
     @State private var needsOnboarding = false
@@ -128,6 +132,7 @@ struct VoluApp: App {
                     // jaetaan ympäristönä: maksumuuri on Ravinnossa, tilauksen
                     // hallinta Profiilissa, eikä kumpikaan omista tilaa.
                     .environment(subscriptions)
+                    .environment(restTimer)
                     .environment(NotificationRouter.shared)
                     // Välilehden vaihto tässä, lomakkeen avaus Kehossa: näkymä
                     // omistaa oman sheettinsä, eikä sitä kannata ohjata ulkoa.

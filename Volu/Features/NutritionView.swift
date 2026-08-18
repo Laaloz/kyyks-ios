@@ -17,6 +17,8 @@ struct NutritionView: View {
     @State private var capturedImage: UIImage?
     @FocusState private var isQuickFocused: Bool
 
+    @Environment(RestTimerManager.self) private var restTimer
+
     var body: some View {
         NavigationStack {
             List {
@@ -156,6 +158,7 @@ struct NutritionView: View {
                 .padding(.vertical, 10)
                 .background(.regularMaterial)
             }
+            .restTimerBar(restTimer)
             .sheet(item: $selectedEntry) { entry in
                 MealDetailSheet(
                     entry: entry,

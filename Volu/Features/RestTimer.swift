@@ -157,3 +157,22 @@ struct RestTimerBar: View {
         String(format: "%d.%02d", seconds / 60, seconds % 60)
     }
 }
+
+extension View {
+    /// Lepopalkki näkymän alareunaan.
+    ///
+    /// Kutsutaan jokaisessa välilehdessä erikseen **samassa modifier-ketjussa**
+    /// kuin näkymän oma alapalkki, ei kerran TabView'lle. Kaksi syytä:
+    /// TabView'lle asetettuna inset asettuu välilehtipalkin *päälle* ja peittää
+    /// nimikkeet, ja NavigationStackin ulkopuolelta asetettuna se piirtyy
+    /// näkymän oman alapalkin päälle sen sijaan että pinoutuisi sen kanssa —
+    /// jolloin esimerkiksi "Aloita treeni" jää lepopalkin taakse, myös
+    /// kosketuksille.
+    func restTimerBar(_ timer: RestTimerManager) -> some View {
+        safeAreaInset(edge: .bottom) {
+            if timer.isActive {
+                RestTimerBar(timer: timer)
+            }
+        }
+    }
+}

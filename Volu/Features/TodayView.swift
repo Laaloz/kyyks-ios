@@ -15,6 +15,8 @@ struct TodayView: View {
     @State private var health = HealthManager()
     @State private var showAddMeasurement = false
 
+    @Environment(RestTimerManager.self) private var restTimer
+
     var body: some View {
         NavigationStack {
             List {
@@ -205,6 +207,7 @@ struct TodayView: View {
                 }
             }
             .refreshable { await model.refresh() }
+            .restTimerBar(restTimer)
             .sheet(isPresented: $showAddMeasurement) {
                 AddMeasurementSheet(auth: auth, latest: nil) {
                     Task { await model.refreshAfterChange() }

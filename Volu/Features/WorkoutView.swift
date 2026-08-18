@@ -19,7 +19,10 @@ struct WorkoutView: View {
     @State private var expanded: Set<String> = []
     @State private var didAutoExpand = false
     @State private var confirmation: Confirmation?
-    @State private var restTimer = RestTimerManager()
+    /// Jaettu sovelluksen juuresta: lepo jatkuu ja näkyy myös kun treeninäkymä
+    /// suljetaan. Omana tilana ajastin jäi päälle näkymän mukana piiloon, ja
+    /// ilmoitus tuli myöhemmin ilman että sitä pystyi enää perumaan mistään.
+    @Environment(RestTimerManager.self) private var restTimer
     @State private var showDurationEdit = false
 
     private enum Confirmation: Identifiable {
@@ -139,11 +142,7 @@ struct WorkoutView: View {
             }
         }
         .overlay { if model.isLoading && model.setLogs.isEmpty { ProgressView() } }
-        .safeAreaInset(edge: .bottom) {
-            if restTimer.isActive {
-                RestTimerBar(timer: restTimer)
-            }
-        }
+        .restTimerBar(restTimer)
         .refreshable { await model.refresh() }
         .task {
             model.configure(auth: auth, workoutId: workoutId)

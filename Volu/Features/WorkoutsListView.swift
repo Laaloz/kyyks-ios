@@ -74,6 +74,8 @@ struct WorkoutsListView: View {
             .sorted { $0.scheduledDate < $1.scheduledDate }
     }
 
+    @Environment(RestTimerManager.self) private var restTimer
+
     var body: some View {
         NavigationStack {
             List {
@@ -267,6 +269,7 @@ struct WorkoutsListView: View {
                 .padding(.bottom, 8)
                 .background(.bar)
             }
+            .restTimerBar(restTimer)
             .refreshable { await model.refresh() }
             .navigationDestination(item: $startedWorkout) { started in
                 WorkoutView(

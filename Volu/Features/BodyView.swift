@@ -12,6 +12,8 @@ struct BodyView: View {
     @State private var showAdd = false
     @State private var selectedDate: Date?
 
+    @Environment(RestTimerManager.self) private var restTimer
+
     var body: some View {
         NavigationStack {
             List {
@@ -137,6 +139,7 @@ struct BodyView: View {
             }
             .overlay { if model.isLoading && model.measurements.isEmpty { ProgressView() } }
             .refreshable { await model.refresh() }
+            .restTimerBar(restTimer)
             .sheet(isPresented: $showAdd) {
                 AddMeasurementSheet(auth: auth, latest: model.measurements.first) {
                     Task { await model.refreshAfterChange() }
