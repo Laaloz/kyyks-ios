@@ -70,6 +70,10 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: true
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Ilman tätä AccentColor-resurssi jää käyttämättä ja SwiftUI piirtää
+        # järjestelmän sinisellä. Xcoden oma projektipohja asettaa arvon, mutta
+        # projekti generoidaan xcodegenillä — eli se on asetettava täällä.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         # Dev-vaihe: API-kutsut http://localhost:3000 vaativat ATS-poikkeuksen.
