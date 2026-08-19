@@ -8,6 +8,10 @@ struct MealDetailSheet: View {
     /// Palauttaa virheviestin tai `nil` kun tallennus onnistui.
     let onSave: (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> String?
     let onDelete: () -> Void
+    /// Reseptistä kirjatun rivin polku takaisin ohjeeseen. Näkymä sulkeutuu ensin
+    /// ja kutsuja avaa reseptin: sheetin päälle avattu sheet jäi tässä koodikannassa
+    /// luotettavasti avautumatta.
+    var onOpenRecipe: ((String) -> Void)?
 
     @Environment(\.dismiss) private var dismiss
     @State private var amountText: String
@@ -21,11 +25,13 @@ struct MealDetailSheet: View {
     init(
         entry: NutritionEntry,
         onSave: @escaping (_ grams: Double?, _ servings: Double?, _ mealTag: MealTag) async -> String?,
-        onDelete: @escaping () -> Void
+        onDelete: @escaping () -> Void,
+        onOpenRecipe: ((String) -> Void)? = nil
     ) {
         self.entry = entry
         self.onSave = onSave
         self.onDelete = onDelete
+        self.onOpenRecipe = onOpenRecipe
         let amount = entry.kind == "food" ? (entry.grams ?? 0) : entry.servings
         _amountText = State(initialValue: Self.format(amount))
         _mealTag = State(initialValue: MealTag(rawValue: entry.mealTag) ?? .snack)
@@ -48,6 +54,17 @@ struct MealDetailSheet: View {
                     Text(entry.name)
                         .font(.headline)
                         .padding(.vertical, 2)
+                }
+
+                if let recipeId = entry.recipeId, let onOpenRecipe {
+                    Section {
+                        Button {
+                            dismiss()
+                            onOpenRecipe(recipeId)
+                        } label: {
+                            Label("Näytä resepti", systemImage: "book")
+                        }
+                    }
                 }
 
                 Section("Makrot") {

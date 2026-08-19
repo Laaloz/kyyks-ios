@@ -24,6 +24,9 @@ struct NutritionEntry: Decodable, Identifiable {
     let eatenAt: String?
     let kind: String
     let name: String
+    /// Reseptin tunniste, kun rivi on kirjattu kirjastosta. Reitti jättää sen
+    /// pois ad hoc -riveiltä, joten `nil` erottaa ne ilman erillistä lippua.
+    let recipeId: String?
     let grams: Double?
     let aiStatus: String?
     let macros: MacroValues

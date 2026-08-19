@@ -30,6 +30,29 @@ final class RecipeLibraryModel: CachedModel {
 
     var lockedCount: Int { recipes.filter(\.locked).count }
 
+    /// Kirjoituskentän ehdotukset. Vain avoimet reseptit: lukittu ehdotus kaatuisi
+    /// palvelimen 402:een vasta napautuksen jälkeen.
+    ///
+    /// Ehdotus **ei** korvaa AI-arviota automaattisesti. "Banaanipannukakut" voi
+    /// tarkoittaa sinun reseptiäsi tai jotain aivan muuta syötyä — arvaus näyttäisi
+    /// oikealta myös silloin kun se on väärä, ja väärä makrorivi on pahempi kuin
+    /// yksi napautus lisää.
+    func suggestions(for text: String) -> [Recipe] {
+        let term = text.trimmingCharacters(in: .whitespaces).lowercased()
+        guard term.count >= 3 else { return [] }
+        return recipes
+            .filter { !$0.locked && $0.name.lowercased().contains(term) }
+            // Alusta täsmäävä ensin: "banaani" tarkoittaa todennäköisemmin
+            // "Banaanipannukakut" kuin "Suklaa-banaanismoothie".
+            .sorted { first, second in
+                let firstPrefix = first.name.lowercased().hasPrefix(term)
+                let secondPrefix = second.name.lowercased().hasPrefix(term)
+                return firstPrefix == secondPrefix ? first.name < second.name : firstPrefix
+            }
+            .prefix(3)
+            .map { $0 }
+    }
+
     /// Suodatettu lista. Lukitut pysyvät mukana: tyhjentyvä lista näyttäisi
     /// rikkinäiseltä sovellukselta eikä tarjoukselta.
     var visibleRecipes: [Recipe] {

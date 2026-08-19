@@ -13,6 +13,12 @@ struct NutritionView: View {
     @State private var quickQuery = ""
     @State private var pendingQuery = ""
     @State private var showPicker = false
+    @State private var openedRecipe: RecipeReference?
+    /// Kirjasto myös tässä näkymässä: sitä tarvitaan sekä kirjatun rivin
+    /// resepti­linkkiin että kirjoituskentän ehdotukseen. Levyvälimuisti tekee
+    /// avauksesta ilmaisen — verkkohaku ajetaan taustalla kuten muissakin
+    /// näkymissä.
+    @State private var recipes = RecipeLibraryModel()
     @State private var pickerSource: UIImagePickerController.SourceType = .camera
     @State private var capturedImage: UIImage?
     @FocusState private var isQuickFocused: Bool
@@ -120,6 +126,38 @@ struct NutritionView: View {
                 // Kuvaaminen on oma nappinsa ja avaa kameran suoraan — se on
                 // nopein polku pöydässä. Kirjoituskynä avaa saman näkymän ilman
                 // kameraa, jolloin teksti ja kuvakirjasto ovat valittavissa.
+                VStack(spacing: 8) {
+                // Reseptiehdotukset kentän yläpuolella. Kirjaston resepti on
+                // tarkka ja ilmainen, AI-arvio arvio ja kiintiöllinen — mutta
+                // valinta on käyttäjän, koska sama nimi voi tarkoittaa myös
+                // jotain muuta syötyä. Napautus kirjaa suoraan yhdellä
+                // annoksella; kirjaus on kuittaus, ei välivaihe.
+                ForEach(recipes.suggestions(for: quickQuery)) { recipe in
+                    Button {
+                        logSuggested(recipe)
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "book")
+                                .font(.footnote)
+                                .foregroundStyle(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(recipe.name)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                Text("Resepti · \(Int(recipe.macrosPerServing.kcal.rounded())) kcal / annos")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 4)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 HStack(spacing: 8) {
                     // Kirjoituskenttä suoraan listan alla: yleisin kirjaus alkaa
                     // ilman navigointia — kirjoita ja lähetä. Kuvakkeet vievät
@@ -165,6 +203,7 @@ struct NutritionView: View {
                         .accessibilityLabel("Kuvaa ateria")
                     }
                 }
+                }
                 .animation(.snappy(duration: 0.2), value: canSubmitQuickQuery)
                 .padding(.horizontal, 16)
                 // Väli myös ylös: ilman sitä tausta alkoi kentän reunasta ja
@@ -179,7 +218,8 @@ struct NutritionView: View {
                     onSave: { grams, servings, tag in
                         await model.updateEntry(entry, grams: grams, servings: servings, mealTag: tag)
                     },
-                    onDelete: { model.deleteEntry(entry) }
+                    onDelete: { model.deleteEntry(entry) },
+                    onOpenRecipe: { openedRecipe = RecipeReference(id: $0) }
                 )
             }
             .sheet(isPresented: $showAddMeal) {
@@ -214,12 +254,19 @@ struct NutritionView: View {
                 pendingQuery = ""
                 showAddMeal = true
             }
+            .sheet(item: $openedRecipe) { reference in
+                RecipeQuickLookSheet(auth: auth, recipeId: reference.id)
+            }
             .overlay { if model.isLoading && model.day == nil { ProgressView() } }
             .refreshable { await model.refresh() }
         }
         .task {
             model.configure(auth: auth)
             await model.load()
+        }
+        .task {
+            recipes.configure(auth: auth)
+            await recipes.load()
         }
     }
 
@@ -237,6 +284,25 @@ struct NutritionView: View {
         capturedImage = nil
         pickerSource = source
         showPicker = true
+    }
+
+    /// Ehdotuksen kirjaus: yksi annos reseptin omaan ateriapaikkaan. Sama oletus
+    /// kuin kirjastosta kirjatessa — annosmäärää ja ateriapaikkaa voi korjata
+    /// riviltä jälkikäteen.
+    private func logSuggested(_ recipe: Recipe) {
+        let tag = MealTag(rawValue: recipe.mealTag) ?? .suggestion()
+        quickQuery = ""
+        isQuickFocused = false
+        Task {
+            if case .logged = await recipes.logAsEaten(
+                recipe,
+                servings: 1,
+                planDate: model.dateKey,
+                mealTag: tag
+            ) {
+                await model.refreshAfterChange()
+            }
+        }
     }
 
     private func submitQuickQuery() {

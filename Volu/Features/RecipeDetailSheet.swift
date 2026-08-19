@@ -11,6 +11,10 @@ struct RecipeDetailSheet: View {
     let onLog: (Double, MealTag) async -> RecipeLibraryModel.LogOutcome
     let onLogged: () -> Void
     let onPaywall: (String) -> Void
+    /// Näytetäänkö kirjausnappi. Jo kirjatun rivin kautta avattu resepti on
+    /// katselua: sama ateria kirjattaisiin toiseen kertaan, mitä kukaan ei
+    /// tarkoita avatessaan "Näytä resepti".
+    var showsLogAction = true
 
     @Environment(\.dismiss) private var dismiss
     @State private var servings: Double
@@ -23,8 +27,10 @@ struct RecipeDetailSheet: View {
         planDate: String,
         onLog: @escaping (Double, MealTag) async -> RecipeLibraryModel.LogOutcome,
         onLogged: @escaping () -> Void,
-        onPaywall: @escaping (String) -> Void
+        onPaywall: @escaping (String) -> Void,
+        showsLogAction: Bool = true
     ) {
+        self.showsLogAction = showsLogAction
         self.recipe = recipe
         self.planDate = planDate
         self.onLog = onLog
@@ -93,9 +99,9 @@ struct RecipeDetailSheet: View {
                         }
                     } header: {
                         if let label = group.label {
-                            Text(index == 0 ? "Ainesosat (\(yieldText)) · \(label)" : label)
+                            Text(index == 0 ? "\(ingredientsTitle) · \(label)" : label)
                         } else {
-                            Text(index == 0 ? "Ainesosat (\(yieldText))" : "Muut ainekset")
+                            Text(index == 0 ? ingredientsTitle : "Muut ainekset")
                         }
                     }
                 }
@@ -121,7 +127,7 @@ struct RecipeDetailSheet: View {
                     }
                 }
 
-                if !recipe.locked {
+                if !recipe.locked, showsLogAction {
                     Section("Kirjaus") {
                         Picker("Ateriapaikka", selection: $mealTag) {
                             ForEach(MealTag.allCases, id: \.self) { tag in
@@ -152,7 +158,9 @@ struct RecipeDetailSheet: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                bottomAction
+                if showsLogAction || recipe.locked {
+                    bottomAction
+                }
             }
         }
     }
@@ -206,13 +214,15 @@ struct RecipeDetailSheet: View {
         }
     }
 
-    /// Reseptin sato: "koko resepti, 4 annosta".
-    private var yieldText: String {
+    /// Ainesosaotsikko: "Ainesosat (koko resepti, 4 annosta)". Yhden annoksen reseptillä
+    /// tarkenne on pelkkää kohinaa — määrät eivät voi tarkoittaa mitään muuta.
+    private var ingredientsTitle: String {
         let yieldServings = recipe.defaultServings > 0 ? recipe.defaultServings : 1
+        guard yieldServings != 1 else { return "Ainesosat" }
         let count = yieldServings == yieldServings.rounded()
             ? String(Int(yieldServings))
             : String(format: "%.1f", yieldServings).replacingOccurrences(of: ".", with: ",")
-        return "koko resepti, \(count) \(yieldServings == 1 ? "annos" : "annosta")"
+        return "Ainesosat (koko resepti, \(count) annosta)"
     }
 
     /// Puolikkaat näytetään, kokonaiset ilman desimaalia.
