@@ -25,6 +25,7 @@ enum FunnelEvent: String {
         case nutrition
         case profile
         case aiEstimate = "ai_estimate"
+        case recipes
     }
 }
 

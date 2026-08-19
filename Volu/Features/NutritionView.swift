@@ -34,6 +34,20 @@ struct NutritionView: View {
                     macroSummary
                 }
 
+                // Toissijainen toiminto listarivinä, ei yläpalkin kuvakkeena:
+                // välilehden ensisijainen toiminto on kirjaus, ja se on alapalkissa.
+                Section {
+                    NavigationLink {
+                        RecipeLibraryView(
+                            auth: auth,
+                            planDate: model.dateKey,
+                            onLogged: { Task { await model.refreshAfterChange() } }
+                        )
+                    } label: {
+                        Label("Reseptit", systemImage: "book")
+                    }
+                }
+
 
                 // Ei erillisiä ateriaotsikoita: Listin rivikorkeus on vähintään
                 // ~44 pt, joten kompaktikin otsikko söi sen verran ruutua jokaista
