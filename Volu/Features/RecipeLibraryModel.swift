@@ -23,7 +23,10 @@ final class RecipeLibraryModel: CachedModel {
     var hasContent: Bool { !recipes.isEmpty }
 
     var query = ""
-    var mealFilter: MealTag?
+    /// Suodatus vaihtoryhmällä eikä yksittäisellä ateriapaikalla: aamupalaa ja iltapalaa
+    /// syödään ristiin, samoin lounasta ja illallista. Tarkka ateriapaikka näkyy silti
+    /// rivillä — se on reseptin ehdotus, ei rajoite.
+    var mealFilter: MealSlotGroup?
 
     var lockedCount: Int { recipes.filter(\.locked).count }
 
@@ -32,7 +35,7 @@ final class RecipeLibraryModel: CachedModel {
     var visibleRecipes: [Recipe] {
         let term = query.trimmingCharacters(in: .whitespaces).lowercased()
         return recipes.filter { recipe in
-            (mealFilter == nil || recipe.mealTag == mealFilter?.rawValue)
+            (mealFilter == nil || recipe.slotGroup == mealFilter)
                 && (term.isEmpty || recipe.name.lowercased().contains(term))
         }
     }

@@ -80,15 +80,22 @@ struct RecipeDetailSheet: View {
                     Text("Makrot")
                 }
 
-                if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                    // Sato mukaan otsikkoon: ainesosat ovat koko reseptin määrät eivätkä seuraa
-                    // annosvalitsinta, joka kertoo montako annosta syötiin. Ilman tätä "Annoksia 1"
-                    // ja "520 g jauhelihaa" näyttivät ristiriidalta.
-                    Section("Ainesosat (\(yieldText))") {
-                        ForEach(ingredients) { item in
+                // Ainesosat reseptin osittain: kastikkeen ainekset erillään pohjasta, koska
+                // niitä myös käsitellään erillään. Sato mukaan otsikkoon, sillä määrät ovat koko
+                // reseptin eivätkä seuraa annosvalitsinta — resepti tehdään kerralla neljälle,
+                // vaikka syödyksi merkitään yksi annos.
+                ForEach(Array(recipe.ingredientGroups.enumerated()), id: \.offset) { index, group in
+                    Section {
+                        ForEach(group.items) { item in
                             LabeledContent(item.name) {
                                 Text(item.amountText).monospacedDigit().foregroundStyle(.secondary)
                             }
+                        }
+                    } header: {
+                        if let label = group.label {
+                            Text(index == 0 ? "Ainesosat (\(yieldText)) · \(label)" : label)
+                        } else {
+                            Text(index == 0 ? "Ainesosat (\(yieldText))" : "Muut ainekset")
                         }
                     }
                 }
@@ -205,7 +212,7 @@ struct RecipeDetailSheet: View {
         let count = yieldServings == yieldServings.rounded()
             ? String(Int(yieldServings))
             : String(format: "%.1f", yieldServings).replacingOccurrences(of: ".", with: ",")
-        return "koko resepti, \(count) annosta"
+        return "koko resepti, \(count) \(yieldServings == 1 ? "annos" : "annosta")"
     }
 
     /// Puolikkaat näytetään, kokonaiset ilman desimaalia.

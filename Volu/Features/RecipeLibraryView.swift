@@ -16,6 +16,7 @@ struct RecipeLibraryView: View {
     @State private var selected: Recipe?
     @State private var paywallReason: PaywallReason?
     @Environment(SubscriptionStore.self) private var subscriptions
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
@@ -27,9 +28,9 @@ struct RecipeLibraryView: View {
 
             Section {
                 Picker("Ateriapaikka", selection: $model.mealFilter) {
-                    Text("Kaikki").tag(MealTag?.none)
-                    ForEach(MealTag.allCases, id: \.self) { tag in
-                        Text(tag.label).tag(MealTag?.some(tag))
+                    Text("Kaikki").tag(MealSlotGroup?.none)
+                    ForEach(MealSlotGroup.allCases) { group in
+                        Text(group.label).tag(MealSlotGroup?.some(group))
                     }
                 }
                 .pickerStyle(.menu)
@@ -78,7 +79,12 @@ struct RecipeLibraryView: View {
                 onLog: { servings, mealTag in
                     await model.logAsEaten(recipe, servings: servings, planDate: planDate, mealTag: mealTag)
                 },
-                onLogged: onLogged,
+                onLogged: {
+                    onLogged()
+                    // Kirjaus on valmis toiminto, ei selailun välivaihe: käyttäjä haluaa nähdä
+                    // rivin päivässään eikä jäädä listaan jossa ei ole enää mitään tekemistä.
+                    dismiss()
+                },
                 onPaywall: { reason in
                     selected = nil
                     paywallReason = PaywallReason(text: reason)
