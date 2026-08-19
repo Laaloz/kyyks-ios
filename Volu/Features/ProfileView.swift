@@ -8,6 +8,8 @@ import SwiftUI
 struct ProfileView: View {
     @AppStorage(AppearanceSetting.storageKey) private var appearance = AppearanceSetting.system
     @AppStorage(AccentSetting.storageKey) private var accent = AccentSetting.green
+    @AppStorage(ScreenAwakeSetting.recipeKey) private var keepAwakeRecipes = ScreenAwakeSetting.recipeDefault
+    @AppStorage(ScreenAwakeSetting.workoutKey) private var keepAwakeWorkout = ScreenAwakeSetting.workoutDefault
     let auth: AuthManager
 
     /// Julkaisuversio ja buildinumero. Buildinumero on se joka erottaa
@@ -188,6 +190,17 @@ struct ProfileView: View {
                         }
                         .padding(.vertical, 4)
                     }
+                }
+
+                Section {
+                    Toggle("Resepti auki", isOn: $keepAwakeRecipes)
+                    Toggle("Treenin aikana", isOn: $keepAwakeWorkout)
+                } header: {
+                    Text("Näyttö pysyy päällä")
+                } footer: {
+                    // Oletukset ovat eri suuntiin, ja syy kuuluu kertoa: muuten
+                    // käyttäjä ihmettelee miksi toinen on päällä ja toinen ei.
+                    Text("Reseptiä luetaan kädet taikinassa, jolloin sammuva näyttö keskeyttää tekemisen. Treenissä puhelin on useimmiten taskussa, ja päällä pysyvä näyttö kuluttaisi akkua koko treenin ajan.")
                 }
 
                 Section("Muistutukset") {

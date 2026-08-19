@@ -17,6 +17,7 @@ struct RecipeDetailSheet: View {
     var showsLogAction = true
 
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(ScreenAwakeSetting.recipeKey) private var keepAwake = ScreenAwakeSetting.recipeDefault
     @State private var servings: Double
     @State private var mealTag: MealTag
     @State private var isLogging = false
@@ -162,6 +163,9 @@ struct RecipeDetailSheet: View {
                     bottomAction
                 }
             }
+            // Resepti luetaan tekemisen lomassa: sammuva näyttö keskeyttää juuri sen
+            // hetken jolloin kädet ovat täynnä.
+            .keepScreenAwake(keepAwake)
         }
     }
 

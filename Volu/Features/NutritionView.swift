@@ -127,42 +127,56 @@ struct NutritionView: View {
                 // nopein polku pöydässä. Kirjoituskynä avaa saman näkymän ilman
                 // kameraa, jolloin teksti ja kuvakirjasto ovat valittavissa.
                 VStack(spacing: 8) {
-                // Reseptiehdotukset kentän yläpuolella. Kirjaston resepti on
-                // tarkka ja ilmainen, AI-arvio arvio ja kiintiöllinen — mutta
-                // valinta on käyttäjän, koska sama nimi voi tarkoittaa myös
-                // jotain muuta syötyä. Napautus kirjaa suoraan yhdellä
-                // annoksella; kirjaus on kuittaus, ei välivaihe.
-                ForEach(recipes.suggestions(for: quickQuery)) { recipe in
-                    Button {
-                        logSuggested(recipe)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "book")
-                                .font(.footnote)
-                                .foregroundStyle(Color.accentColor)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(recipe.name)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text("Resepti · \(Int(recipe.macrosPerServing.kcal.rounded())) kcal / annos")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 4)
+                // Kaksi eri polkua tehdään näkyviksi riveinä sen sijaan että toinen
+                // olisi piilossa nuolinapin takana. Kentästä ei muuten näe, että se
+                // sekä hakee omista resepteistä että arvioi tekoälyllä mitä tahansa
+                // syötyä — ja arvaus näyttää oikealta myös silloin kun se on väärä.
+                if canSubmitQuickQuery {
+                    let matches = recipes.suggestions(for: quickQuery)
+
+                    if !matches.isEmpty {
+                        // Otsikko kertoo mistä ehdotukset tulevat. Ilman sitä ne ovat
+                        // vain nimiä, eikä ruudunlukija erota niitä kentän sisällöstä.
+                        Text("Resepteistäsi")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+
+                    ForEach(matches) { recipe in
+                        Button {
+                            logSuggested(recipe)
+                        } label: {
+                            suggestionLabel(
+                                symbol: "book",
+                                title: recipe.name,
+                                detail: "\(Int(recipe.macrosPerServing.kcal.rounded())) kcal / annos"
+                            )
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(recipe.name), resepti, \(Int(recipe.macrosPerServing.kcal.rounded())) kilokaloria annos")
+                        .accessibilityHint("Kirjaa yhden annoksen")
+                    }
+
+                    // AI-polku omana rivinään: se on ainoa tapa kirjata jotain jota
+                    // kirjastossa ei ole, eikä sen pidä olla arvattavissa kuvakkeesta.
+                    Button(action: submitQuickQuery) {
+                        suggestionLabel(
+                            symbol: "sparkles",
+                            title: "Arvioi tekoälyllä",
+                            detail: quickQuery.trimmingCharacters(in: .whitespaces)
+                        )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Arvioi tekoälyllä: \(quickQuery)")
                 }
 
                 HStack(spacing: 8) {
                     // Kirjoituskenttä suoraan listan alla: yleisin kirjaus alkaa
                     // ilman navigointia — kirjoita ja lähetä. Kuvakkeet vievät
                     // muihin tapoihin yhdellä napautuksella.
-                    TextField("Mitä söit?", text: $quickQuery)
+                    TextField("Hae reseptiä tai kuvaile ateria", text: $quickQuery)
                         .focused($isQuickFocused)
                         .submitLabel(.send)
                         .onSubmit(submitQuickQuery)
@@ -284,6 +298,30 @@ struct NutritionView: View {
         capturedImage = nil
         pickerSource = source
         showPicker = true
+    }
+
+    private func suggestionLabel(symbol: String, title: String, detail: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.footnote)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 12))
     }
 
     /// Ehdotuksen kirjaus: yksi annos reseptin omaan ateriapaikkaan. Sama oletus
@@ -409,6 +447,14 @@ private struct NutritionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+            // Lähdemerkki nimen edessä, ei perässä: silmä lukee rivin vasemmalta,
+            // ja kuvake kertoo ennen nimeä mihin lukuun voi luottaa.
+            if let symbol = entry.origin.symbol {
+                Image(systemName: symbol)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+            }
             VStack(alignment: .leading, spacing: 1) {
                 // Ei syöty-merkkiä: lisätty ateria on määritelmällisesti syöty
                 // (myös illalla kirjattu koko päivä), joten merkki olisi kohinaa.
@@ -435,7 +481,13 @@ private struct NutritionRow: View {
         // tiivistä tekstiriviä, joten puolet siitä riittää.
         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.name), \(subtitle), \(Int(entry.macros.kcal)) kilokaloria")
+        // Lähde myös sanoina: kuvake ei kerro ruudunlukijalle mitään.
+        .accessibilityLabel([
+            entry.origin.accessibilityLabel,
+            entry.name,
+            subtitle,
+            "\(Int(entry.macros.kcal)) kilokaloria",
+        ].compactMap { $0 }.joined(separator: ", "))
     }
 
     private var subtitle: String {

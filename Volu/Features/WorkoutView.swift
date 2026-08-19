@@ -24,6 +24,7 @@ struct WorkoutView: View {
     /// suljetaan. Omana tilana ajastin jäi päälle näkymän mukana piiloon, ja
     /// ilmoitus tuli myöhemmin ilman että sitä pystyi enää perumaan mistään.
     @Environment(RestTimerManager.self) private var restTimer
+    @AppStorage(ScreenAwakeSetting.workoutKey) private var keepAwake = ScreenAwakeSetting.workoutDefault
     @State private var showDurationEdit = false
 
     private enum Confirmation: Identifiable {
@@ -167,6 +168,7 @@ struct WorkoutView: View {
         }
         .overlay { if model.isLoading && model.setLogs.isEmpty { ProgressView() } }
         .restTimerBar(restTimer)
+        .keepScreenAwake(keepAwake)
         .refreshable { await model.refresh() }
         .task {
             model.configure(auth: auth, workoutId: workoutId)
