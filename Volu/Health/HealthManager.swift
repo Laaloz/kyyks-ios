@@ -40,6 +40,7 @@ final class HealthManager {
 
     init() {
         importedWorkoutIds = Set(UserDefaults.standard.stringArray(forKey: Self.importedWorkoutIdsKey) ?? [])
+        exportedWorkoutIds = Set(UserDefaults.standard.stringArray(forKey: Self.exportedWorkoutIdsKey) ?? [])
         let asked = UserDefaults.standard.bool(forKey: Self.didRequestKey)
         availability = HKHealthStore.isHealthDataAvailable()
             ? (asked ? .asked : .notDetermined)
@@ -78,7 +79,17 @@ final class HealthManager {
     /// näkymän avaukseen.
     private var lastSyncAt: Date?
 
+    /// Viimeisin viennin virhe käyttäjälle näytettäväksi. iOS ei kysy
+    /// kirjoituslupaa toista kertaa, joten epäonnistuminen on kerrottava:
+    /// muuten asetus näyttää päällä olevalta eikä mitään tapahdu.
+    var exportStatusMessage: String?
+
+    /// Voluun kirjatut treenit jotka on viety Healthiin. Ks.
+    /// `HealthWorkoutExport`.
+    var exportedWorkoutIds: Set<String>
+
     private static let importedWorkoutIdsKey = "health.importedWorkoutIds"
+    static let exportedWorkoutIdsKey = "health.exportedWorkoutIds"
     /// Muistettujen tunnisteiden yläraja. Ikkuna on 7 päivää, joten tämä
     /// riittää moninkertaisesti; katto on vain siltä varalta ettei lista
     /// kasva rajatta vuosien käytössä.
@@ -113,9 +124,13 @@ final class HealthManager {
     }
 
     private let store = HKHealthStore()
+    /// Sama säilö myös kirjoituspuolelle (`HealthWorkoutExport`): kaksi
+    /// erillistä `HKHealthStore`a näkisi lupatilan eri hetkinä.
+    var healthStore: HKHealthStore { store }
     /// HealthKitin kyselyt vastaavat omassa säikeessään, joten loki ei voi olla
     /// pääsäikeeseen sidottu.
     private nonisolated static let log = Logger(subsystem: "fi.volu.app", category: "health")
+    nonisolated static let exportLog = Logger(subsystem: "fi.volu.app", category: "health-export")
 
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
@@ -536,6 +551,14 @@ final class HealthManager {
         } catch {
             Self.log.error("Painon tuonti epäonnistui: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Tuorein punnitus Healthista. Treenin vienti tarvitsee painon
+    /// energia-arvioon, eikä sitä kannata pyytää käyttäjältä uudelleen jos
+    /// Healthissa on tuore luku.
+    func latestBodyWeightKilograms(withinDays days: Int = 120) async -> Double? {
+        guard let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return nil }
+        return await fetchWeightSamples(since: start).max(by: { $0.date < $1.date })?.kilograms
     }
 
     private func fetchWeightSamples(since start: Date) async -> [WeightSample] {

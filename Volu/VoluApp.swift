@@ -69,6 +69,10 @@ struct VoluApp: App {
     @State private var programs = ProgramsModel()
     @State private var subscriptions = SubscriptionStore()
     @State private var push = PushManager()
+    /// Health kuuluu juureen kuten muutkin jaetut mallit: Tänään lukee siitä
+    /// askeleet, Profiili omistaa vientiasetuksen ja Treeni kirjoittaa valmiin
+    /// treenin. Kaksi erillistä `HKHealthStore`a näkisi lupatilan eri hetkinä.
+    @State private var health = HealthManager()
     /// Lepoajastin kuuluu juureen eikä treeninäkymään: lepo jatkuu kun käyttäjä
     /// käy toisella välilehdellä, ja palkin on näyttävä siellä missä hän on —
     /// muuten ainoa jäljelle jäävä merkki levosta on ilmoitus, jota ei voi perua.
@@ -132,6 +136,7 @@ struct VoluApp: App {
                     // jaetaan ympäristönä: maksumuuri on Ravinnossa, tilauksen
                     // hallinta Profiilissa, eikä kumpikaan omista tilaa.
                     .environment(subscriptions)
+                    .environment(health)
                     .environment(restTimer)
                     .environment(NotificationRouter.shared)
                     // Välilehden vaihto tässä, lomakkeen avaus Kehossa: näkymä

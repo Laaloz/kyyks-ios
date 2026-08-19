@@ -17,7 +17,8 @@ KEHO
 
 APPLE HEALTH
 • Askeleet, yöunen keskiarvo ja Healthiin kirjatut suoritukset näkyvät päivän yhteenvedossa.
-• Volu lukee Healthista vain ne tiedot, jotka olet itse sille sallinut. Volu ei kirjoita Healthiin mitään.
+• Volu lukee Healthista vain ne tiedot, jotka olet itse sille sallinut.
+• Halutessasi salitreenit tallentuvat myös Healthiin, jolloin ne näkyvät Fitnessissä ja aktiivisuusrenkaissa. Vienti on oletuksena pois päältä.
 
 MITÄ MAKSAA
 Kaikki kirjaaminen ja kehityksen seuranta on ilmaista: treenit, sarjat, ohjelmat, ravintokirjaus, mitat, käyrät ja Apple Health -luku. Oma data pysyy käytettävissä ilman tilausta.

@@ -6,3 +6,4 @@ Volun ensimmäinen versio.
 • Ravintokirjaus, reseptikirjasto ja tekoälyn tekemä ateria-arvio
 • Mitat ja painon kehitys
 • Apple Health: askeleet, yöuni, suoritukset ja punnitukset
+• Valinnainen treenien vienti Apple Healthiin

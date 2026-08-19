@@ -34,6 +34,8 @@ struct ProfileView: View {
     @State private var showPaywall = false
     @State private var showManageSubscriptions = false
     @Environment(SubscriptionStore.self) private var subscriptions
+    @Environment(HealthManager.self) private var health
+    @AppStorage(HealthExportSetting.key) private var exportWorkouts = HealthExportSetting.defaultValue
     @FocusState private var focused: Field?
 
     private enum Field { case height }
@@ -130,6 +132,20 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    // Vienti on oma valintansa eikä seuraa lukuoikeudesta:
+                    // arvioitu energia päätyy Move-renkaaseen, eikä sitä kuulu
+                    // työntää sinne kysymättä. Lupa kysytään vasta kun tämä
+                    // kytketään päälle, jolloin kysymyksellä on konteksti.
+                    Toggle("Vie treenit Apple Healthiin", isOn: $exportWorkouts)
+                        .onChange(of: exportWorkouts) {
+                            guard exportWorkouts else { return }
+                            Task {
+                                // Lupaa ei voi kysyä toista kertaa, joten jos
+                                // käyttäjä kieltää, kytkin palaa pois päältä
+                                // eikä jää lupaamaan jotain mitä ei tapahdu.
+                                exportWorkouts = await health.requestWorkoutExportAuthorization()
+                            }
+                        }
                     // iOS ei anna sovelluksen muuttaa eikä kysyä uudelleen
                     // Health-oikeuksia: kerran vastattu lupakysely ei toistu.
                     // Ilman tätä riviä käyttäjällä ei ollut mitään polkua
@@ -141,10 +157,15 @@ struct ProfileView: View {
                     } label: {
                         Label("Apple Healthin oikeudet", systemImage: "heart.text.square")
                     }
+                    if let message = health.exportStatusMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("Askeleet, uni, paino ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Oikeudet myönnetään ja perutaan iOS:n asetuksista — sovellus ei voi muuttaa niitä.")
+                    Text("Askeleet, uni, paino ja muissa sovelluksissa tehdyt suoritukset luetaan Apple Healthista. Vienti tallentaa valmiin salitreenin Healthiin, jolloin se näkyy Fitnessissä ja aktiivisuusrenkaissa; energia on arvio kestosta ja painostasi. Oikeudet myönnetään ja perutaan iOS:n asetuksista.")
                 }
 
                 Section("Ulkoasu") {

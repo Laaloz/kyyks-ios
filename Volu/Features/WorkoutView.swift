@@ -24,6 +24,8 @@ struct WorkoutView: View {
     /// suljetaan. Omana tilana ajastin jäi päälle näkymän mukana piiloon, ja
     /// ilmoitus tuli myöhemmin ilman että sitä pystyi enää perumaan mistään.
     @Environment(RestTimerManager.self) private var restTimer
+    @Environment(HealthManager.self) private var health
+    @AppStorage(HealthExportSetting.key) private var exportWorkouts = HealthExportSetting.defaultValue
     @AppStorage(ScreenAwakeSetting.workoutKey) private var keepAwake = ScreenAwakeSetting.workoutDefault
     @State private var showDurationEdit = false
 
@@ -519,9 +521,23 @@ struct WorkoutView: View {
     /// tehty, joten seuraava askel on lista, ei sen katselu. Lista päivitetään
     /// samalla, muuten treeni näkyisi siellä yhä keskeneräisenä.
     private func complete() async {
+        let session = model.session
+        let title = model.workout?.title ?? "Treeni"
         guard await model.completeWorkout() else { return }
         onFinished?(.completed, workoutId)
         dismiss()
+        // Vienti vasta palvelimen jälkeen ja näkymän sulkemisen rinnalla:
+        // Health on kirjauksen sivutuote, eikä sen hitaus saa jäädä käyttäjän
+        // eteen. Epäonnistuminen ei myöskään estä treenin valmistumista.
+        guard exportWorkouts, let session, let start = parseAPIDate(session.startedAt) else { return }
+        let end = start.addingTimeInterval(TimeInterval(session.durationSeconds()))
+        await health.exportWorkout(
+            workoutId: workoutId,
+            title: title,
+            start: start,
+            end: end,
+            bodyWeightKilograms: await health.latestBodyWeightKilograms()
+        )
     }
 
     private func isExpanded(_ block: ExerciseBlock) -> Bool {

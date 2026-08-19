@@ -12,7 +12,7 @@ struct TodayView: View {
     /// toimintoa kannata kahdentaa.
     let onOpenWorkouts: () -> Void
 
-    @State private var health = HealthManager()
+    @Environment(HealthManager.self) private var health
     @State private var showAddMeasurement = false
 
     @Environment(RestTimerManager.self) private var restTimer

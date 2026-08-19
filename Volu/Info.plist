@@ -43,7 +43,7 @@
 	<key>NSHealthShareUsageDescription</key>
 	<string>Apple Healthin tietoja luetaan, jotta askeleesi, unesi, painosi ja muissa sovelluksissa tehdyt suorituksesi näkyvät Volussa ilman käsin kirjaamista.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Volu ei tallenna mitään Apple Healthiin. Tietoja ainoastaan luetaan, jotta askeleesi, unesi, painosi ja suorituksesi näkyvät sovelluksessa.</string>
+	<string>Kun kytket asetuksen päälle, Voluun kirjatut salitreenit tallennetaan Apple Healthiin, jotta ne näkyvät Fitness-sovelluksessa ja aktiivisuusrenkaissa.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kuvakirjastoa käytetään, kun valitset valmiin kuvan aterian arviointiin.</string>
 	<key>NSSupportsLiveActivities</key>
