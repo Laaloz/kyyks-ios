@@ -1,0 +1,34 @@
+[TÄYTÄ ENNEN LÄHETYSTÄ: demotunnukset App Review Information -osioon.]
+
+Sign-in required: kyllä.
+Demo-tunnus: <sähköposti>
+Salasana: <salasana>
+
+Huomioita arvioijalle:
+
+1. Kirjautuminen tapahtuu sähköpostilla tai Sign in with Apple -painikkeella.
+   Demotunnuksella on valmiina treenihistoriaa, ohjelma, ateriakirjauksia ja
+   painomittauksia, joten kaikki näkymät ovat katsottavissa heti.
+
+2. HealthKit: sovellus pyytää lukuoikeutta askeleisiin, harjoituksiin, uneen ja
+   painoon. Tietoja käytetään vain päivän yhteenvedon näyttämiseen ja
+   punnitusten tuontiin käyttäjän omalle tilille. Sovellus ei kirjoita
+   Healthiin eikä käytä terveystietoja mainontaan. Simulaattorissa Healthissa
+   ei ole dataa, joten Tänään-näkymä kertoo, ettei tietoja saatu — tämä on
+   odotettu tila, ei virhe.
+
+3. Tilaus (Volu Pro, 4,99 €/kk tai 42 €/v): avaa tekoälyn tekemän ateria-arvion
+   rajattomasti. Ilmaisversiossa arvioita on viisi kuukaudessa. Maksumuurin
+   näkee Ravinto-välilehdeltä kuvailemalla aterian tekstikenttään tai ottamalla
+   siitä kuvan, kun kuukauden viisi arviota on käytetty.
+
+4. Ateriakuva ja tekstikuvaus lähetetään Googlen Gemini-rajapintaan makrojen
+   arviointia varten. Kuvaa ei tallenneta. Tämä on kerrottu
+   tietosuojaselosteessa https://volu.fi/privacy.
+
+5. Valmentajatoiminnot (ohjelmien luonti asiakkaille) ovat verkkopalvelussa,
+   eikä niitä myydä sovelluksen sisällä. Sovellus ei sisällä linkkejä
+   ulkoiseen ostopolkuun.
+
+6. Tilin ja kaikkien tietojen poisto onnistuu sovelluksessa:
+   Tänään → profiilikuvake oikeassa yläkulmassa → Poista tili.

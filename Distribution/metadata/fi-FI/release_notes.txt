@@ -1,0 +1,8 @@
+Volun ensimmäinen versio.
+
+• Treenin kirjaus sarja kerrallaan: toistot, kuormat, supersetit ja lepoajastin
+• Omat ja valmentajan ohjelmat
+• Kehitys liikkeittäin käyränä
+• Ravintokirjaus, reseptikirjasto ja tekoälyn tekemä ateria-arvio
+• Mitat ja painon kehitys
+• Apple Health: askeleet, suoritukset ja punnitukset

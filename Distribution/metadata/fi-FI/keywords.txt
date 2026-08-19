@@ -1,0 +1,1 @@
+treeni,kuntosali,treenipäiväkirja,sarjat,toistot,ohjelma,makrot,kalorit,ravinto,paino,valmentaja
