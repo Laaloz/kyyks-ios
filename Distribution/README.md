@@ -65,15 +65,6 @@ kuvien välillä.
 xcrun simctl status_bar booted override --time "9:41" --batteryState charged --batteryLevel 100 --cellularMode active --cellularBars 4 --wifiMode active --wifiBars 3 --dataNetwork wifi
 ```
 
-## Kesken
-
-- [ ] **Ravinto-kuvan päivä.** `03-ravinto.png` näyttää saman aterian kahteen
-      kertaan (Banaanipannukakut ×2), koska rivin poisto ei mene läpi:
-      `DELETE /api/day-meal-plans/[entryId]` jää vastaamatta dev-palvelimella
-      (todennettu curlilla, 60 s ilman vastausta, muut reitit vastaavat heti).
-      Kun poisto toimii, päivälle kirjataan aamupala ja lounas kirjastosta ja
-      kuva otetaan uudelleen.
-
 ## Vielä täyttämättä App Store Connectissa
 
 - [ ] **Demotunnukset** `review_notes.txt`:n alkuun ja ASC:n App Review
