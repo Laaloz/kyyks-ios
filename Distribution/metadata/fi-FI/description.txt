@@ -1,14 +1,14 @@
-Volu on treenipäiväkirja ja ravintokirjaus samassa sovelluksessa. Kirjaa sarjat salilla, seuraa makroja ja katso kehitys yhdestä paikasta — ilman että joudut siirtämään lukuja sovelluksesta toiseen.
+Volu on treenipäiväkirja ja ravintokirjaus samassa sovelluksessa. Kirjaa sarjat salilla, seuraa makroja ja katso kehitys yhdestä paikasta, ilman että joudut siirtämään lukuja sovelluksesta toiseen.
 
 TREENI
-• Kirjaa toistot ja kuormat sarja kerrallaan. Kirjattu sarja on tehty sarja — erillistä kuittausta ei tarvita.
-• Supersetit, lepoajastin ja liikkeen vaihto kesken treenin.
-• Aloita treeni omasta ohjelmasta tai valmentajan tekemästä ohjelmasta.
+• Kirjaa toistot ja kuormat sarja kerrallaan. Kirjattu sarja on tehty sarja, eli erillistä kuittausta ei tarvita.
+• Lepoajastin sarjojen välissä sekä liikkeen vaihto, lisäys ja poisto kesken treenin.
+• Tee oma ohjelma sovelluksessa ja aloita treeni siitä yhdellä napautuksella.
 • Kehitys liikkeittäin: paras sarja, käyrä ja muutosprosentti jokaiselle liikkeelle.
 
 RAVINTO
 • Päivän energia ja makrot yhdellä silmäyksellä: proteiini, hiilihydraatit, rasva ja jäljellä oleva energia.
-• Reseptikirjasto annosmäärän skaalauksella — valitse annokset ja ainesosien määrät seuraavat.
+• Reseptikirjasto annosmäärän skaalauksella: valitse annokset, ja ainesosien määrät seuraavat.
 • Kuvaile ateria sanoin tai ota siitä kuva, niin tekoäly arvioi energian ja makrot puolestasi.
 
 KEHO
@@ -16,16 +16,13 @@ KEHO
 • Punnitukset voi lukea suoraan Apple Healthista, jolloin niitä ei tarvitse kirjata kahteen kertaan.
 
 APPLE HEALTH
-• Askeleet ja Healthiin kirjatut suoritukset näkyvät päivän yhteenvedossa.
-• Volu lukee Healthista vain ne tiedot, jotka olet itse sille sallinut.
-
-VALMENNETTAVILLE
-Jos sinulla on valmentaja, hänen tekemänsä ohjelma näkyy sovelluksessa sellaisenaan ja treenit kirjautuvat samaan paikkaan.
+• Askeleet, yöunen keskiarvo ja Healthiin kirjatut suoritukset näkyvät päivän yhteenvedossa.
+• Volu lukee Healthista vain ne tiedot, jotka olet itse sille sallinut. Volu ei kirjoita Healthiin mitään.
 
 MITÄ MAKSAA
 Kaikki kirjaaminen ja kehityksen seuranta on ilmaista: treenit, sarjat, ohjelmat, ravintokirjaus, mitat, käyrät ja Apple Health -luku. Oma data pysyy käytettävissä ilman tilausta.
 
-Volu Pro avaa tekoälyn tekemän ateria-arvion rajattomasti. Ilmaisversiossa arvioita on viisi kuukaudessa, ja jäljellä oleva määrä näkyy aina arvion yhteydessä.
+Volu Pro avaa koko reseptikirjaston ja tekoälyn tekemän ateria-arvion rajattomasti. Ilmaisversiossa arvioita on viisi kuukaudessa, ja jäljellä oleva määrä näkyy aina arvion yhteydessä. Ilmaiseksi saat myös näytereseptit jokaiseen ateriapaikkaan, omat reseptisi ja jokaisen reseptin jonka olet kerran kirjannut.
 
 Volu Pro: 4,99 €/kk tai 42 €/vuosi. Tilaus veloitetaan Apple-tunnukseltasi ja uusiutuu automaattisesti, ellei sitä peruta vähintään 24 tuntia ennen jakson päättymistä. Tilausta voi hallita ja sen voi perua Apple-tunnuksen asetuksista oston jälkeen.
 

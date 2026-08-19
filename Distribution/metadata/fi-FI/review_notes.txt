@@ -14,7 +14,7 @@ Huomioita arvioijalle:
    painoon. Tietoja käytetään vain päivän yhteenvedon näyttämiseen ja
    punnitusten tuontiin käyttäjän omalle tilille. Sovellus ei kirjoita
    Healthiin eikä käytä terveystietoja mainontaan. Simulaattorissa Healthissa
-   ei ole dataa, joten Tänään-näkymä kertoo, ettei tietoja saatu — tämä on
+   ei ole dataa, joten Tänään-näkymä kertoo, ettei tietoja saatu. Se on
    odotettu tila, ei virhe.
 
 3. Tilaus (Volu Pro, 4,99 €/kk tai 42 €/v): avaa tekoälyn tekemän ateria-arvion
