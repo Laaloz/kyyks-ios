@@ -105,8 +105,17 @@ struct TodayView: View {
                                             UIApplication.shared.open(url)
                                         }
                                     } label: {
-                                        Label("Tarkista oikeudet", systemImage: "gear")
-                                            .font(.footnote)
+                                        // Label ottaisi Formin kuvakesarakkeen
+                                        // leveyden ja piirtäisi kuvakkeen
+                                        // rivikoossa: iso ratas ja sen jälkeen
+                                        // koko sarakkeen levyinen tyhjä.
+                                        // Kortin sisäinen nappi ei kuulu siihen
+                                        // sarakkeeseen, joten väli on kiinteä.
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "gear")
+                                            Text("Tarkista oikeudet")
+                                        }
+                                        .font(.footnote)
                                     }
                                 }
                                 .padding(.vertical, 2)
@@ -114,9 +123,23 @@ struct TodayView: View {
                                 HStack {
                                     Label("Askeleet tänään", systemImage: "figure.walk")
                                     Spacer()
-                                    Text(health.todaySteps.map { "\($0)" } ?? "—")
+                                    Text(health.todaySteps.map { formatSteps($0) } ?? "—")
                                         .monospacedDigit()
                                         .foregroundStyle(.secondary)
+                                }
+                                // Päivän luku yksin ei kerro onko se paljon:
+                                // aamupäivällä katsottuna se on aina pieni.
+                                // Vertailukohta on sama kuin unella, ja se
+                                // näkyy vasta kun päiviä on kertynyt.
+                                if let average = health.averageSteps {
+                                    HStack {
+                                        Label("Askeleet, 7 vrk ka.", systemImage: "chart.bar")
+                                        Spacer()
+                                        Text(formatSteps(average))
+                                            .monospacedDigit()
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .accessibilityElement(children: .combine)
                                 }
                                 // Uni näkyy vasta kun sitä on kirjattu: tyhjä rivi
                                 // kertoisi vain ettei lähdettä ole.
@@ -253,10 +276,11 @@ struct TodayView: View {
     private func refreshHealth() async {
         let api = APIClient(auth: auth)
         async let steps: Void = health.refreshTodaySteps()
+        async let stepAverage: Void = health.refreshAverageSteps()
         async let sleep: Void = health.refreshAverageSleep()
         async let workouts: Void = health.syncWorkouts(using: api)
         async let weight: Void = health.syncWeight(using: api)
-        _ = await (steps, sleep, workouts, weight)
+        _ = await (steps, stepAverage, sleep, workouts, weight)
         await model.refreshAfterChange()
     }
 }

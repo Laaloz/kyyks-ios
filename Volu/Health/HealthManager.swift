@@ -40,6 +40,10 @@ final class HealthManager {
     /// -huomautus välähtäisi joka avauksella ennen kuin kyselyt ehtivät vastata.
     private(set) var hasCompletedQuery = false
     private(set) var todaySteps: Int?
+    /// Keskimääräinen askelmäärä viimeisiltä täysiltä päiviltä. Tämän päivän
+    /// osasumma jätetään pois: aamulla katsottuna se painaisi keskiarvon
+    /// alas ja tekisi vertailusta tähän päivään mielettömän.
+    private(set) var averageSteps: Int?
     /// Keskimääräinen yöuni viimeisiltä seitsemältä yöltä sekunteina. Vaiheet
     /// (syvä/REM) vaatisivat kellon, joten seurataan kokonaisunta, jonka saa
     /// mistä tahansa lähteestä.
@@ -154,6 +158,49 @@ final class HealthManager {
         // Askelkysely ajetaan aina ja vastaa nopeimmin, joten se merkitsee
         // kierroksen tehdyksi myös silloin kun mitään ei löytynyt.
         hasCompletedQuery = true
+    }
+
+    /// Keskimääräinen askelmäärä viimeisiltä `days` täydeltä päivältä.
+    ///
+    /// Päivät joilta ei ole yhtään näytettä jätetään pois keskiarvosta sen
+    /// sijaan että ne laskettaisiin nollaksi: puhelin ei ollut mukana, mikä ei
+    /// ole sama asia kuin ettei askelia otettu. Nollana ne tekisivät
+    /// keskiarvosta sitä matalamman mitä harvemmin puhelinta kannetaan.
+    func refreshAverageSteps(days: Int = 7) async {
+        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: .now)
+        guard let start = calendar.date(byAdding: .day, value: -days, to: today) else { return }
+
+        let dailySums: [Double] = await withCheckedContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: today),
+                options: .cumulativeSum,
+                anchorDate: start,
+                intervalComponents: DateComponents(day: 1)
+            )
+            query.initialResultsHandler = { _, collection, error in
+                if let error {
+                    Self.log.error("Askelkeskiarvon haku epäonnistui: \(error.localizedDescription, privacy: .public)")
+                }
+                var sums: [Double] = []
+                collection?.enumerateStatistics(from: start, to: today) { statistics, _ in
+                    if let sum = statistics.sumQuantity()?.doubleValue(for: .count()), sum > 0 {
+                        sums.append(sum)
+                    }
+                }
+                continuation.resume(returning: sums)
+            }
+            store.execute(query)
+        }
+
+        guard !dailySums.isEmpty else {
+            averageSteps = nil
+            return
+        }
+        hasReceivedData = true
+        averageSteps = Int((dailySums.reduce(0, +) / Double(dailySums.count)).rounded())
     }
 
     /// Keskimääräinen yöuni viimeisiltä `nights` yöltä. Näytteet ryhmitellään

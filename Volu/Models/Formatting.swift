@@ -72,3 +72,17 @@ func formatDuration(minutes totalMinutes: Int) -> String {
 func formatDuration(seconds: Double) -> String {
     formatDuration(minutes: Int((seconds / 60).rounded()))
 }
+
+/// Askelmäärä tuhaterottimella: "8 432". Neljä numeroa peräkkäin luetaan
+/// hitaammin kuin ryhmitelty luku, ja askelia on tyypillisesti juuri
+/// tuhansissa. Erotin on sitova välilyönti, ettei luku katkea riville kahtia.
+func formatSteps(_ value: Int) -> String {
+    guard abs(value) >= 1000 else { return String(value) }
+    let digits = String(abs(value))
+    var grouped = ""
+    for (index, character) in digits.reversed().enumerated() {
+        if index > 0 && index % 3 == 0 { grouped.append("\u{00A0}") }
+        grouped.append(character)
+    }
+    return (value < 0 ? "−" : "") + String(grouped.reversed())
+}
