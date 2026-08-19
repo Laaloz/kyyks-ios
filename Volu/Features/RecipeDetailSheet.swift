@@ -71,12 +71,6 @@ struct RecipeDetailSheet: View {
                     }
                 }
 
-                if let description = recipe.description, !description.isEmpty {
-                    Section {
-                        Text(description).foregroundStyle(.secondary)
-                    }
-                }
-
                 // Makrot aina yhdelle annokselle. Ne ovat reseptin tunnusluku ja se luku
                 // jolla reseptejä vertaillaan keskenään — annosmäärän mukana heiluva
                 // energialukema ei vertaudu mihinkään.
@@ -204,7 +198,9 @@ struct RecipeDetailSheet: View {
                         Text("Kirjataan…").font(.headline)
                     }
                 } else {
-                    Text(recipe.locked ? "Avaa Volu Prolla" : "Merkitse syödyksi (1 annos)").font(.headline)
+                    // Ei "(1 annos)": annosmäärä lukee jo ylempänä, ja napissa toistettuna
+                    // se näytti siltä kuin nappi kirjaisi eri määrän kuin valitsin näyttää.
+                    Text(recipe.locked ? "Avaa Volu Prolla" : "Merkitse syödyksi").font(.headline)
                 }
             }
             .frame(maxWidth: .infinity)
