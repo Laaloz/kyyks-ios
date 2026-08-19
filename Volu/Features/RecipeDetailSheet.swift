@@ -89,10 +89,16 @@ struct RecipeDetailSheet: View {
                         // Kokonaisia annoksia 1–12, sama kuin webissä. Puolikkaat olivat
                         // keksitty tarkkuus: annos on se yksikkö jolla ruoka on mitoitettu.
                         Stepper(value: $servings, in: 1 ... 12, step: 1) {
-                            LabeledContent("Tee annosta") {
+                            LabeledContent("Annoksia") {
                                 Text(servingsText).monospacedDigit()
                             }
                         }
+                    } header: {
+                        // Osion otsikko kattaa sekä annosmäärän että sen alla olevat
+                        // ainesosaryhmät, kuten webissä. Aiemmin "Ainesosat" oli
+                        // liimattu ensimmäisen ryhmän otsikkoon ("Ainesosat · Bataatti"),
+                        // mikä luki kuin ryhmän nimi olisi osa sanaa.
+                        Text("Ainesosat")
                     } footer: {
                         Text("Ainesosien määrät seuraavat valintaa. Syödyksi merkitään aina yksi annos.")
                     }
@@ -111,12 +117,12 @@ struct RecipeDetailSheet: View {
                             }
                         }
                     } header: {
-                        // Annosmäärää ei toisteta: se on valittuna heti yläpuolella,
-                        // ja otsikossa se oli sama luku kahdesti.
+                        // Pelkkä ryhmän nimi: "Ainesosat" on jo annosmäärän otsikkona,
+                        // ja ryhmätön resepti ei tarvitse otsikkoa lainkaan.
                         if let label = group.label {
-                            Text(index == 0 ? "Ainesosat · \(label)" : label)
-                        } else {
-                            Text(index == 0 ? "Ainesosat" : "Muut ainekset")
+                            Text(label)
+                        } else if index > 0 {
+                            Text("Muut ainekset")
                         }
                     }
                 }
