@@ -44,22 +44,28 @@ struct RecipeDetailSheet: View {
         _mealTag = State(initialValue: MealTag(rawValue: recipe.mealTag) ?? .snack)
     }
 
-    private var macros: RecipeMacros { recipe.macrosPerServing.scaled(by: servings) }
-
     var body: some View {
         NavigationStack {
             List {
                 if let url = recipe.imageUrl, let parsed = URL(string: url) {
                     Section {
-                        AsyncImage(url: parsed) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Color.secondary.opacity(0.12)
-                        }
-                        .frame(height: 180)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                        .listRowInsets(EdgeInsets())
+                        // 4:3 kiinteän korkeuden sijaan: sama suhde joka reseptillä ja
+                        // laitteen leveydestä riippumatta.
+                        //
+                        // Muoto tulee läpinäkyvästä taustasta eikä kuvasta: `aspectRatio`
+                        // suoraan kuvalle jää vaikutuksetta, koska `scaledToFill` on jo
+                        // sitonut suhteen kuvan omaan mittaan — lopputulos oli 1:1.
+                        Color.clear
+                            .aspectRatio(4 / 3, contentMode: .fit)
+                            .overlay {
+                                AsyncImage(url: parsed) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Color.secondary.opacity(0.12)
+                                }
+                            }
+                            .clipped()
+                            .listRowInsets(EdgeInsets())
                     } footer: {
                         Text("Kuva on tekoälyllä luotu kuvituskuva.")
                     }
@@ -71,38 +77,49 @@ struct RecipeDetailSheet: View {
                     }
                 }
 
-                Section {
-                    // Annosmäärä ensin: se on se arvo joka muuttaa kaiken muun
-                    // ruudulla, ja kirjaus tehdään sillä.
-                    Stepper(value: $servings, in: 0.5 ... 10, step: 0.5) {
-                        LabeledContent("Annoksia") {
-                            Text(servingsText).monospacedDigit()
+                // Makrot aina yhdelle annokselle. Ne ovat reseptin tunnusluku ja se luku
+                // jolla reseptejä vertaillaan keskenään — annosmäärän mukana heiluva
+                // energialukema ei vertaudu mihinkään.
+                Section("Makrot / annos") {
+                    macroRow("Energia", recipe.macrosPerServing.kcal, "kcal")
+                    macroRow("Proteiini", recipe.macrosPerServing.proteinG, "g")
+                    macroRow("Hiilihydraatit", recipe.macrosPerServing.carbsG, "g")
+                    macroRow("Rasva", recipe.macrosPerServing.fatG, "g")
+                }
+
+                if recipe.ingredients?.isEmpty == false {
+                    Section {
+                        // Kokonaisia annoksia 1–12, sama kuin webissä. Puolikkaat olivat
+                        // keksitty tarkkuus: annos on se yksikkö jolla ruoka on mitoitettu.
+                        Stepper(value: $servings, in: 1 ... 12, step: 1) {
+                            LabeledContent("Tee annosta") {
+                                Text(servingsText).monospacedDigit()
+                            }
                         }
+                    } footer: {
+                        Text("Ainesosien määrät seuraavat valintaa. Syödyksi merkitään aina yksi annos.")
                     }
-                    macroRow("Energia", macros.kcal, "kcal")
-                    macroRow("Proteiini", macros.proteinG, "g")
-                    macroRow("Hiilihydraatit", macros.carbsG, "g")
-                    macroRow("Rasva", macros.fatG, "g")
-                } header: {
-                    Text("Makrot")
                 }
 
                 // Ainesosat reseptin osittain: kastikkeen ainekset erillään pohjasta, koska
-                // niitä myös käsitellään erillään. Sato mukaan otsikkoon, sillä määrät ovat koko
-                // reseptin eivätkä seuraa annosvalitsinta — resepti tehdään kerralla neljälle,
-                // vaikka syödyksi merkitään yksi annos.
+                // niitä myös käsitellään erillään. Määrät seuraavat annosvalitsinta kuten
+                // webissä — sama valitsin kertoo sekä paljonko syötiin että paljonko tehdään.
                 ForEach(Array(recipe.ingredientGroups.enumerated()), id: \.offset) { index, group in
                     Section {
                         ForEach(group.items) { item in
                             LabeledContent(item.name) {
-                                Text(item.amountText).monospacedDigit().foregroundStyle(.secondary)
+                                Text(item.amountText(servings: servings, defaultServings: recipe.defaultServings))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     } header: {
+                        // Annosmäärää ei toisteta: se on valittuna heti yläpuolella,
+                        // ja otsikossa se oli sama luku kahdesti.
                         if let label = group.label {
-                            Text(index == 0 ? "\(ingredientsTitle) · \(label)" : label)
+                            Text(index == 0 ? "Ainesosat · \(label)" : label)
                         } else {
-                            Text(index == 0 ? ingredientsTitle : "Muut ainekset")
+                            Text(index == 0 ? "Ainesosat" : "Muut ainekset")
                         }
                     }
                 }
@@ -184,7 +201,7 @@ struct RecipeDetailSheet: View {
                         Text("Kirjataan…").font(.headline)
                     }
                 } else {
-                    Text(recipe.locked ? "Avaa Volu Prolla" : "Merkitse syödyksi").font(.headline)
+                    Text(recipe.locked ? "Avaa Volu Prolla" : "Merkitse syödyksi (1 annos)").font(.headline)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -205,7 +222,9 @@ struct RecipeDetailSheet: View {
         errorMessage = nil
         defer { isLogging = false }
 
-        switch await onLog(servings, mealTag) {
+        // Aina yksi annos: valitsin kertoo paljonko tehdään, ei paljonko syötiin.
+        // Määrää voi korjata riviltä jälkikäteen.
+        switch await onLog(1, mealTag) {
         case .logged:
             // Näkymä suljetaan vain onnistuneen tallennuksen jälkeen: sulkeutuminen
             // on käyttäjälle kuittaus onnistumisesta.
@@ -216,17 +235,6 @@ struct RecipeDetailSheet: View {
         case .failed:
             errorMessage = "Kirjaus ei onnistunut. Yritä uudelleen."
         }
-    }
-
-    /// Ainesosaotsikko: "Ainesosat (koko resepti, 4 annosta)". Yhden annoksen reseptillä
-    /// tarkenne on pelkkää kohinaa — määrät eivät voi tarkoittaa mitään muuta.
-    private var ingredientsTitle: String {
-        let yieldServings = recipe.defaultServings > 0 ? recipe.defaultServings : 1
-        guard yieldServings != 1 else { return "Ainesosat" }
-        let count = yieldServings == yieldServings.rounded()
-            ? String(Int(yieldServings))
-            : String(format: "%.1f", yieldServings).replacingOccurrences(of: ".", with: ",")
-        return "Ainesosat (koko resepti, \(count) annosta)"
     }
 
     /// Puolikkaat näytetään, kokonaiset ilman desimaalia.

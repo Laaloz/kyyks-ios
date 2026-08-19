@@ -96,18 +96,48 @@ struct RecipeIngredientLine: Decodable, Hashable, Identifiable {
     /// Reseptin osa johon aines kuuluu ("Kastike", "Pohja", "Päälle"). Ilman tätä
     /// monikomponenttireseptistä ei näe mitkä ainekset menevät mihinkin.
     let groupLabel: String?
+    /// Miten määrä muuttuu annosmäärän mukana: "linear", "gentle", "fixed" tai
+    /// "text_only".
+    let scalingMode: String?
 
     var id: String { "\(groupLabel ?? "")-\(name)-\(quantity ?? 0)-\(unit)" }
 
+    /// Määrä annetulle annosmäärälle.
+    ///
+    /// **Sama sääntö kuin webin `getIngredientScalingRatio`** (`lib/nutrition.ts`).
+    /// Se on toistettu tässä, koska annosvalitsin muuttuu napautuksella eikä
+    /// palvelinkierros per napautus ole vaihtoehto — mutta se on toisto:
+    /// **jos muutat toista, muuta molemmat.** `RecipeScalingTests` lukitsee
+    /// nämä neljä tapausta.
+    func scaledQuantity(servings: Double, defaultServings: Double) -> Double? {
+        guard let quantity else { return nil }
+        let base = defaultServings > 0 ? defaultServings : 1
+        let ratio = servings > 0 ? servings / base : 1
+        switch scalingMode {
+        case "linear":
+            return quantity * ratio
+        // Mausteet ja vastaavat eivät kaksinkertaistu annosten mukana: puolella
+        // nopeudella kasvava määrä osuu lähemmäs kuin suora kerroin.
+        case "gentle":
+            return quantity * (ratio >= 1 ? 1 + (ratio - 1) * 0.5 : ratio)
+        default:
+            return quantity
+        }
+    }
+
     /// Määrä ja yksikkö luettavassa muodossa. Kokonaisluvusta jätetään desimaalit
     /// pois: "2 kpl" eikä "2,0 kpl".
-    var amountText: String {
-        guard let quantity else { return "" }
+    func amountText(servings: Double, defaultServings: Double) -> String {
+        guard let scaled = scaledQuantity(servings: servings, defaultServings: defaultServings) else { return "" }
+        return Self.amountText(quantity: scaled, unit: unitLabel)
+    }
+
+    private static func amountText(quantity: Double, unit: String) -> String {
         let rounded = quantity.rounded()
         let number = abs(quantity - rounded) < 0.05
             ? String(Int(rounded))
             : String(format: "%.1f", quantity).replacingOccurrences(of: ".", with: ",")
-        return "\(number) \(unitLabel)"
+        return "\(number) \(unit)"
     }
 
     private var unitLabel: String {

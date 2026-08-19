@@ -69,7 +69,14 @@ struct RecipeLibraryView: View {
         }
         .navigationTitle("Reseptit")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $model.query, prompt: "Hae reseptiä")
+        // Aina näkyvissä: oletuksena hakukenttä piiloutuu vieritettäessä, ja 52
+        // reseptin listassa se jäi löytymättä kun se ei ollut ruudulla silloin kun
+        // sitä olisi tarvittu.
+        .searchable(
+            text: $model.query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Hae reseptiä"
+        )
         .overlay { if model.isLoading && !model.hasContent { ProgressView() } }
         .refreshable { await model.refresh() }
         .sheet(item: $selected) { recipe in
