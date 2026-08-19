@@ -262,6 +262,13 @@ struct ProfileView: View {
                         Button("Hallitse tilausta") { showManageSubscriptions = true }
                     } else if profile.entitlement == .free {
                         Button("Tilaa Volu Pro") { showPaywall = true }
+                        // Palautus kuuluu tänne eikä vain maksumuurin taakse:
+                        // se on juuri se joka on jo maksanut mutta jonka osto ei
+                        // avautunut, eikä häntä saa ohjata ostonäkymään
+                        // löytääkseen palautuksen. Tukisivu neuvoo tämän polun.
+                        Button("Palauta ostot") {
+                            Task { await subscriptions.restore() }
+                        }
                     }
                 } header: {
                     Text("Tilaus")
