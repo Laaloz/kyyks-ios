@@ -80,16 +80,63 @@ extension CachedModel {
     /// epäonnistunut, ja ainoa keino saada liike näkyviin oli käynnistää
     /// sovellus uudelleen.
     ///
-    /// Yksi uusintayritys ennen luovuttamista: tavallisin syy on hetkellinen
-    /// katko, ja verkko on juuri äsken toiminut kun muutos meni läpi.
+    /// Uusintayritykset on porrastettu virheen laadun mukaan, koska ilmoitus
+    /// tuli usein tilanteessa jossa mikään ei ollut rikki:
+    ///
+    /// - **Peruutus ei ole virhe.** Näkymän sulkeutuminen peruu sen `.task`in,
+    ///   jolloin kesken oleva haku heittää `URLError.cancelled`in. Käyttäjä
+    ///   ehti jo pois siitä näkymästä jota ilmoitus koskisi.
+    /// - **Katkennut yhteys korjaantuu heti.** iOS uusiokäyttää HTTP-yhteyttä,
+    ///   jonka palvelin on jo sulkenut (`networkConnectionLost`); se osuu
+    ///   nimenomaan tähän kohtaan, koska muutos ja sitä seuraava haku lähtevät
+    ///   peräkkäin. Uusi yritys avaa uuden yhteyden ja menee läpi — mutta vain
+    ///   jos sitä ei odoteta 1,5 sekuntia turhaan.
+    /// - **Palvelimen virhe ei korjaannu odottamalla.** 4xx kerrotaan heti.
     func refreshAfterChange() async {
-        if await refreshCapturingError() == nil { return }
-        // Odotus oli 600 ms. Se riittää hetkelliseen katkoon, muttei siihen
-        // että palvelin on hidas — jolloin molemmat yritykset osuvat samaan
-        // ruuhkaan ja käyttäjä näkee virheen vaikka mikään ei ole rikki.
-        try? await Task.sleep(for: .milliseconds(1500))
-        guard let error = await refreshCapturingError() else { return }
-        errorMessage = Self.refreshFailureText(for: error)
+        for delay in Self.retryDelays {
+            guard let error = await refreshCapturingError() else { return }
+
+            if Self.isCancellation(error) { return }
+            guard Self.isWorthRetrying(error), let delay else {
+                errorMessage = Self.refreshFailureText(for: error)
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(delay))
+            // Odotuksen peruuntuminen tarkoittaa että näkymä on suljettu.
+            if Task.isCancelled { return }
+        }
+
+        if let error = await refreshCapturingError() {
+            errorMessage = Self.refreshFailureText(for: error)
+        }
+    }
+
+    /// Odotukset uusintayritysten välissä. Ensimmäinen on lyhyt tarkoituksella:
+    /// katkennut yhteys korjaantuu heti uudella yhteydellä, ja 1,5 s odotus
+    /// ehti näyttää jumilta. Viimeisen `nil` päättää ketjun.
+    private static var retryDelays: [Int?] { [400, 1500] }
+
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        return (error as? URLError)?.code == .cancelled
+    }
+
+    /// Kannattaako yrittää uudelleen. Verkon hetkelliset viat kannattaa,
+    /// palvelimen kieltäytyminen ei — 401 ja 404 vastaavat samoin sekunnin
+    /// päästä, ja odotus vain viivyttää ilmoitusta.
+    static func isWorthRetrying(_ error: Error) -> Bool {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .transport: return true
+            case .paymentRequired: return false
+            // 5xx on palvelimen hetkellinen tila, 4xx ei.
+            case .status(let code, _): return code >= 500
+            }
+        }
+        // Muut kuin peruutus kannattaa yrittää uudelleen: verkkovirheiden kirjo on
+        // laaja ja valkoinen lista jättäisi ulkopuolelleen juuri sen koodin jota ei
+        // osattu odottaa. Peruutus on ainoa jonka uusiminen on varmasti turhaa.
+        return (error as? URLError)?.code != .cancelled
     }
 
     /// Syy mukaan ilmoitukseen: aikakatkaisu, palvelimen virhe ja kadonnut
