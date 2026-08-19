@@ -120,6 +120,18 @@ struct ExerciseSearchResponse: Decodable {
     let exercises: [ExerciseSearchResult]
 }
 
+/// Tarkoituksella vain nimi ja luokittelu — ei mediaa.
+///
+/// Palvelin palauttaa liikkeille myös animaation, kuvat ja ohjeet, ja web
+/// näyttää ne. Appi ei: sen liikemedia on peräisin lähteistä joiden
+/// kaupallinen käyttöoikeus on epäselvä, ja appi on maksullinen tuote.
+/// Kentän puuttuminen tästä tyypistä *on* se raja — mediaa ei suodateta
+/// missään muualla, joten `animationUrl`-kentän lisääminen tähän toisi
+/// kuvat käyttöliittymään huomaamatta.
+///
+/// Ennen kuin lisäät median: varmista lähteen lisenssi (ks. `animation_source`
+/// kannassa). Sekakattavuus on myös oma ongelmansa — mediaa on vain noin
+/// joka kymmenennellä liikkeellä, mikä saa loput näyttämään keskeneräisiltä.
 struct ExerciseSearchResult: Decodable, Identifiable {
     let id: String
     let name: String
