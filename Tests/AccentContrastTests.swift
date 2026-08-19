@@ -9,8 +9,12 @@ import UIKit
 /// usein tummalla mustaa vasten liian tumma, ja sama toisin päin.
 ///
 /// Testi laskee WCAG-kontrastisuhteen jokaiselle sävylle omaa taustaansa vasten.
-/// Sama luku pätee kahteen käyttöön: linkkitekstiin taustan päällä ja
-/// valkoiseen tekstiin korostetun napin päällä.
+/// Sama luku pätee kahteen käyttöön: linkkitekstiin taustan päällä ja napin
+/// tekstiin korostetun napin päällä — **kun** napin teksti on systemBackground
+/// (valkoinen vaaleassa, musta tummassa), minkä `prominentButtonLabel()`
+/// asettaa. Valkoinen teksti tumman tilan vaalealla aksentilla jäisi ~2:1
+/// suhteeseen, eikä tämä testi sitä paria mittaa — älä poista modifieria
+/// napeista siinä uskossa että testi kattaisi sen.
 struct AccentContrastTests {
     /// WCAG 2.1: tavallisen tekstin alaraja.
     private let vaadittuSuhde = 4.5

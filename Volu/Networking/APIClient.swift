@@ -5,6 +5,16 @@ import OSLog
 /// (Console.app / Xcode: subsystem "fi.volu.app", category "api") —
 /// hitaat reitit havaitaan heti eikä arvailla.
 struct APIClient {
+    /// Kyselyparametrin arvon prosenttikoodaus. `.urlQueryAllowed` ei kelpaa:
+    /// se sallii koko kyselyosan merkit, myös & = ja +, jolloin syöte voi
+    /// katkaista parametrin ja + muuttuu palvelimella välilyönniksi. Tässä
+    /// koodataan kaikki paitsi RFC 3986:n unreserved-merkit.
+    static func queryValue(_ value: String) -> String {
+        let unreserved = CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
+    }
+
     private let auth: AuthManager
     private let session: URLSession
     private static let log = Logger(subsystem: "fi.volu.app", category: "api")

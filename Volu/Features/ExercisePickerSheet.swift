@@ -69,8 +69,7 @@ struct ExercisePickerSheet: View {
             isSearching = true
             defer { isSearching = false }
             do {
-                let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed
-                let data = try await APIClient(auth: auth).get("/api/exercises/search?q=\(encoded)")
+                let data = try await APIClient(auth: auth).get("/api/exercises/search?q=\(APIClient.queryValue(trimmed))")
                 guard !Task.isCancelled else { return }
                 results = (try? JSONDecoder().decode(ExerciseSearchResponse.self, from: data))?.exercises ?? []
             } catch {

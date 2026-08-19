@@ -97,3 +97,17 @@ extension UIColor {
         )
     }
 }
+
+extension View {
+    /// Korostusnapin (`.borderedProminent`) tekstiväri.
+    ///
+    /// Oletusarvoinen valkoinen teksti toimii vaaleassa tilassa, mutta tumman
+    /// tilan aksentit ovat tarkoituksella vaaleita (jotta ne kantavat tekstinä
+    /// mustaa taustaa vasten), ja valkoinen niiden päällä jää ~1,6–2,0:1
+    /// kontrastiin. systemBackground on valkoinen vaaleassa ja musta tummassa
+    /// tilassa — täsmälleen ne parit, jotka AccentContrastTests todentaa
+    /// jokaiselle aksentille (≥ 4,5:1).
+    func prominentButtonLabel() -> some View {
+        foregroundStyle(Color(.systemBackground))
+    }
+}

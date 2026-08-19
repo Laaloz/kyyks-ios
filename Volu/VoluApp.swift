@@ -88,6 +88,11 @@ struct VoluApp: App {
     /// kirjautumisnäkymä ovat oman esityksensä juuria, eivätkä perisi sitä
     /// välilehdiltä.
     @AppStorage(AccentSetting.storageKey) private var accent = AccentSetting.green
+    /// Onko juuren jaetuissa malleissa jonkun käyttäjän dataa. Uloskirjautuminen
+    /// ei pura App-rakennetta, joten ilman nollausta saman ajon seuraava
+    /// kirjautuja näkisi edellisen nimen, treenit ja suoritukset muistista
+    /// (hasLoaded esti uudelleenlatauksenkin).
+    @State private var modelsUserId: String?
 
     private enum Tab { case today, workouts, nutrition, body }
 
@@ -112,6 +117,17 @@ struct VoluApp: App {
                     Color.clear
                 case .signedOut:
                     LoginView(auth: auth)
+                        // Jaetut mallit nollataan täällä eikä kirjautumisessa:
+                        // kirjautumisen puolella nollaus kilpailisi välilehtien
+                        // omien .task-latausten kanssa (uusi malli voisi jäädä
+                        // lataamatta, koska näkymän identiteetti ei vaihdu).
+                        // Tässä TabView on jo purettu, joten järjestys on taattu.
+                        .onAppear {
+                            guard modelsUserId != nil else { return }
+                            modelsUserId = nil
+                            today = TodayModel()
+                            programs = ProgramsModel()
+                        }
                 case .signedIn(let userId):
                     // Tänään ja Treeni näyttävät samaa dataa samasta reitistä.
                     // Yhteinen malli: yksi haku kahden sijaan, ja toisessa
@@ -135,9 +151,14 @@ struct VoluApp: App {
                     // Tilaustila haetaan kerran kirjautumisen jälkeen ja
                     // jaetaan ympäristönä: maksumuuri on Ravinnossa, tilauksen
                     // hallinta Profiilissa, eikä kumpikaan omista tilaa.
+                    // Identiteetti käyttäjästä: välilehtien omat @State-mallit
+                    // (Ravinto, Keho, Profiili) luodaan uudelleen kun käyttäjä
+                    // vaihtuu, eikä niiden tarvitse itse siivota mitään.
+                    .id(userId)
                     .environment(subscriptions)
                     .environment(health)
                     .environment(restTimer)
+                    .environment(push)
                     .environment(NotificationRouter.shared)
                     // Välilehden vaihto tässä, lomakkeen avaus Kehossa: näkymä
                     // omistaa oman sheettinsä, eikä sitä kannata ohjata ulkoa.
@@ -145,6 +166,7 @@ struct VoluApp: App {
                         if NotificationRouter.shared.target == "measurement" { selectedTab = .body }
                     }
                     .task(id: userId) {
+                        modelsUserId = userId
                         subscriptions.configure(auth: auth, userId: userId)
                         await subscriptions.start()
                     }

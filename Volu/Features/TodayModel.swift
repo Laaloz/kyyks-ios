@@ -9,8 +9,10 @@ final class TodayModel: CachedModel {
     private(set) var currentUser: UserProfile?
     private(set) var measurementReminder: MeasurementReminder?
     private(set) var workouts: [ScheduledWorkout] = []
-    /// Kaikki oheisaktiviteetit uusin ensin. Näkymät rajaavat itse sen mitä
-    /// näyttävät — Tänään näyttää muutaman, Treeni koko listan pyydettäessä.
+    /// Oheisaktiviteetit uusin ensin, palvelimen rajaamana (50 tuoreinta —
+    /// /api/mobile/today on kevyt bootstrap, ei historia-arkisto). Näkymät
+    /// rajaavat itse sen mitä näyttävät: Tänään muutaman, Treeni loput
+    /// pyydettäessä. Treenin "Näytä kaikki" tarkoittaa siis tätä ikkunaa.
     private(set) var activities: [ExtraActivity] = []
     var errorMessage: String?
     var isLoading = false

@@ -76,6 +76,7 @@ struct DurationEditSheet: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .controlSize(.large)
                 .disabled(minutes == nil || isSaving)
 

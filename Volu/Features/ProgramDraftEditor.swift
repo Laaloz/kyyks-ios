@@ -149,6 +149,7 @@ struct ProgramDraftEditor<ExtraSections: View>: View {
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .disabled(!draft.isSavable || isSaving)
 
                 // Valmistelu etukäteen: ohjelma tallentuu koskematta siihen,

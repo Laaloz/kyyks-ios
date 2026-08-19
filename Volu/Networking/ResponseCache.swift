@@ -26,7 +26,11 @@ actor ResponseCache {
     }
 
     func write(_ key: String, data: Data) {
-        try? data.write(to: fileURL(for: key), options: .atomic)
+        // Välimuistissa on terveysdataa (mitat, ravintopäivät, treenihistoria)
+        // selväkielisenä. completeUnlessOpen: uusi kirjoitus onnistuu myös
+        // lukittuna, mutta levyllä oleva ei ole luettavissa ilman avausta —
+        // completeFileProtection hylkäisi lukitushetkeen osuvan kirjoituksen.
+        try? data.write(to: fileURL(for: key), options: [.atomic, .completeFileProtectionUnlessOpen])
     }
 
     func remove(_ key: String) {

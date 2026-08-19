@@ -120,6 +120,7 @@ struct OnboardingView: View {
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .disabled(isSaving || !canSubmit)
                 .padding(.horizontal, 16)
                 // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa

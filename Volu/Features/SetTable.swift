@@ -158,9 +158,13 @@ private struct SetRow: View {
 
             Button {
                 // Kirjoitettu mutta vahvistamaton arvo mukaan: kuittaus kesken
-                // kirjoituksen ei saa hukata juuri näppäiltyä lukua.
-                commit()
-                onToggle()
+                // kirjoituksen ei saa hukata juuri näppäiltyä lukua. Kirjaus
+                // merkitsee sarjan jo tehdyksi (kirjaus = tehty), joten toggle
+                // ajetaan vain kun mitään ei ollut kirjattavana — muuten se
+                // peruisi juuri syntyneen kuittauksen saman tien.
+                if !commit() {
+                    onToggle()
+                }
             } label: {
                 // Kuittaus korostusvärillä, ei vihreällä: väri on varattu
                 // tavoitepoikkeamalle, ja muoto kertoo tilan.
@@ -236,11 +240,15 @@ private struct SetRow: View {
 
     /// Tyhjä kenttä on nil eikä nolla: nolla toistoa on eri asia kuin
     /// kirjaamaton sarja, ja palvelin erottaa ne toisistaan.
-    private func commit() {
+    /// Palauttaa kirjattiinko jotain — kuittausnappi tarvitsee tiedon, koska
+    /// kirjaus merkitsee sarjan tehdyksi eikä togglea saa ajaa sen perään.
+    @discardableResult
+    private func commit() -> Bool {
         let reps = Self.parse(repsText)
         let load = Self.parse(loadText)
-        guard reps != log.actualReps || load != log.actualLoad else { return }
+        guard reps != log.actualReps || load != log.actualLoad else { return false }
         onCommit(reps, load)
+        return true
     }
 
     private var targetLoadPlaceholder: String {

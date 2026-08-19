@@ -84,6 +84,7 @@ struct DeleteAccountSheet: View {
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .tint(.red)
                 .disabled(!canDelete || isDeleting)
                 .padding(.horizontal, 16)

@@ -207,6 +207,7 @@ struct RecipeDetailSheet: View {
             .padding(.vertical, 14)
         }
         .buttonStyle(.borderedProminent)
+        .prominentButtonLabel()
         .disabled(isLogging)
         .padding(.horizontal, 16)
         // Väli myös ylös: ilman sitä tausta alkaa napin reunasta ja näyttää

@@ -126,6 +126,7 @@ struct PaywallView: View {
                         .padding(.vertical, 14)
                     }
                     .buttonStyle(.borderedProminent)
+                    .prominentButtonLabel()
                     .disabled(store.isPurchasing)
                     .padding(.horizontal, 16)
                     // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa

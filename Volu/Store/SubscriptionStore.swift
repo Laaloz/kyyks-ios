@@ -47,6 +47,11 @@ final class SubscriptionStore {
     private(set) var errorMessage: String?
 
     private var api: APIClient?
+    /// Kenen tunnisteilla store on konfiguroitu. Pelkkä `api == nil` -vahti
+    /// sitoi accountTokenin ensimmäiseen kirjautujaan koko käynnistyksen
+    /// ajaksi, jolloin saman ajon toisen käyttäjän osto olisi kirjautunut
+    /// edellisen tilille.
+    private var configuredUserId: String?
     /// Volu-tilin tunniste liitetään ostoon `appAccountToken`ina. Apple
     /// välittää sen takaisin transaktiossa ja ilmoituksissa, jolloin osto on
     /// yhdistettävissä tiliin myös silloin kun laitteen kuittaus ei ole tullut
@@ -64,9 +69,18 @@ final class SubscriptionStore {
     }
 
     func configure(auth: AuthManager, userId: String) {
-        guard api == nil else { return }
-        api = APIClient(auth: auth)
+        guard userId != configuredUserId else { return }
+        if configuredUserId != nil {
+            // Käyttäjä vaihtui samassa ajossa: edellisen taso ja tilaus eivät
+            // saa näkyä uudelle kirjautujalle ennen kuin refresh valmistuu.
+            entitlement = .free
+            subscription = nil
+            errorMessage = nil
+        }
+        configuredUserId = userId
+        if api == nil { api = APIClient(auth: auth) }
         accountToken = UUID(uuidString: userId)
+        guard updatesTask == nil else { return }
 
         // Uusiutuminen, palautus ja toisella laitteella tehty osto saapuvat
         // tätä kautta myös silloin kun ostonäkymä ei ole auki — kuuntelija

@@ -51,7 +51,8 @@ actor PendingSetStore {
             return
         }
         guard let data = try? JSONEncoder().encode(patches) else { return }
-        try? data.write(to: url, options: .atomic)
+        // Sama suojaus kuin ResponseCachessa: kirjaukset ovat terveysdataa.
+        try? data.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
     }
 
     /// Uloskirjautuminen: toisen käyttäjän kirjaukset eivät saa jäädä laitteelle.

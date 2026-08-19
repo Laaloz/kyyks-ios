@@ -35,6 +35,7 @@ struct ProfileView: View {
     @State private var showManageSubscriptions = false
     @Environment(SubscriptionStore.self) private var subscriptions
     @Environment(HealthManager.self) private var health
+    @Environment(PushManager.self) private var push
     @AppStorage(HealthExportSetting.key) private var exportWorkouts = HealthExportSetting.defaultValue
     @FocusState private var focused: Field?
 
@@ -359,6 +360,7 @@ struct ProfileView: View {
                     .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .disabled(model.isSaving)
                 .padding(.horizontal, 16)
                 // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa
@@ -434,6 +436,10 @@ struct ProfileView: View {
     }()
 
     private func signOut() async {
+        // Laite irti tilistä ennen istunnon purkua: poistokutsu tarvitsee
+        // vielä voimassa olevan tokenin, ja ilman tätä palvelin lähettäisi
+        // edellisen käyttäjän muistutukset laitteen seuraavalle kirjautujalle.
+        await push.unregister()
         await ResponseCache.shared.clear()
         // Myös lähettämättömät sarjakirjaukset: ne ovat käyttäjän dataa eivätkä
         // saa jäädä laitteelle seuraavalle kirjautujalle.

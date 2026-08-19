@@ -97,6 +97,7 @@ struct LoginView: View {
                     .padding(.vertical, 16)
                 }
                 .buttonStyle(.borderedProminent)
+                .prominentButtonLabel()
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .disabled(isSubmitting || !canSubmit)
 

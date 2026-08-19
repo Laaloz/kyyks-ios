@@ -14,6 +14,11 @@ struct ProgramTemplate: Decodable, Identifiable {
         let exercises: [TemplateExercise]
     }
 
+    /// Virhesietoinen kuten AppState: kentät tulevat JSONB-sarakkeesta jota
+    /// palvelin ei validoi, joten yksi vajaa legacy-rivi ilman exerciseName-
+    /// tai restSeconds-avainta ei saa kaataa koko vastauksen dekoodausta —
+    /// se piilottaisi kaikki ohjelmat ilman virheilmoitusta. Oletukset ovat
+    /// samat kuin palvelimen omat fallbackit.
     struct TemplateExercise: Decodable {
         let exerciseId: String
         let exerciseName: String
@@ -21,6 +26,30 @@ struct ProgramTemplate: Decodable, Identifiable {
         let targetRepsMin: Int
         let targetRepsMax: Int
         let restSeconds: Int
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            exerciseId = try container.decodeIfPresent(String.self, forKey: .exerciseId) ?? ""
+            exerciseName = try container.decodeIfPresent(String.self, forKey: .exerciseName) ?? "Liike"
+            setCount = try container.decodeIfPresent(Int.self, forKey: .setCount) ?? 0
+            let repsMin = try container.decodeIfPresent(Int.self, forKey: .targetRepsMin) ?? 8
+            targetRepsMin = repsMin
+            targetRepsMax = try container.decodeIfPresent(Int.self, forKey: .targetRepsMax) ?? max(repsMin, 12)
+            restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
+        }
+
+        init(exerciseId: String, exerciseName: String, setCount: Int, targetRepsMin: Int, targetRepsMax: Int, restSeconds: Int) {
+            self.exerciseId = exerciseId
+            self.exerciseName = exerciseName
+            self.setCount = setCount
+            self.targetRepsMin = targetRepsMin
+            self.targetRepsMax = targetRepsMax
+            self.restSeconds = restSeconds
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case exerciseId, exerciseName, setCount, targetRepsMin, targetRepsMax, restSeconds
+        }
     }
 }
 

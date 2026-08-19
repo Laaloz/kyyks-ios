@@ -61,8 +61,12 @@ final class NutritionModel: CachedModel {
     }
 
     func shiftDay(by days: Int) async {
-        guard let shifted = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) else { return }
-        if days > 0 && shifted > Date.now { return }
+        let calendar = Calendar.current
+        guard let shifted = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        // Vertailu päivinä eikä hetkinä: selectedDate kantaa avaushetken
+        // kellonajan, joten hetkivertailu esti keskiyön jälkeen siirtymisen
+        // oikeaan kuluvaan päivään (23.50 + 1 vrk > nyt).
+        if days > 0 && calendar.startOfDay(for: shifted) > calendar.startOfDay(for: .now) { return }
         selectedDate = shifted
         day = nil
         await load()
