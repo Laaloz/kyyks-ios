@@ -29,9 +29,28 @@ avainsanoissa, koska nimi indeksoidaan muutenkin.
 
 ## Kuvat (`screenshots/fi-FI/iphone-6.9/`)
 
-Kahdeksan kuvaa, 1320 × 2868 px (iPhone 17 Pro Max, @3x). **Tämä on ainoa
-pakollinen koko**: sovellus on iPhone-only (`TARGETED_DEVICE_FAMILY: "1"`),
-ja Apple skaalaa 6.9" kuvat pienemmille laitteille itse.
+Sama kahdeksan kuvan sarja kahtena kokona. Sovellus on iPhone-only
+(`TARGETED_DEVICE_FAMILY: "1"`), joten iPad- tai Watch-kuvia ei tarvita.
+
+- `iphone-6.9/` — 1320 × 2868 px, simulaattorista otetut alkuperäiset
+  (iPhone 17 Pro Max, @3x).
+- `iphone-6.5/` — 1284 × 2778 px, skaalattu alkuperäisistä.
+
+**Kumpi kelpaa, riippuu siitä minkä paikan App Store Connect näyttää.**
+Lomakkeen iPhone-välilehti tarjosi 19.8.2026 vain 6.5" -paikkaa
+(1242 × 2688, 2688 × 1242, 1284 × 2778 tai 2778 × 1284) ja hylkäsi 6.9"
+kuvat väärän kokoisina — käytä silloin `iphone-6.5/`-sarjaa. 6.9"
+alkuperäiset voi ladata **View All Sizes in Media Manager** -näkymästä.
+
+Skaalaus venyttää kuvaa pystysuunnassa 0,4 % (kuvasuhde 0,4603 → 0,4622).
+Ero on silmällä näkymätön, mutta jos kuvat otetaan joskus uudelleen, ota ne
+suoraan 6.5" simulaattorilla (iPhone 11 Pro Max) niin venytystä ei tule.
+
+Uusinta samalle koolle:
+
+```bash
+for f in iphone-6.9/*.png; do sips -z 2778 1284 "$f" --out "iphone-6.5/$(basename $f)"; done
+```
 
 Suositeltu järjestys App Store Connectiin (kolme ensimmäistä näkyy
 hakutuloksissa, joten vahvin tarina ensin):
