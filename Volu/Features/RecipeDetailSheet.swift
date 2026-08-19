@@ -80,11 +80,8 @@ struct RecipeDetailSheet: View {
                 // Makrot aina yhdelle annokselle. Ne ovat reseptin tunnusluku ja se luku
                 // jolla reseptejä vertaillaan keskenään — annosmäärän mukana heiluva
                 // energialukema ei vertaudu mihinkään.
-                Section("Makrot / annos") {
-                    macroRow("Energia", recipe.macrosPerServing.kcal, "kcal")
-                    macroRow("Proteiini", recipe.macrosPerServing.proteinG, "g")
-                    macroRow("Hiilihydraatit", recipe.macrosPerServing.carbsG, "g")
-                    macroRow("Rasva", recipe.macrosPerServing.fatG, "g")
+                Section {
+                    MacroEnergySplit(macros: recipe.macrosPerServing, caption: "kcal / annos")
                 }
 
                 if recipe.ingredients?.isEmpty == false {
@@ -244,9 +241,4 @@ struct RecipeDetailSheet: View {
             : String(format: "%.1f", servings).replacingOccurrences(of: ".", with: ",")
     }
 
-    private func macroRow(_ label: String, _ value: Double, _ unit: String) -> some View {
-        LabeledContent(label) {
-            Text("\(Int(value.rounded())) \(unit)").monospacedDigit().foregroundStyle(.secondary)
-        }
-    }
 }
