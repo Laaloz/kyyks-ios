@@ -7,6 +7,9 @@ struct PaywallView: View {
     let store: SubscriptionStore
     /// Mikä toiminto törmäsi lukkoon; kerrotaan otsikon alla.
     var reason = "AI-ruoka-arvio kuuluu Pro-tilaukseen."
+    /// Mistä näkymä avattiin. Sama muuri tulee kahdesta hyvin eri tilanteesta —
+    /// kiintiön loppumisesta ja profiilin selailusta — eikä niitä voi erottaa jälkikäteen.
+    var source: FunnelEvent.Source = .aiEstimate
 
     @Environment(\.dismiss) private var dismiss
     @State private var selected: Product?
@@ -133,6 +136,9 @@ struct PaywallView: View {
                 }
             }
             .task {
+                // Hinnan näkeminen on maksupolun se vaihe, josta ei jää kantaan mitään jälkeä
+                // ellei ostoa synny.
+                store.log(.paywallViewed, source: source)
                 await store.loadProducts()
                 // Halvin vaihtoehto valmiiksi valituksi: näkymä ei jää
                 // toimettomaksi, mutta valinta on silti käyttäjän.

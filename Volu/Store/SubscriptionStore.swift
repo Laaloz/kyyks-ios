@@ -57,6 +57,12 @@ final class SubscriptionStore {
 
     var unlocksPaidFeatures: Bool { entitlement.unlocksPaidFeatures }
 
+    /// Maksupolun seuranta. Näkymillä ei ole omaa APIClientiä, ja tilaus on juuri se polku jonka
+    /// pudotuskohtia mitataan — kirjaus kulkee siksi tämän kautta.
+    func log(_ event: FunnelEvent, source: FunnelEvent.Source? = nil) {
+        api?.log(event, source: source)
+    }
+
     func configure(auth: AuthManager, userId: String) {
         guard api == nil else { return }
         api = APIClient(auth: auth)
@@ -99,6 +105,10 @@ final class SubscriptionStore {
         errorMessage = nil
         defer { phase = .idle }
 
+        // Ero tämän ja syntyneen tilausrivin välillä on ainoa mittari Applen omassa
+        // ostodialogissa putoamiselle — sitä ei näy kannassa mistään muualta.
+        log(.purchaseStarted)
+
         do {
             // Ilman tunnistetta ostoa ei estetä: se on jäljitettävyyttä, ei
             // ehto. Supabasen id on UUID, joten muunnos onnistuu normaalisti.
@@ -111,7 +121,7 @@ final class SubscriptionStore {
                 phase = .verifying
                 await handle(verification)
             case .userCancelled:
-                break
+                log(.purchaseCancelled)
             case .pending:
                 // Esim. Ask to Buy: osto valmistuu myöhemmin ja saapuu
                 // Transaction.updates-kuuntelijaan.

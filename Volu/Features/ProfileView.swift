@@ -332,7 +332,7 @@ struct ProfileView: View {
             // näyttämään ilmaistasoa juuri ostaneelle.
             Task { await model.refreshAfterChange() }
         }) {
-            PaywallView(store: subscriptions, reason: "Avaa AI-ruoka-arvio ja tue kehitystä.")
+            PaywallView(store: subscriptions, reason: "Avaa AI-ruoka-arvio ja tue kehitystä.", source: .profile)
         }
         .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .sheet(isPresented: $showDelete) {

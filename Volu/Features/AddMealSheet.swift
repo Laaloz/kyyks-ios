@@ -63,7 +63,7 @@ struct AddMealSheet: View {
             }
         }
         .sheet(isPresented: $model.needsSubscription) {
-            PaywallView(store: subscriptions, reason: model.paywallMessage)
+            PaywallView(store: subscriptions, reason: model.paywallMessage, source: .aiEstimate)
         }
         .onChange(of: subscriptions.entitlement) { _, entitlement in
             // Onnistuneen oston jälkeen arvio jatkuu siitä mihin se jäi, ilman
@@ -214,8 +214,12 @@ final class AddMealModel {
     private var planDate = ""
 
     func configure(auth: AuthManager, planDate: String) {
-        api = APIClient(auth: auth)
+        let client = APIClient(auth: auth)
+        api = client
         self.planDate = planDate
+        // Näkymän avaus kirjataan, koska pelkkä arvioiden määrä ei erota kahta hyvin erilaista
+        // syytä nollakäytölle: ominaisuutta ei löydetä, vai löydetään muttei käytetä.
+        client.log(.aiSheetOpened, source: .nutrition)
     }
 
     func warmUp() async {
