@@ -57,6 +57,14 @@ struct RecipeLibraryView: View {
                     Text("Reseptikuvat ovat tekoälyllä luotuja kuvituskuvia.")
                 }
             }
+
+            // Kelluvan välilehtipalkin alle jää tilaa, ettei viimeinen rivi jää sen alle.
+            Section {
+                Color.clear
+                    .frame(height: 44)
+                    .listRowBackground(Color.clear)
+            }
+            .listSectionSpacing(0)
         }
         .navigationTitle("Reseptit")
         .navigationBarTitleDisplayMode(.inline)

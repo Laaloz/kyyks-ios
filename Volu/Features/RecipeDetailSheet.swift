@@ -30,7 +30,10 @@ struct RecipeDetailSheet: View {
         self.onLog = onLog
         self.onLogged = onLogged
         self.onPaywall = onPaywall
-        _servings = State(initialValue: recipe.defaultServings > 0 ? recipe.defaultServings : 1)
+        // Yksi annos, ei reseptin satoa. `defaultServings` kertoo montako annosta resepti antaa
+        // (esim. 4), ja sillä avattuna näkymä näytti 2 088 kcal heti sen jälkeen kun käyttäjä
+        // napautti korttia jossa luki 522 kcal. Kirjattava määrä on se mitä syödään.
+        _servings = State(initialValue: 1)
         _mealTag = State(initialValue: MealTag(rawValue: recipe.mealTag) ?? .snack)
     }
 
@@ -78,7 +81,10 @@ struct RecipeDetailSheet: View {
                 }
 
                 if let ingredients = recipe.ingredients, !ingredients.isEmpty {
-                    Section("Ainesosat") {
+                    // Sato mukaan otsikkoon: ainesosat ovat koko reseptin määrät eivätkä seuraa
+                    // annosvalitsinta, joka kertoo montako annosta syötiin. Ilman tätä "Annoksia 1"
+                    // ja "520 g jauhelihaa" näyttivät ristiriidalta.
+                    Section("Ainesosat (\(yieldText))") {
                         ForEach(ingredients) { item in
                             LabeledContent(item.name) {
                                 Text(item.amountText).monospacedDigit().foregroundStyle(.secondary)
@@ -191,6 +197,15 @@ struct RecipeDetailSheet: View {
         case .failed:
             errorMessage = "Kirjaus ei onnistunut. Yritä uudelleen."
         }
+    }
+
+    /// Reseptin sato: "koko resepti, 4 annosta".
+    private var yieldText: String {
+        let yieldServings = recipe.defaultServings > 0 ? recipe.defaultServings : 1
+        let count = yieldServings == yieldServings.rounded()
+            ? String(Int(yieldServings))
+            : String(format: "%.1f", yieldServings).replacingOccurrences(of: ".", with: ",")
+        return "koko resepti, \(count) annosta"
     }
 
     /// Puolikkaat näytetään, kokonaiset ilman desimaalia.
