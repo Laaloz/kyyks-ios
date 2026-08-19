@@ -27,7 +27,23 @@ final class HealthManager {
         case denied
     }
 
-    private(set) var availability: Availability = .notDetermined
+    private(set) var availability: Availability
+
+    /// Onko lupakysely näytetty tällä laitteella aiemmin.
+    ///
+    /// iOS ei kerro lukuoikeuden tilaa, joten sitä ei voi kysyä käynnistyksessä
+    /// — mutta *oman* kyselymme näyttäminen on meidän tietomme. Ilman tätä
+    /// jokainen käynnistys alkoi tilasta `.notDetermined`, ja käyttäjä joka oli
+    /// jo yhdistänyt näki "Yhdistä Apple Health" -napin siihen asti kunnes
+    /// kyselyt vastasivat. Nappi kehotti tekemään jo tehdyn asian uudelleen.
+    private static let didRequestKey = "health.didRequestAuthorization"
+
+    init() {
+        let asked = UserDefaults.standard.bool(forKey: Self.didRequestKey)
+        availability = HKHealthStore.isHealthDataAvailable()
+            ? (asked ? .asked : .notDetermined)
+            : .unavailable
+    }
     /// Onko yksikään kysely palauttanut dataa tämän käynnistyksen aikana.
     ///
     /// Tämä erottaa "lupa evätty" ja "dataa ei ole" toisistaan sen verran kuin
@@ -129,6 +145,7 @@ final class HealthManager {
         }
         do {
             try await store.requestAuthorization(toShare: [], read: readTypes)
+            UserDefaults.standard.set(true, forKey: Self.didRequestKey)
             availability = .asked
         } catch {
             Self.log.error("HealthKit-lupa epäonnistui: \(error.localizedDescription, privacy: .public)")

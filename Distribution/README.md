@@ -36,7 +36,8 @@ ja Apple skaalaa 6.9" kuvat pienemmille laitteille itse.
 Suositeltu järjestys App Store Connectiin (kolme ensimmäistä näkyy
 hakutuloksissa, joten vahvin tarina ensin):
 
-1. `02-treeni.png` — sarjan kirjaus, toistot ja kuormat
+1. `02-treeni.png` — sarjan kirjaus: viime kerran arvot, esitäytetyt
+   toistot ja kuormat sekä lepoajastin
 2. `03-ravinto.png` — päivän energia ja makrot
 3. `08-ai-arvio.png` — tekoälyn tekemä ateria-arvio (Pron kärki)
 4. `01-tanaan.png` — päivän yhteenveto, askeleet ja yöuni
@@ -52,6 +53,9 @@ omalta tililtä. Kaksi asiaa on siksi hoidettu erikseen:
   sovelluksessa ei voi muokata. Nimi vaihdettiin kannassa kuvan ajaksi
   ("Mikko Laine") ja palautettiin heti perään. Jos kuva otetaan uudelleen,
   tee sama — muuten kauppasivulle päätyy oikea nimi.
+- **Treenikuvan treeni on aloitettu kuvaa varten ja poistettu heti perään.**
+  "Viimeksi"-sarake täyttyy vasta kun treeni on aloitettu ohjelmasta, joten
+  valmiiksi kirjatusta treenistä ei saa kuvaa jossa vertailuarvot näkyvät.
 - **Apple Health -kortti näyttää dataa.** Simulaattorin Health-sovellukseen
   syötettiin käsin askeleet (8 432) ja yksi yö unta (7 h 1 min). Ilman niitä
   kortissa lukee "Apple Healthista ei saatu tietoja", mikä lukee kuvassa

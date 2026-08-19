@@ -93,7 +93,16 @@ struct TodayView: View {
                             // tyhjä tulos on kerrottava epävarmana: se voi olla
                             // joko puuttuva lupa tai puuttuva data. Väite
                             // "yhdistetty" ilman dataa oli harhaanjohtava.
-                            if health.hasCompletedQuery && !health.hasReceivedData {
+                            if !health.hasCompletedQuery {
+                                // Kyselyt ovat kesken: ilman tätä kortti olisi
+                                // tyhjä juuri sen ajan minkä haku kestää, eikä
+                                // mikään kertoisi että jotain on tulossa.
+                                HStack(spacing: 10) {
+                                    ProgressView()
+                                    Text("Haetaan Apple Healthista…")
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else if health.hasCompletedQuery && !health.hasReceivedData {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text("Apple Healthista ei saatu tietoja.")
                                         .font(.subheadline.weight(.medium))
@@ -251,15 +260,24 @@ struct TodayView: View {
         }
         .task {
             model.configure(auth: auth, userId: userId)
-            await model.loadIfNeeded()
-            // Lupaa ei kysytä käynnistyksessä: käyttäjä painaa itse "Yhdistä".
-            // Jos oikeus on jo annettu, kysely onnistuu ja data päivittyy.
-            if health.availability == .notDetermined {
-                await health.requestAuthorization()
-            }
-            if health.availability == .asked {
-                await refreshHealth()
-            }
+            // Health ei odota päivän hakua eikä päinvastoin: sarjassa ajettuna
+            // Health-kortti jäi lataustilaan koko API-kutsun ajaksi, vaikka
+            // askeleet tulevat laitteelta eivätkä tarvitse verkkoa.
+            async let day: Void = model.loadIfNeeded()
+            async let healthRound: Void = startHealth()
+            _ = await (day, healthRound)
+        }
+    }
+
+    /// Käynnistyksen Health-kierros. Lupa kysytään vain kerran laitteella;
+    /// sen jälkeen kyselyt ajetaan suoraan, ja jos oikeutta ei ole, ne palaavat
+    /// tyhjinä ja kortti kertoo sen.
+    private func startHealth() async {
+        if health.availability == .notDetermined {
+            await health.requestAuthorization()
+        }
+        if health.availability == .asked {
+            await refreshHealth()
         }
     }
 
