@@ -21,6 +21,7 @@ final class TodayModel: CachedModel {
     let cacheKey = "mobile-today"
     let resourcePath = "/api/mobile/today"
     let loadFailureMessage = "Päivän tietojen haku epäonnistui."
+    let analyticsArea: FunnelEvent.Source? = .today
     var hasContent: Bool { currentUser != nil }
 
     func configure(auth: AuthManager, userId: String) {

@@ -78,6 +78,7 @@ final class WorkoutModel: CachedModel {
     var cacheKey: String { "workout-\(workoutId)" }
     var resourcePath: String { "/api/mobile/workouts/\(workoutId)" }
     let loadFailureMessage = "Treenin haku epäonnistui."
+    let analyticsArea: FunnelEvent.Source? = .workout
     var hasContent: Bool { !setLogs.isEmpty }
 
     func configure(auth: AuthManager, workoutId: String) {

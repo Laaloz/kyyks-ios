@@ -21,6 +21,7 @@ final class ProgramsModel: CachedModel {
     let cacheKey = "mobile-programs"
     let resourcePath = "/api/mobile/programs"
     let loadFailureMessage = "Ohjelmien haku epäonnistui."
+    let analyticsArea: FunnelEvent.Source? = .programs
     var hasContent: Bool { !programs.isEmpty }
 
     var activeProgram: Program? { programs.first(where: \.isActive) }

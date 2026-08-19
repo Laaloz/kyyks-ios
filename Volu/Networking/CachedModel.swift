@@ -20,9 +20,16 @@ protocol CachedModel: AnyObject {
     var isLoading: Bool { get set }
     var errorMessage: String? { get set }
     func apply(_ data: Data)
+    /// Mille näkymälle malli kuuluu. Vain seurantaa varten: ilman sitä tiedettäisiin
+    /// että päivitys epäonnistui muttei missä. Oletus `nil` = ei kirjata.
+    var analyticsArea: FunnelEvent.Source? { get }
 }
 
 extension CachedModel {
+    /// Mallit jotka eivät kerro aluettaan jäävät seurannan ulkopuolelle sen sijaan
+    /// että ne kirjautuisivat tunnistamattomina.
+    var analyticsArea: FunnelEvent.Source? { nil }
+
     /// Näkymät kutsuvat tätä `.task`-lohkosta, siis joka avauksella. Clientti
     /// luodaan vain kerran: jokainen APIClient avaa oman URLSessionin, eikä
     /// niitä ole syytä kerätä taustalle.
@@ -93,12 +100,20 @@ extension CachedModel {
     ///   jos sitä ei odoteta 1,5 sekuntia turhaan.
     /// - **Palvelimen virhe ei korjaannu odottamalla.** 4xx kerrotaan heti.
     func refreshAfterChange() async {
+        var firstError: Error?
+
         for delay in Self.retryDelays {
-            guard let error = await refreshCapturingError() else { return }
+            guard let error = await refreshCapturingError() else {
+                // Onnistui vasta uusinnalla: juuri tämä luku kertoo toimivatko
+                // uusinnat, eikä sitä näe mistään muualta.
+                if let firstError { logRefresh(.refreshRecovered, firstError) }
+                return
+            }
+            if firstError == nil { firstError = error }
 
             if Self.isCancellation(error) { return }
             guard Self.isWorthRetrying(error), let delay else {
-                errorMessage = Self.refreshFailureText(for: error)
+                fail(with: error)
                 return
             }
             try? await Task.sleep(for: .milliseconds(delay))
@@ -107,8 +122,21 @@ extension CachedModel {
         }
 
         if let error = await refreshCapturingError() {
-            errorMessage = Self.refreshFailureText(for: error)
+            fail(with: error)
+        } else if let firstError {
+            logRefresh(.refreshRecovered, firstError)
         }
+    }
+
+    private func fail(with error: Error) {
+        errorMessage = Self.refreshFailureText(for: error)
+        logRefresh(.refreshFailed, error)
+    }
+
+    /// Seuranta ei saa itse kaataa mitään eikä hidastaa: `log` on fire-and-forget.
+    private func logRefresh(_ event: FunnelEvent, _ error: Error) {
+        guard let area = analyticsArea else { return }
+        api?.log(event, source: area, reason: FunnelEvent.Reason(error))
     }
 
     /// Odotukset uusintayritysten välissä. Ensimmäinen on lyhyt tarkoituksella:

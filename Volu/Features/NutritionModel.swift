@@ -39,6 +39,7 @@ final class NutritionModel: CachedModel {
     var cacheKey: String { "nutrition-\(dateKey)" }
     var resourcePath: String { "/api/mobile/nutrition?date=\(dateKey)" }
     let loadFailureMessage = "Ravintotietojen haku epäonnistui."
+    let analyticsArea: FunnelEvent.Source? = .nutrition
     var hasContent: Bool { day != nil }
 
     /// Päivän ateriat ateriapaikkojen järjestyksessä, sitten oman

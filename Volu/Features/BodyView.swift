@@ -240,6 +240,7 @@ final class BodyModel: CachedModel {
     let cacheKey = "mobile-measurements"
     let resourcePath = "/api/mobile/measurements"
     let loadFailureMessage = "Mittausten haku epäonnistui."
+    let analyticsArea: FunnelEvent.Source? = .body
     var hasContent: Bool { !measurements.isEmpty }
 
     /// Kunkin mitan tuorein kirjattu arvo, ei tuoreimman rivin arvo.
