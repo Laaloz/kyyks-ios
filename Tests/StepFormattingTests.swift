@@ -13,3 +13,18 @@ final class StepFormattingTests: XCTestCase {
         XCTAssertEqual(formatSteps(999), "999")
     }
 }
+
+/// HealthManagerin muistilista: tuodun suorituksen tunniste ei saa kasvaa
+/// rajatta, ja katon ylittyessä säilyy tuorein pää.
+final class ImportedWorkoutIdsTests: XCTestCase {
+    func testKeepsAllUnderLimit() {
+        let ids: Set<String> = ["a", "b", "c"]
+        XCTAssertEqual(HealthManager.trimmedIds(ids, keeping: ["a", "b", "c"], limit: 5), ids)
+    }
+
+    func testTrimsToMostRecentWhenOverLimit() {
+        let ids: Set<String> = ["vanha1", "vanha2", "uusi1", "uusi2"]
+        let trimmed = HealthManager.trimmedIds(ids, keeping: ["uusi1", "uusi2"], limit: 2)
+        XCTAssertEqual(trimmed, ["uusi1", "uusi2"])
+    }
+}

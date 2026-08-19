@@ -162,12 +162,11 @@ struct TodayView: View {
                                     }
                                     .accessibilityElement(children: .combine)
                                 }
-                                if health.isSyncing {
-                                    HStack(spacing: 10) {
-                                        ProgressView()
-                                        Text("Haetaan suorituksia…").foregroundStyle(.secondary)
-                                    }
-                                } else if let message = health.lastSyncMessage {
+                                // Synkan omaa spinneriä ei näytetä: kierros ajetaan
+                                // taustalla eikä se yleensä tuo mitään, joten rivi
+                                // välähti joka avauksella kertomatta mitään. Tulos
+                                // näkyy vasta kun jotain oikeasti tuotiin.
+                                if let message = health.lastSyncMessage {
                                     Text(message)
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
@@ -296,9 +295,8 @@ struct TodayView: View {
         async let steps: Void = health.refreshTodaySteps()
         async let stepAverage: Void = health.refreshAverageSteps()
         async let sleep: Void = health.refreshAverageSleep()
-        async let workouts: Void = health.syncWorkouts(using: api)
-        async let weight: Void = health.syncWeight(using: api)
-        _ = await (steps, stepAverage, sleep, workouts, weight)
+        async let sync: Void = health.syncIfNeeded(using: api)
+        _ = await (steps, stepAverage, sleep, sync)
         await model.refreshAfterChange()
     }
 }

@@ -39,6 +39,7 @@ final class HealthManager {
     private static let didRequestKey = "health.didRequestAuthorization"
 
     init() {
+        importedWorkoutIds = Set(UserDefaults.standard.stringArray(forKey: Self.importedWorkoutIdsKey) ?? [])
         let asked = UserDefaults.standard.bool(forKey: Self.didRequestKey)
         availability = HKHealthStore.isHealthDataAvailable()
             ? (asked ? .asked : .notDetermined)
@@ -65,6 +66,38 @@ final class HealthManager {
     /// mistä tahansa lähteestä.
     private(set) var averageSleepSeconds: Double?
     private(set) var isSyncing = false
+    /// HealthKit-tunnisteet jotka on jo kertaalleen viety palvelimelle.
+    ///
+    /// Palvelin on idempotentti (`external_id`), joten uudelleenlähetys ei
+    /// riko mitään — mutta se on silti verkkokierros per suoritus joka
+    /// avauksella. Seitsemän päivän ikkunassa se tarkoitti käyttäjälle
+    /// sekunteja odotusta siitä ettei mitään tapahdu.
+    private var importedWorkoutIds: Set<String>
+    /// Milloin suoritukset ja paino viimeksi synkattiin. HealthKitin sisältö ei
+    /// muutu välilehden vaihdon tahdissa, joten kierros ei kuulu jokaiseen
+    /// näkymän avaukseen.
+    private var lastSyncAt: Date?
+
+    private static let importedWorkoutIdsKey = "health.importedWorkoutIds"
+    /// Muistettujen tunnisteiden yläraja. Ikkuna on 7 päivää, joten tämä
+    /// riittää moninkertaisesti; katto on vain siltä varalta ettei lista
+    /// kasva rajatta vuosien käytössä.
+    private static let importedWorkoutIdsLimit = 200
+    /// Kuinka usein synkka ajetaan enintään.
+    static let syncInterval: TimeInterval = 15 * 60
+
+    /// Ajetaanko synkka nyt. Erillinen funktio, jotta sääntö on yhdessä
+    /// paikassa eikä kutsujan muistin varassa.
+    func shouldSync(now: Date = .now) -> Bool {
+        guard let lastSyncAt else { return true }
+        return now.timeIntervalSince(lastSyncAt) >= Self.syncInterval
+    }
+
+    /// Rajaa muistilistan tuoreimpiin. Erillinen puhdas funktio testejä varten.
+    nonisolated static func trimmedIds(_ ids: Set<String>, keeping recent: [String], limit: Int = importedWorkoutIdsLimit) -> Set<String> {
+        guard ids.count > limit else { return ids }
+        return Set(recent.suffix(limit))
+    }
     /// Tuonnin tulokset erillisinä lukuina eikä yhtenä viestinä: suoritukset ja
     /// paino synkataan rinnakkain, ja yhteinen viestikenttä tarkoitti että
     /// nopeampi ehti pyyhkiä hitaamman tuloksen.
@@ -311,6 +344,19 @@ final class HealthManager {
         return total
     }
 
+    /// Suoritusten ja painon tuonti, enintään `syncInterval`in välein.
+    ///
+    /// Askeleet ja uni haetaan joka avauksella (ne ovat laitteelta ja
+    /// muuttuvat jatkuvasti), mutta tuonti on verkkoa ja sen sisältö muuttuu
+    /// harvoin. Ilman tätä välilehden vaihto käynnisti kierroksen uudelleen.
+    func syncIfNeeded(using api: APIClient) async {
+        guard availability == .asked, shouldSync() else { return }
+        lastSyncAt = .now
+        async let workouts: Void = syncWorkouts(using: api)
+        async let weight: Void = syncWeight(using: api)
+        _ = await (workouts, weight)
+    }
+
     /// Tuo viimeisten `days` päivän suoritukset. Voimaharjoittelu ohitetaan,
     /// koska se kirjataan Volussa treeninä.
     func syncWorkouts(days: Int = 7, using api: APIClient) async {
@@ -324,8 +370,12 @@ final class HealthManager {
             hasReceivedData = true
         }
 
-        var imported = 0
+        // Payload irrotetaan HKWorkoutista ennen lähetystä: HKWorkout ei ole
+        // Sendable, eikä sitä siksi voi viedä rinnakkaisiin tehtäviin.
+        var pending: [(id: String, body: ActivityBody)] = []
         for workout in workouts where !HealthActivityMapping.isStrengthTraining(workout.workoutActivityType) {
+            let id = workout.uuid.uuidString
+            guard !importedWorkoutIds.contains(id) else { continue }
             let minutes = workout.duration / 60
             guard minutes >= 1 else { continue }
 
@@ -348,19 +398,9 @@ final class HealthManager {
                 .averageQuantity()?
                 .doubleValue(for: HKUnit.count().unitDivided(by: .minute()))
 
-            struct Body: Encodable {
-                let activityType: String
-                let durationMinutes: Double
-                let manualKcal: Double?
-                let occurredAt: String
-                let source: String
-                let externalId: String
-                let distanceMeters: Double?
-                let averageHeartRate: Double?
-            }
-
-            do {
-                let data = try await api.post("/api/extra-activities", body: Body(
+            pending.append((
+                id: id,
+                body: ActivityBody(
                     activityType: HealthActivityMapping.voluActivityType(for: workout.workoutActivityType),
                     durationMinutes: minutes,
                     // Healthin oma kulutus on tarkempi kuin MET-arvio; ilman sitä
@@ -368,20 +408,69 @@ final class HealthManager {
                     manualKcal: kcal.map { $0.rounded() },
                     occurredAt: ISO8601DateFormatter().string(from: workout.startDate),
                     source: "healthkit",
-                    externalId: workout.uuid.uuidString,
+                    externalId: id,
                     distanceMeters: distanceMeters,
                     averageHeartRate: averageHeartRate
-                ))
-                // Palvelin vastaa skipped:true jo tuoduille — ei virhe.
-                if !(String(data: data, encoding: .utf8)?.contains("\"skipped\":true") ?? false) {
-                    imported += 1
-                }
-            } catch {
-                Self.log.error("Suorituksen tuonti epäonnistui: \(error.localizedDescription, privacy: .public)")
-            }
+                )
+            ))
         }
 
-        lastWorkoutImportCount = imported
+        guard !pending.isEmpty else {
+            lastWorkoutImportCount = 0
+            return
+        }
+
+        // Rinnakkain, muutama kerrallaan: sarjassa ensimmäinen käynnistys
+        // odotti yhtä verkkokierrosta per suoritus. Katto on olemassa, jottei
+        // hidas yhteys saa kymmentä yhtäaikaista pyyntöä.
+        let results = await withTaskGroup(of: (String, Bool)?.self) { group in
+            var iterator = pending.makeIterator()
+            var running = 0
+            var done: [(String, Bool)] = []
+
+            func addNext() {
+                guard let item = iterator.next() else { return }
+                running += 1
+                group.addTask {
+                    do {
+                        let data = try await api.post("/api/extra-activities", body: item.body)
+                        // Palvelin vastaa skipped:true jo tuoduille — ei virhe.
+                        let skipped = String(data: data, encoding: .utf8)?.contains("\"skipped\":true") ?? false
+                        return (item.id, !skipped)
+                    } catch {
+                        Self.log.error("Suorituksen tuonti epäonnistui: \(error.localizedDescription, privacy: .public)")
+                        return nil
+                    }
+                }
+            }
+
+            for _ in 0..<min(4, pending.count) { addNext() }
+            while running > 0, let result = await group.next() {
+                running -= 1
+                if let result { done.append(result) }
+                addNext()
+            }
+            return done
+        }
+
+        // Muistetaan myös ne jotka palvelin ohitti jo tuotuina: sekin on tieto
+        // siitä ettei riviä tarvitse lähettää uudelleen.
+        importedWorkoutIds.formUnion(results.map(\.0))
+        importedWorkoutIds = Self.trimmedIds(importedWorkoutIds, keeping: results.map(\.0))
+        UserDefaults.standard.set(Array(importedWorkoutIds), forKey: Self.importedWorkoutIdsKey)
+
+        lastWorkoutImportCount = results.filter(\.1).count
+    }
+
+    private struct ActivityBody: Encodable, Sendable {
+        let activityType: String
+        let durationMinutes: Double
+        let manualKcal: Double?
+        let occurredAt: String
+        let source: String
+        let externalId: String
+        let distanceMeters: Double?
+        let averageHeartRate: Double?
     }
 
     // MARK: - Paino
