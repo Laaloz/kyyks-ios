@@ -164,9 +164,12 @@ struct AddMealSheet: View {
                 // Uusi yritys palaa samaan lähteeseen josta tultiin.
                 switch mode {
                 case .camera:
-                    Button("Kuvaa uudelleen") { onRetry?() }
+                    // Nollaus ennen paluuta valitsimeen: sheetin malli säilyy
+                    // uudelleenesityksen yli, ja vanha virhe näkyi muuten
+                    // "Valmistellaan…"-vaiheessa uuden kuvan alla.
+                    Button("Kuvaa uudelleen") { model.reset(); onRetry?() }
                 case .library:
-                    Button("Valitse toinen kuva") { onRetry?() }
+                    Button("Valitse toinen kuva") { model.reset(); onRetry?() }
                 case .text:
                     // Kuvausta muokataan listan kirjoituspalkissa, joka on
                     // näkyvissä heti sulkemisen jälkeen.
@@ -222,6 +225,13 @@ final class AddMealModel {
         client.log(.aiSheetOpened, source: .nutrition)
     }
 
+    /// Käynnissä olevan yrityksen tunniste. Uusintakuvaus peruu edellisen
+    /// yrityksen kesken 60 sekunnin arvion, ja peruutetun yrityksen catch voi
+    /// ehtiä ajoon vasta uuden yrityksen onnistumisen jälkeen — ilman tätä
+    /// vanha virhe kirjoittui tuoreen arvion viereen ("arvio + virhe yhtä
+    /// aikaa"). Vain tuorein yritys saa kirjoittaa tilaan.
+    private var attempt = 0
+
     func warmUp() async {
         _ = try? await api?.get("/api/nutrition/ai-estimate")
     }
@@ -237,32 +247,39 @@ final class AddMealModel {
         let term = query.trimmingCharacters(in: .whitespaces)
         guard term.count >= 2 else { return }
 
+        attempt += 1
+        let current = attempt
         isEstimating = true
         estimatingLabel = "Arvioidaan makroja…"
         errorMessage = nil
-        defer { isEstimating = false }
+        defer { if current == attempt { isEstimating = false } }
 
         do {
             struct Body: Encodable { let query: String }
             let data = try await api.post("/api/nutrition/ai-estimate", body: Body(query: term), timeout: 60)
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
+            guard current == attempt else { return }
             estimate = response.estimate
             grams = response.estimate.grams
             estimatesLeft = response.estimatesLeft
         } catch APIError.paymentRequired(let message) {
+            guard current == attempt else { return }
             paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
         } catch {
+            guard current == attempt, !APIClient.isCancellation(error) else { return }
             errorMessage = "Arviota ei saatu — tarkenna kuvausta tai kokeile kuvaa."
         }
     }
 
     func estimate(from image: UIImage) async {
         guard let api else { return }
+        attempt += 1
+        let current = attempt
         isEstimating = true
         estimatingLabel = "Tunnistetaan ateriaa…"
         errorMessage = nil
-        defer { isEstimating = false }
+        defer { if current == attempt { isEstimating = false } }
 
         // Pienennetään ennen lähetystä: pitkä sivu 1024 px riittää tunnistukseen
         // ja pitää latauksen nopeana myös mobiiliverkossa.
@@ -285,13 +302,16 @@ final class AddMealModel {
                 imageMode: "photo"
             ), timeout: 60)
             let response = try JSONDecoder().decode(AiEstimateResponse.self, from: data)
+            guard current == attempt else { return }
             estimate = response.estimate
             grams = response.estimate.grams
             estimatesLeft = response.estimatesLeft
         } catch APIError.paymentRequired(let message) {
+            guard current == attempt else { return }
             paywallMessage = message ?? "AI-ruoka-arvio kuuluu Pro-tilaukseen."
             needsSubscription = true
         } catch {
+            guard current == attempt, !APIClient.isCancellation(error) else { return }
             errorMessage = "Arvio epäonnistui — kokeile uudelleen tai valitse ruoka käsin."
         }
     }
@@ -335,7 +355,9 @@ final class AddMealModel {
             ))
             return true
         } catch {
-            errorMessage = "Tallennus epäonnistui — yritä uudelleen."
+            if !APIClient.isCancellation(error) {
+                errorMessage = "Tallennus epäonnistui — yritä uudelleen."
+            }
             return false
         }
     }

@@ -71,7 +71,10 @@ extension CachedModel {
             errorMessage = nil
             return nil
         } catch {
-            if !hasContent {
+            // Peruutus ei ole virhe: ensiavauksen katkaisu välilehteä
+            // vaihtamalla jätti "ei saatu ladattua" -bannerin odottamaan
+            // seuraavaa avausta, vaikka mikään ei epäonnistunut.
+            if !hasContent && !Self.isCancellation(error) {
                 errorMessage = loadFailureMessage
             }
             return error
@@ -145,8 +148,7 @@ extension CachedModel {
     private static var retryDelays: [Int?] { [400, 1500] }
 
     static func isCancellation(_ error: Error) -> Bool {
-        if error is CancellationError { return true }
-        return (error as? URLError)?.code == .cancelled
+        APIClient.isCancellation(error)
     }
 
     /// Kannattaako yrittää uudelleen. Verkon hetkelliset viat kannattaa,

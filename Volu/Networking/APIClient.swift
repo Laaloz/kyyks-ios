@@ -5,6 +5,14 @@ import OSLog
 /// (Console.app / Xcode: subsystem "fi.volu.app", category "api") —
 /// hitaat reitit havaitaan heti eikä arvailla.
 struct APIClient {
+    /// Peruutus ei ole virhe: näkymän sulkeutuminen peruu sen .taskin, ja
+    /// kesken ollut pyyntö heittää CancellationErrorin tai URLError.cancelledin.
+    /// Peruutuksesta ei saa jäädä virheilmoitusta odottamaan seuraavaa avausta.
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        return (error as? URLError)?.code == .cancelled
+    }
+
     /// Kyselyparametrin arvon prosenttikoodaus. `.urlQueryAllowed` ei kelpaa:
     /// se sallii koko kyselyosan merkit, myös & = ja +, jolloin syöte voi
     /// katkaista parametrin ja + muuttuu palvelimella välilyönniksi. Tässä
