@@ -359,17 +359,36 @@ final class HealthManager {
         return total
     }
 
+    /// Käynnissä oleva tuontikierros. Irrallinen tehtävä eikä kutsujan
+    /// rakenteessa: kierros ajettiin ennen Tänään-näkymän .taskissa, jolloin
+    /// välilehden vaihto perui sen kesken — laitteella pyöräily jäi tuomatta
+    /// juuri siksi, että käyttäjä kävi Treenissä katsomassa näkyykö se.
+    private var syncTask: Task<Void, Never>?
+
     /// Suoritusten ja painon tuonti, enintään `syncInterval`in välein.
     ///
     /// Askeleet ja uni haetaan joka avauksella (ne ovat laitteelta ja
     /// muuttuvat jatkuvasti), mutta tuonti on verkkoa ja sen sisältö muuttuu
-    /// harvoin. Ilman tätä välilehden vaihto käynnisti kierroksen uudelleen.
+    /// harvoin. Ilman aikarajaa välilehden vaihto käynnisti kierroksen
+    /// uudelleen; ilman irrallista tehtävää se myös tappoi kierroksen.
     func syncIfNeeded(using api: APIClient) async {
-        guard availability == .asked, shouldSync() else { return }
-        lastSyncAt = .now
-        async let workouts: Void = syncWorkouts(using: api)
-        async let weight: Void = syncWeight(using: api)
-        _ = await (workouts, weight)
+        guard availability == .asked else { return }
+        if syncTask == nil, shouldSync() {
+            syncTask = Task { [weak self] in
+                guard let self else { return }
+                async let workouts: Void = self.syncWorkouts(using: api)
+                async let weight: Void = self.syncWeight(using: api)
+                _ = await (workouts, weight)
+                // Jäähdytin virittyy vasta valmistuneesta kierroksesta:
+                // ennen työtä viritettynä peruuntunut tai kaatunut kierros
+                // esti uudet yritykset vartiksi, eikä mikään kertonut siitä.
+                self.lastSyncAt = .now
+                Self.log.notice("Tuonti valmis: \(self.lastWorkoutImportCount) suoritusta, \(self.lastWeightImportCount) punnitusta")
+                self.syncTask = nil
+            }
+        }
+        // Odotus on peruttavissa (näkymä voi sulkeutua), itse kierros ei ole.
+        await syncTask?.value
     }
 
     /// Tuo viimeisten `days` päivän suoritukset. Voimaharjoittelu ohitetaan,
