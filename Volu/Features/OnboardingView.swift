@@ -10,8 +10,13 @@ import SwiftUI
 /// ja vaiheistus tekisi lyhyestä täytöstä pidemmän tuntuisen.
 struct OnboardingView: View {
     let auth: AuthManager
+    /// Rekisteröinnin johtama nimi esitäyttönä. Applen relay-osoitteella se on
+    /// satunnaista merkkijonoa, ja kysely on ainoa hetki jolloin jokainen uusi
+    /// käyttäjä näkee ja voi korjata sen — Apple ei anna nimeä toista kertaa.
+    let initialName: String
     let onFinished: () -> Void
 
+    @State private var nameText = ""
     @State private var goal = "maintain"
     @State private var activityLevel = "moderate"
     @State private var sex: String?
@@ -22,7 +27,7 @@ struct OnboardingView: View {
     @State private var errorMessage: String?
     @FocusState private var focused: Field?
 
-    private enum Field { case height, weight }
+    private enum Field { case name, height, weight }
 
     private var canSubmit: Bool {
         sex != nil && parsed(heightText) != nil && parsed(weightText) != nil
@@ -35,6 +40,12 @@ struct OnboardingView: View {
                     Text("Näillä lasketaan päivittäinen kalori- ja makrotavoitteesi. Voit muuttaa niitä myöhemmin profiilista.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                }
+
+                Section("Nimi") {
+                    TextField("Etunimi tai koko nimi", text: $nameText)
+                        .textContentType(.name)
+                        .focused($focused, equals: .name)
                 }
 
                 Section("Tavoite") {
@@ -105,6 +116,9 @@ struct OnboardingView: View {
                     }
                 }
             }
+            .onAppear {
+                if nameText.isEmpty { nameText = initialName }
+            }
             .navigationTitle("Aloitetaan")
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom) {
@@ -152,6 +166,7 @@ struct OnboardingView: View {
         errorMessage = nil
 
         struct Body: Encodable {
+            let fullName: String?
             let heightCm: Double
             let weightKg: Double
             let birthDate: String
@@ -162,7 +177,11 @@ struct OnboardingView: View {
 
         Task {
             do {
+                let name = nameText.trimmingCharacters(in: .whitespaces)
                 _ = try await APIClient(auth: auth).post("/api/mobile/onboarding", body: Body(
+                    // Valinnainen: alle kahden merkin nimi jää lähettämättä
+                    // eikä estä tavoitteen laskentaa.
+                    fullName: name.count >= 2 ? name : nil,
                     heightCm: parsed(heightText) ?? 0,
                     weightKg: parsed(weightText) ?? 0,
                     birthDate: ProfileView.isoDay.string(from: birthDate),

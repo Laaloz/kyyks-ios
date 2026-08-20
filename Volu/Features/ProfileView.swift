@@ -23,6 +23,7 @@ struct ProfileView: View {
     }
 
     @State private var model = ProfileModel()
+    @State private var nameText = ""
     @State private var heightText = ""
     @State private var birthDate = Date()
     /// Onko syntymäaika käyttäjän tai palvelimen asettama. Ilman tätä tyhjä
@@ -39,7 +40,11 @@ struct ProfileView: View {
     @AppStorage(HealthExportSetting.key) private var exportWorkouts = HealthExportSetting.defaultValue
     @FocusState private var focused: Field?
 
-    private enum Field { case height }
+    private enum Field { case height, name }
+
+    private var trimmedName: String {
+        nameText.trimmingCharacters(in: .whitespaces)
+    }
 
     /// 13–100 v, sama haarukka kuin palvelimen validoinnissa.
     static var birthDateRange: ClosedRange<Date> {
@@ -51,7 +56,8 @@ struct ProfileView: View {
 
     private var hasChanges: Bool {
         guard let profile = model.profile else { return false }
-        return heightText != format(profile.heightCm)
+        return trimmedName != profile.fullName
+            || heightText != format(profile.heightCm)
             || (hasBirthDate && Self.isoDay.string(from: birthDate) != (profile.birthDate ?? ""))
             || sex != profile.sex
     }
@@ -67,7 +73,15 @@ struct ProfileView: View {
             if let profile = model.profile {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(profile.fullName).font(.headline)
+                        // Muokattavana eikä pelkkänä tekstinä: rekisteröinti
+                        // johtaa nimen sähköpostin alkuosasta, ja Applen
+                        // relay-osoitteella se on satunnaista merkkijonoa.
+                        // Apple antaa oikean nimen vain kerran, joten tämä on
+                        // ainoa paikka jossa menetetyn nimen voi korjata.
+                        TextField("Nimi", text: $nameText)
+                            .font(.headline)
+                            .textContentType(.name)
+                            .focused($focused, equals: .name)
                         Text(profile.email)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -401,6 +415,7 @@ struct ProfileView: View {
 
     private func resetFields() {
         guard let profile = model.profile else { return }
+        nameText = profile.fullName
         heightText = format(profile.heightCm)
         sex = profile.sex
 
@@ -417,6 +432,10 @@ struct ProfileView: View {
 
     private func save() async {
         await model.save(
+            // Alle kahden merkin nimeä ei lähetetä: palvelin hylkäisi koko
+            // patchin, ja pituuden tallennus kaatuisi tyhjennettyyn nimeen.
+            // resetFields palauttaa silloin vanhan nimen kenttään.
+            fullName: trimmedName.count >= 2 ? trimmedName : nil,
             heightCm: Double(heightText.replacingOccurrences(of: ",", with: ".")),
             birthDate: hasBirthDate ? Self.isoDay.string(from: birthDate) : nil,
             sex: sex
@@ -500,6 +519,7 @@ struct MobileProfile: Decodable {
 }
 
 private struct ProfilePatch: Encodable {
+    let fullName: String?
     let heightCm: Double?
     let birthDate: String?
     let sex: String?
@@ -528,12 +548,12 @@ final class ProfileModel: CachedModel {
     let loadFailureMessage = "Profiilin haku epäonnistui."
     var hasContent: Bool { profile != nil }
 
-    func save(heightCm: Double?, birthDate: String?, sex: String?) async {
+    func save(fullName: String?, heightCm: Double?, birthDate: String?, sex: String?) async {
         guard let api else { return }
         isSaving = true
         defer { isSaving = false }
         do {
-            _ = try await api.patch("/api/mobile/profile", body: ProfilePatch(heightCm: heightCm, birthDate: birthDate, sex: sex))
+            _ = try await api.patch("/api/mobile/profile", body: ProfilePatch(fullName: fullName, heightCm: heightCm, birthDate: birthDate, sex: sex))
             await refreshAfterChange()
             errorMessage = nil
         } catch {

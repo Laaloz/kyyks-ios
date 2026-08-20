@@ -80,6 +80,9 @@ struct VoluApp: App {
     /// Puuttuvat makrotiedot = aloituskysely on tekemättä. Palvelin kertoo
     /// listan, joten sääntö on yhdessä paikassa eikä arvattuna kahdessa.
     @State private var needsOnboarding = false
+    /// Kyselyn nimikentän esitäyttö — rekisteröinnin johtama nimi, jonka
+    /// käyttäjä saa korjata (Applen relay-osoitteesta tulee satunnainen).
+    @State private var onboardingName = ""
     @State private var selectedTab = Tab.today
     /// Ulkoasu pakotetaan sovelluksen juuressa, jotta se koskee myös
     /// sheettejä ja kirjautumisnäkymää — ei vain välilehtiä.
@@ -100,10 +103,14 @@ struct VoluApp: App {
     /// Verkkovirheessä sitä ei näytetä: kyselyn väläyttäminen olemassa
     /// olevalle käyttäjälle olisi pahempi haitta kuin sen viivästyminen.
     private func checkOnboarding() async {
-        struct Profile: Decodable { let missingForMacros: [String] }
+        struct Profile: Decodable {
+            let missingForMacros: [String]
+            let fullName: String
+        }
         guard let data = try? await APIClient(auth: auth).get("/api/mobile/profile"),
               let profile = try? JSONDecoder().decode(Profile.self, from: data)
         else { return }
+        onboardingName = profile.fullName
         needsOnboarding = !profile.missingForMacros.isEmpty
     }
 
@@ -179,7 +186,7 @@ struct VoluApp: App {
                         await push.requestAuthorizationIfNeeded()
                     }
                     .fullScreenCover(isPresented: $needsOnboarding) {
-                        OnboardingView(auth: auth) {
+                        OnboardingView(auth: auth, initialName: onboardingName) {
                             needsOnboarding = false
                             Task {
                                 await today.refreshAfterChange()
