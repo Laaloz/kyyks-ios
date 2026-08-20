@@ -29,6 +29,10 @@ struct PaywallView: View {
                     benefit("Ruoka-arvio kuvasta", "camera.viewfinder")
                     benefit("Makrot ruoan nimestä", "sparkles")
                     benefit("Rajattomasti — ei kuukausikiintiötä", "infinity")
+                    // Sama lupaus kuin App Store Connectin tilauskuvauksessa
+                    // ("Ateria-arvio ilman kuukausirajaa ja reseptikirjasto") —
+                    // maksumuuri ei saa myydä vähempää kuin kauppa lupaa.
+                    benefit("Koko reseptikirjasto", "book")
                 } header: {
                     Text("Pro sisältää")
                 } footer: {

@@ -5,7 +5,9 @@
   "settings": {
     "_applicationInternalID": "0",
     "_developerTeamID": "0",
-    "_lastSynchronizedDate": 0
+    "_lastSynchronizedDate": 0,
+    "_storefront": "FIN",
+    "_locale": "fi_FI"
   },
   "subscriptionGroups": [
     {

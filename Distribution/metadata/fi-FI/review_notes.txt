@@ -1,8 +1,6 @@
-[TÄYTÄ ENNEN LÄHETYSTÄ: demotunnukset App Review Information -osioon.]
-
 Sign-in required: kyllä.
-Demo-tunnus: <sähköposti>
-Salasana: <salasana>
+Demo-tunnus: demo@volu.fi
+Salasana: VoluDemo-2026
 
 Huomioita arvioijalle:
 
