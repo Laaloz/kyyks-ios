@@ -291,6 +291,10 @@ struct TodayView: View {
     /// odota toista. Paino tuodaan täältä eikä Keho-välilehdeltä, jotta
     /// HealthManager pysyy yhtenä: Keho lukee valmiit rivit API:sta.
     private func refreshHealth() async {
+        // Ensin puuttuvat luvat: lukutyyppien lista on kasvanut matkan
+        // varrella, eikä kysymättä jäänyttä tyyppiä voi erottaa evätystä.
+        await health.requestMissingAuthorizationIfNeeded()
+
         let api = APIClient(auth: auth)
         async let steps: Void = health.refreshTodaySteps()
         async let stepAverage: Void = health.refreshAverageSteps()

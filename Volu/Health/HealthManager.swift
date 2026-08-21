@@ -201,6 +201,49 @@ final class HealthManager {
         }
     }
 
+    /// Kysyy luvan niille lukutyypeille joita ei ole koskaan kysytty.
+    ///
+    /// Lupa kysytään vain kerran (`didRequestKey`), mutta luettavien tyyppien
+    /// lista on kasvanut matkan varrella: uni, matkatyypit, syke. iOS ei kysy
+    /// uudelleen jo päätetyistä tyypeistä, mutta **kysymättä jäänyt tyyppi
+    /// palauttaa tyhjää täsmälleen kuten evätty** — eikä sitä voi havaita
+    /// kyselystä. Asetuksissakin näkyvät vain kysytyt tyypit, joten käyttäjä
+    /// näkee listan jossa kaikki on päällä, vaikka osaa ei ole koskaan kysytty.
+    ///
+    /// `getRequestStatusForAuthorization` on ainoa rajapinta joka kertoo tämän:
+    /// `.shouldRequest` tarkoittaa että jokin tyyppi on yhä päättämättä.
+    func requestMissingAuthorizationIfNeeded() async {
+        guard availability == .asked else { return }
+
+        let status: HKAuthorizationRequestStatus? = await withCheckedContinuation { continuation in
+            store.getRequestStatusForAuthorization(toShare: [], read: readTypes) { status, error in
+                if let error {
+                    Self.log.error("Lupatilan kysely epäonnistui: \(error.localizedDescription, privacy: .public)")
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: status)
+            }
+        }
+
+        let label: String
+        switch status {
+        case .shouldRequest: label = "shouldRequest"
+        case .unnecessary: label = "unnecessary"
+        case .unknown: label = "unknown"
+        default: label = "nil"
+        }
+        Self.log.debug("Health-lupatila: \(label, privacy: .public), tyyppejä \(self.readTypes.count, privacy: .public)")
+
+        guard status == .shouldRequest else { return }
+        do {
+            try await store.requestAuthorization(toShare: [], read: readTypes)
+            Self.log.debug("Puuttuvat Health-luvat kysytty uudelleen")
+        } catch {
+            Self.log.error("Puuttuvien lupien kysely epäonnistui: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func refreshTodaySteps() async {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
         let start = Calendar.current.startOfDay(for: .now)
