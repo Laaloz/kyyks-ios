@@ -5,20 +5,30 @@ Salasana: VoluDemo-2026
 Huomioita arvioijalle:
 
 1. Kirjautuminen tapahtuu sähköpostilla tai Sign in with Apple -painikkeella.
-   Demotunnuksella on valmiina treenihistoriaa, ohjelma, ateriakirjauksia ja
-   painomittauksia, joten kaikki näkymät ovat katsottavissa heti.
+   Demotunnuksella on valmiina sisältöä jokaisessa välilehdessä:
+   - Treeni: ohjelma "Volu 3-jakoinen" (Työntävät / Vetävät / Jalat) ja
+     seitsemän valmista treeniä 1.–19.8. nousevin kuormin, joten myös
+     liikekohtaiset kehityskäyrät näyttävät dataa.
+   - Ravinto: ateriakirjaukset tälle ja eiliselle päivälle.
+   - Keho: 17 punnitusta ja vyötärömittaa kahden kuukauden ajalta.
+   - Tänään: viimeisimmät treenit ja kolme oheissuoritusta.
 
 2. HealthKit: sovellus pyytää lukuoikeutta askeleisiin, harjoituksiin, uneen ja
    painoon. Tietoja käytetään vain päivän yhteenvedon näyttämiseen ja
-   punnitusten tuontiin käyttäjän omalle tilille. Sovellus ei kirjoita
-   Healthiin eikä käytä terveystietoja mainontaan. Simulaattorissa Healthissa
-   ei ole dataa, joten Tänään-näkymä kertoo, ettei tietoja saatu. Se on
-   odotettu tila, ei virhe.
+   punnitusten tuontiin käyttäjän omalle tilille. Terveystietoja ei käytetä
+   mainontaan. Healthiin kirjoitetaan vain jos käyttäjä kytkee erikseen päälle
+   asetuksen "Vie treenit Apple Healthiin" (Profiili → Apple Health); se on
+   oletuksena pois päältä. Simulaattorissa Healthissa ei ole dataa, joten
+   Tänään-näkymä kertoo, ettei tietoja saatu. Se on odotettu tila, ei virhe.
 
-3. Tilaus (Volu Pro, 4,99 €/kk tai 42 €/v): avaa tekoälyn tekemän ateria-arvion
-   rajattomasti. Ilmaisversiossa arvioita on viisi kuukaudessa. Maksumuurin
-   näkee Ravinto-välilehdeltä kuvailemalla aterian tekstikenttään tai ottamalla
-   siitä kuvan, kun kuukauden viisi arviota on käytetty.
+3. Tilaus (Volu Pro, 4,99 €/kk tai 42 €/v) avaa tekoälyn ateria-arvion ilman
+   kuukausirajaa sekä koko reseptikirjaston. Ilmaisversiossa arvioita on viisi
+   kuukaudessa, ja reseptikirjastossa on näyteresepti jokaiseen ateriapaikkaan.
+
+   Ostonäkymän pääsee katsomaan ilman kiintiön kuluttamista:
+   Tänään → profiilikuvake oikeassa yläkulmassa → "Tilaa Volu Pro".
+   Sama näkymä avautuu myös Ravinto → Reseptit → mikä tahansa lukittu resepti,
+   ja tekstiarviosta sen jälkeen kun kuukauden viisi arviota on käytetty.
 
 4. Ateriakuva ja tekstikuvaus lähetetään Googlen Gemini-rajapintaan makrojen
    arviointia varten. Kuvaa ei tallenneta. Tämä on kerrottu
