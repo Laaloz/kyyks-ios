@@ -10,7 +10,7 @@ struct RecipeLibraryView: View {
     /// Päivä johon kirjaus menee. Kirjasto avataan Ravinnosta, joten se on se
     /// päivä jota käyttäjä juuri katsoi.
     let planDate: String
-    let onLogged: () -> Void
+    let onLogged: () async -> Void
 
     @State private var model = RecipeLibraryModel()
     @State private var selected: Recipe?
@@ -87,7 +87,7 @@ struct RecipeLibraryView: View {
                     await model.logAsEaten(recipe, servings: servings, planDate: planDate, mealTag: mealTag)
                 },
                 onLogged: {
-                    onLogged()
+                    await onLogged()
                     // Kirjaus on valmis toiminto, ei selailun välivaihe: käyttäjä haluaa nähdä
                     // rivin päivässään eikä jäädä listaan jossa ei ole enää mitään tekemistä.
                     dismiss()

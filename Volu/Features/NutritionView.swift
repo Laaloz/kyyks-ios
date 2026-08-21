@@ -47,7 +47,7 @@ struct NutritionView: View {
                         RecipeLibraryView(
                             auth: auth,
                             planDate: model.dateKey,
-                            onLogged: { Task { await model.refreshAfterChange() } }
+                            onLogged: { await model.refreshAfterChange() }
                         )
                     } label: {
                         Label("Reseptit", systemImage: "book")

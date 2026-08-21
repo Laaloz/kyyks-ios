@@ -294,8 +294,6 @@ struct TodayView: View {
         // Ensin puuttuvat luvat: lukutyyppien lista on kasvanut matkan
         // varrella, eikä kysymättä jäänyttä tyyppiä voi erottaa evätystä.
         await health.requestMissingAuthorizationIfNeeded()
-        // Väliaikainen: poistetaan kun harjoitusten luku on selvitetty.
-        await health.logWorkoutDiagnostics()
 
         let api = APIClient(auth: auth)
         async let steps: Void = health.refreshTodaySteps()

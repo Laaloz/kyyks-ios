@@ -9,7 +9,10 @@ struct RecipeDetailSheet: View {
     let recipe: Recipe
     let planDate: String
     let onLog: (Double, MealTag) async -> RecipeLibraryModel.LogOutcome
-    let onLogged: () -> Void
+    /// Async, jotta kutsuja voi hakea päivän ennen kuin näkymä sulkeutuu:
+    /// kirjaus näytti muuten valmistuvan ennen kuin rivi oli listassa, ja
+    /// väliin jäi hetki jossa mikään ei kertonut työn olevan kesken.
+    let onLogged: () async -> Void
     let onPaywall: (String) -> Void
     /// Näytetäänkö kirjausnappi. Jo kirjatun rivin kautta avattu resepti on
     /// katselua: sama ateria kirjattaisiin toiseen kertaan, mitä kukaan ei
@@ -27,7 +30,7 @@ struct RecipeDetailSheet: View {
         recipe: Recipe,
         planDate: String,
         onLog: @escaping (Double, MealTag) async -> RecipeLibraryModel.LogOutcome,
-        onLogged: @escaping () -> Void,
+        onLogged: @escaping () async -> Void,
         onPaywall: @escaping (String) -> Void,
         showsLogAction: Bool = true
     ) {
@@ -226,9 +229,10 @@ struct RecipeDetailSheet: View {
         // Määrää voi korjata riviltä jälkikäteen.
         switch await onLog(1, mealTag) {
         case .logged:
-            // Näkymä suljetaan vain onnistuneen tallennuksen jälkeen: sulkeutuminen
-            // on käyttäjälle kuittaus onnistumisesta.
-            onLogged()
+            // Päivä haetaan ennen sulkemista, jotta "Kirjataan…" kattaa koko
+            // operaation. Näkymä suljetaan vain onnistuneen tallennuksen
+            // jälkeen: sulkeutuminen on käyttäjälle kuittaus onnistumisesta.
+            await onLogged()
             dismiss()
         case .paywall(let message):
             onPaywall(message)
