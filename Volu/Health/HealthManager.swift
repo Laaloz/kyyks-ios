@@ -406,12 +406,29 @@ final class HealthManager {
 
         // Payload irrotetaan HKWorkoutista ennen lähetystä: HKWorkout ei ole
         // Sendable, eikä sitä siksi voi viedä rinnakkaisiin tehtäviin.
+        // Karsinnan syyt lasketaan erikseen, koska pelkkä "0 suoritusta" ei
+        // kerro onko Healthissa dataa vai karsiutuiko se — juuri se ero jäi
+        // laitteella selvittämättä kun pyöräily ei tullut sovellukseen.
+        var skippedStrength = 0
+        var skippedKnown = 0
+        var skippedShort = 0
+
         var pending: [(id: String, body: ActivityBody)] = []
-        for workout in workouts where !HealthActivityMapping.isStrengthTraining(workout.workoutActivityType) {
+        for workout in workouts {
+            if HealthActivityMapping.isStrengthTraining(workout.workoutActivityType) {
+                skippedStrength += 1
+                continue
+            }
             let id = workout.uuid.uuidString
-            guard !importedWorkoutIds.contains(id) else { continue }
+            if importedWorkoutIds.contains(id) {
+                skippedKnown += 1
+                continue
+            }
             let minutes = workout.duration / 60
-            guard minutes >= 1 else { continue }
+            if minutes < 1 {
+                skippedShort += 1
+                continue
+            }
 
             let kcal = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?
                 .sumQuantity()?
@@ -448,6 +465,14 @@ final class HealthManager {
                 )
             ))
         }
+
+        Self.log.notice("""
+            Healthista \(workouts.count, privacy: .public) suoritusta: \
+            voima \(skippedStrength, privacy: .public), \
+            jo tuotu \(skippedKnown, privacy: .public), \
+            alle minuutti \(skippedShort, privacy: .public), \
+            lähetetään \(pending.count, privacy: .public)
+            """)
 
         guard !pending.isEmpty else {
             lastWorkoutImportCount = 0
