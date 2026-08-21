@@ -63,3 +63,24 @@ final class WeightSampleTests: XCTestCase {
         XCTAssertTrue(HealthManager.latestPerDay([], calendar: calendar).isEmpty)
     }
 }
+
+/// Mittojen näyttömuotoilu. Vyötärö katkaistiin aiemmin `Int()`-muunnoksella,
+/// jolloin kirjattu 84,5 cm luki historiarivillä 84 cm.
+final class FormatDecimalTests: XCTestCase {
+    func testKeepsHalfCentimetre() {
+        XCTAssertEqual(formatDecimal(84.5), "84,5")
+        XCTAssertEqual(formatDecimal(81.5), "81,5")
+    }
+
+    func testDropsTrailingZero() {
+        XCTAssertEqual(formatDecimal(84.0), "84")
+        XCTAssertEqual(formatDecimal(71.0), "71")
+    }
+
+    func testRoundsBeforeIntegerCheck() {
+        // Healthista tuotu paino on liukuluku: 69,99999 on "70", ei "70,0".
+        XCTAssertEqual(formatDecimal(69.99999), "70")
+        XCTAssertEqual(formatDecimal(70.04), "70")
+        XCTAssertEqual(formatDecimal(70.06), "70,1")
+    }
+}

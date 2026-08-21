@@ -184,11 +184,7 @@ struct BodyView: View {
         }
     }
 
-    private func format(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(value))
-            : String(format: "%.1f", value).replacingOccurrences(of: ".", with: ",")
-    }
+    private func format(_ value: Double) -> String { formatDecimal(value) }
 }
 
 struct BodyMeasurement: Decodable, Identifiable {
@@ -206,9 +202,11 @@ struct BodyMeasurement: Decodable, Identifiable {
     var hasTrackedMetric: Bool { weightKg != nil || waistCm != nil }
 
     var summary: String {
+        // Sama muotoilu kuin ruudun yläreunan lukemissa: rivi ja otsikko eivät
+        // saa kertoa samasta mittauksesta eri lukua.
         var parts: [String] = []
-        if let weightKg { parts.append("\(String(format: "%.1f", weightKg).replacingOccurrences(of: ".", with: ",")) kg") }
-        if let waistCm { parts.append("\(Int(waistCm)) cm") }
+        if let weightKg { parts.append("\(formatDecimal(weightKg)) kg") }
+        if let waistCm { parts.append("\(formatDecimal(waistCm)) cm") }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
     }
 }

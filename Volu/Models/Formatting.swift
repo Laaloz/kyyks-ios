@@ -38,13 +38,22 @@ func parseAPIDate(_ value: String) -> Date? {
 
 // MARK: - Lukujen muotoilu
 
-/// Kilot ilman turhaa desimaalia; pilkku desimaalierottimena kuten muualla apissa.
-func formatKg(_ value: Double) -> String {
+/// Mitta yhdellä desimaalilla, ilman turhaa nollaa; pilkku desimaalierottimena
+/// kuten muualla apissa. Sama sääntö koskee kiloja ja senttejä — vyötärö
+/// näytettiin aiemmin `Int()`-katkaisulla, jolloin kirjattu 84,5 cm luki
+/// listalla 84 cm eikä sama arvo täsmännyt edes saman ruudun otsikkoriviin.
+///
+/// Pyöristys ennen kokonaisluvun tarkistusta on olennainen: 69,99999 (Healthin
+/// tuomasta painosta syntyvä liukuluku) on "70", ei "70,0".
+func formatDecimal(_ value: Double) -> String {
     let rounded = (value * 10).rounded() / 10
     return rounded.truncatingRemainder(dividingBy: 1) == 0
         ? String(Int(rounded))
         : String(format: "%.1f", rounded).replacingOccurrences(of: ".", with: ",")
 }
+
+/// Kilot: sama muotoilu, oma nimi kutsupaikkojen luettavuuden vuoksi.
+func formatKg(_ value: Double) -> String { formatDecimal(value) }
 
 func formatReps(_ value: Double) -> String {
     value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(format: "%.1f", value)

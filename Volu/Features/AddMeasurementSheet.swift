@@ -101,8 +101,6 @@ struct AddMeasurementSheet: View {
 
     private static func format(_ value: Double?) -> String {
         guard let value else { return "" }
-        return value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(value))
-            : String(format: "%.1f", value).replacingOccurrences(of: ".", with: ",")
+        return formatDecimal(value)
     }
 }
