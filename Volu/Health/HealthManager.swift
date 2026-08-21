@@ -244,6 +244,49 @@ final class HealthManager {
         }
     }
 
+    /// Väliaikainen diagnostiikka: sama harjoituskysely neljänä muunnelmana.
+    ///
+    /// Laitteella harjoituskysely palautti nollan, vaikka Healthissa on
+    /// harjoitus, lukuoikeus on päällä ja lupatila on `unnecessary`. Yksi
+    /// hypoteesi kerrallaan on liian hidas tapa edetä, joten tämä kertoo
+    /// yhdellä ajolla kumpi on kyseessä: estyykö luku (kaikki nollia) vai
+    /// karsiiko jokin kyselyn ehto (osa palauttaa dataa).
+    func logWorkoutDiagnostics() async {
+        func count(_ label: String, predicate: NSPredicate?, limit: Int = HKObjectQueryNoLimit) async {
+            let result: (Int, String?) = await withCheckedContinuation { continuation in
+                let query = HKSampleQuery(
+                    sampleType: HKObjectType.workoutType(),
+                    predicate: predicate,
+                    limit: limit,
+                    sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)]
+                ) { _, samples, error in
+                    continuation.resume(returning: (samples?.count ?? -1, error?.localizedDescription))
+                }
+                store.execute(query)
+            }
+            Self.log.notice("diag \(label, privacy: .public): \(result.0, privacy: .public) kpl, virhe: \(result.1 ?? "ei", privacy: .public)")
+        }
+
+        // 1. Ei ehtoja lainkaan: jos tämä on tyhjä, luku ei tuota mitään.
+        await count("kaikki", predicate: nil, limit: 50)
+        // 2. Sama 7 vrk ikkuna kuin tuonnissa.
+        if let start = Calendar.current.date(byAdding: .day, value: -7, to: .now) {
+            await count("7vrk", predicate: HKQuery.predicateForSamples(withStart: start, end: .now))
+        }
+        // 3. Väljä ikkuna: erottaa aikarajan muista syistä.
+        if let start = Calendar.current.date(byAdding: .day, value: -90, to: .now) {
+            await count("90vrk", predicate: HKQuery.predicateForSamples(withStart: start, end: .now))
+        }
+        // 4. Pelkkä pyöräily lajisuodattimella, ilman aikarajaa.
+        await count("pyöräily", predicate: HKQuery.predicateForWorkouts(with: .cycling), limit: 20)
+
+        // Kirjoitusoikeuden tila: iOS kertoo sen, luvun tilaa ei. Jos tämä on
+        // sharingAuthorized mutta luku ei tuota mitään, ero on nimenomaan
+        // luku- ja kirjoitusoikeuden välillä.
+        let share = store.authorizationStatus(for: HKObjectType.workoutType())
+        Self.log.notice("diag kirjoitusoikeus: \(share.rawValue, privacy: .public) (0=ei päätetty, 1=evätty, 2=sallittu)")
+    }
+
     func refreshTodaySteps() async {
         guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
         let start = Calendar.current.startOfDay(for: .now)
