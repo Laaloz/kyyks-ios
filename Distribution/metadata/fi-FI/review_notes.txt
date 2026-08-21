@@ -9,13 +9,15 @@ Huomioita arvioijalle:
    - Treeni: ohjelma "Volu 3-jakoinen" (Työntävät / Vetävät / Jalat) ja
      seitsemän valmista treeniä 1.–19.8. nousevin kuormin, joten myös
      liikekohtaiset kehityskäyrät näyttävät dataa.
-   - Ravinto: ateriakirjaukset tälle ja eiliselle päivälle.
+   - Ravinto: ateriakirjauksia usealta päivältä. Ravinto avautuu kuluvaan
+     päivään; selaa taaksepäin otsikon nuolesta nähdäksesi kirjatut päivät.
    - Keho: 17 punnitusta ja vyötärömittaa kahden kuukauden ajalta.
    - Tänään: viimeisimmät treenit ja kolme oheissuoritusta.
 
 2. HealthKit: sovellus pyytää lukuoikeutta askeleisiin, harjoituksiin, uneen ja
    painoon. Tietoja käytetään vain päivän yhteenvedon näyttämiseen ja
-   punnitusten tuontiin käyttäjän omalle tilille. Terveystietoja ei käytetä
+   punnitusten tuontiin käyttäjän omalle tilille. Lupakysely voi tulla myös
+   myöhemmällä avauksella, jos luettavia tietotyyppejä on lisätty päivityksessä. Terveystietoja ei käytetä
    mainontaan. Healthiin kirjoitetaan vain jos käyttäjä kytkee erikseen päälle
    asetuksen "Vie treenit Apple Healthiin" (Profiili → Apple Health); se on
    oletuksena pois päältä. Simulaattorissa Healthissa ei ole dataa, joten
