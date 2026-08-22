@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kyyks-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "/Users/laalo/Omat/kyyks", "--", "-p", "3300"],
+      "port": 3300
+    }
+  ]
+}
