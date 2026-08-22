@@ -83,8 +83,8 @@ struct RecipeLibraryView: View {
             RecipeDetailSheet(
                 recipe: recipe,
                 planDate: planDate,
-                onLog: { servings, mealTag in
-                    await model.logAsEaten(recipe, servings: servings, planDate: planDate, mealTag: mealTag)
+                onLog: { servings, mealTag, swaps in
+                    await model.logAsEaten(recipe, servings: servings, planDate: planDate, mealTag: mealTag, swaps: swaps)
                 },
                 onLogged: {
                     await onLogged()

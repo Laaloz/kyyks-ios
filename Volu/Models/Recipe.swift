@@ -99,6 +99,13 @@ struct RecipeIngredientLine: Decodable, Hashable, Identifiable {
     /// Miten määrä muuttuu annosmäärän mukana: "linear", "gentle", "fixed" tai
     /// "text_only".
     let scalingMode: String?
+    /// Rivin osuus koko reseptin makroista. Tulee palvelimelta vain riveille joilla
+    /// on vaihtoehtoja — vaihdon vaikutus laskee erotuksena tästä. Valinnainen,
+    /// jotta vanha levyvälimuistin vastaus dekoodautuu (ks. RecipeSwapTests).
+    let macros: RecipeMacros?
+    /// Rivin vaihtoehdot valmiiksi laskettuine makroineen. Appi ei lataa
+    /// ainesosakatalogia, joten makrot on saatava palvelimelta.
+    let alternatives: [RecipeIngredientSwapOption]?
 
     var id: String { "\(groupLabel ?? "")-\(name)-\(quantity ?? 0)-\(unit)" }
 
@@ -129,10 +136,10 @@ struct RecipeIngredientLine: Decodable, Hashable, Identifiable {
     /// pois: "2 kpl" eikä "2,0 kpl".
     func amountText(servings: Double, defaultServings: Double) -> String {
         guard let scaled = scaledQuantity(servings: servings, defaultServings: defaultServings) else { return "" }
-        return Self.amountText(quantity: scaled, unit: unitLabel)
+        return Self.formattedAmount(quantity: scaled, unit: unitLabel)
     }
 
-    private static func amountText(quantity: Double, unit: String) -> String {
+    static func formattedAmount(quantity: Double, unit: String) -> String {
         let rounded = quantity.rounded()
         let number = abs(quantity - rounded) < 0.05
             ? String(Int(rounded))
@@ -151,4 +158,56 @@ struct RecipeIngredientLine: Decodable, Hashable, Identifiable {
         default: unit
         }
     }
+}
+
+extension Recipe {
+    /// Annoksen makrot valituilla ainesvaihdoilla: reseptin makrot + vaihtojen
+    /// erotus jaettuna annosmäärällä. Erotus lasketaan palvelimen valmiiksi
+    /// laskemista rivi- ja vaihtoehtomakroista — appi ei tunne ainesosakatalogia.
+    /// Avain on rivin nimi; puuttuva avain = alkuperäinen aines.
+    func macrosPerServing(applying swaps: [String: RecipeIngredientSwapOption]) -> RecipeMacros {
+        guard !swaps.isEmpty, let ingredients else { return macrosPerServing }
+        let base = defaultServings > 0 ? defaultServings : 1
+        var kcal = macrosPerServing.kcal
+        var protein = macrosPerServing.proteinG
+        var carbs = macrosPerServing.carbsG
+        var fat = macrosPerServing.fatG
+        for item in ingredients {
+            guard let selected = swaps[item.name], let lineMacros = item.macros else { continue }
+            kcal += (selected.macros.kcal - lineMacros.kcal) / base
+            protein += (selected.macros.proteinG - lineMacros.proteinG) / base
+            carbs += (selected.macros.carbsG - lineMacros.carbsG) / base
+            fat += (selected.macros.fatG - lineMacros.fatG) / base
+        }
+        return RecipeMacros(kcal: kcal, proteinG: protein, carbsG: carbs, fatG: fat)
+    }
+}
+
+/// Ainesrivin vaihtoehto: sama rivi eri raaka-aineella ja omalla grammamäärällä.
+/// Makrot ovat koko reseptin mittakaavassa (vaihtoehdon grammamäärälle), samoin
+/// kuin rivin omat `macros` — vaihdon vaikutus annokseen on niiden erotus jaettuna
+/// reseptin annosmäärällä.
+struct RecipeIngredientSwapOption: Decodable, Hashable, Identifiable {
+    let originalName: String
+    let ingredientId: String
+    let name: String
+    let grams: Double
+    let macros: RecipeMacros
+
+    var id: String { ingredientId }
+
+    /// Grammamäärä annosvalinnalle. Vaihtoehdot skaalautuvat aina lineaarisesti:
+    /// ne ovat pääraaka-aineita, eivät mausteita.
+    func amountText(servings: Double, defaultServings: Double) -> String {
+        let base = defaultServings > 0 ? defaultServings : 1
+        let ratio = servings > 0 ? servings / base : 1
+        return RecipeIngredientLine.formattedAmount(quantity: grams * ratio, unit: "g")
+    }
+}
+
+/// Kirjaukseen lähtevä valinta. Palvelin hakee grammat ja makrot itse reseptin
+/// vaihtoehdoista ja katalogista — client kertoo vain mitä valittiin.
+struct RecipeSwapSelection: Encodable, Hashable {
+    let originalName: String
+    let ingredientId: String
 }

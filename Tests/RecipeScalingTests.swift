@@ -9,7 +9,7 @@ import Testing
 /// neljä tapausta ovat se lukko.
 struct RecipeScalingTests {
     private func line(_ mode: String?, quantity: Double? = 100) -> RecipeIngredientLine {
-        RecipeIngredientLine(name: "Aines", quantity: quantity, unit: "g", groupLabel: nil, scalingMode: mode)
+        RecipeIngredientLine(name: "Aines", quantity: quantity, unit: "g", groupLabel: nil, scalingMode: mode, macros: nil, alternatives: nil)
     }
 
     @Test func linearFollowsServingsDirectly() {

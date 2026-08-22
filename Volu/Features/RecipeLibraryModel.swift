@@ -73,7 +73,13 @@ final class RecipeLibraryModel: CachedModel {
     ///
     /// Palauttaa `.paywall`, jos palvelin torjui lukitun reseptin — lukko on
     /// palvelimella, ja tämä on se hetki jolloin käyttäjä sen kohtaa.
-    func logAsEaten(_ recipe: Recipe, servings: Double, planDate: String, mealTag: MealTag) async -> LogOutcome {
+    func logAsEaten(
+        _ recipe: Recipe,
+        servings: Double,
+        planDate: String,
+        mealTag: MealTag,
+        swaps: [RecipeSwapSelection] = []
+    ) async -> LogOutcome {
         guard let api else { return .failed }
         struct Body: Encodable {
             let planDate: String
@@ -82,6 +88,9 @@ final class RecipeLibraryModel: CachedModel {
             let servings: Double
             let source: String
             let eatenAt: String
+            // Valitut ainesvaihdot; nil = kirjataan reseptin mukaisena. Palvelin hakee
+            // grammat ja makrot itse — payload kertoo vain valinnan.
+            let ingredientSwaps: [RecipeSwapSelection]?
         }
         do {
             _ = try await api.post("/api/day-meal-plans", body: Body(
@@ -92,7 +101,8 @@ final class RecipeLibraryModel: CachedModel {
                 source: "added",
                 // Kirjaus on kuittaus: rivi on syöty siinä hetkessä kun se kirjataan,
                 // eikä erillistä "merkitse syödyksi" -vaihetta jätetä jälkeen.
-                eatenAt: ISO8601DateFormatter().string(from: .now)
+                eatenAt: ISO8601DateFormatter().string(from: .now),
+                ingredientSwaps: swaps.isEmpty ? nil : swaps
             ))
             return .logged
         } catch APIError.paymentRequired(let message) {

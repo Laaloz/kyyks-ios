@@ -8,7 +8,7 @@ import SwiftUI
 struct RecipeDetailSheet: View {
     let recipe: Recipe
     let planDate: String
-    let onLog: (Double, MealTag) async -> RecipeLibraryModel.LogOutcome
+    let onLog: (Double, MealTag, [RecipeSwapSelection]) async -> RecipeLibraryModel.LogOutcome
     /// Async, jotta kutsuja voi hakea päivän ennen kuin näkymä sulkeutuu:
     /// kirjaus näytti muuten valmistuvan ennen kuin rivi oli listassa, ja
     /// väliin jäi hetki jossa mikään ei kertonut työn olevan kesken.
@@ -25,11 +25,13 @@ struct RecipeDetailSheet: View {
     @State private var mealTag: MealTag
     @State private var isLogging = false
     @State private var errorMessage: String?
+    /// Riville valittu vaihtoehto avaimena rivin nimi; puuttuva avain = alkuperäinen.
+    @State private var swapByLine: [String: RecipeIngredientSwapOption] = [:]
 
     init(
         recipe: Recipe,
         planDate: String,
-        onLog: @escaping (Double, MealTag) async -> RecipeLibraryModel.LogOutcome,
+        onLog: @escaping (Double, MealTag, [RecipeSwapSelection]) async -> RecipeLibraryModel.LogOutcome,
         onLogged: @escaping () async -> Void,
         onPaywall: @escaping (String) -> Void,
         showsLogAction: Bool = true
@@ -76,9 +78,14 @@ struct RecipeDetailSheet: View {
 
                 // Makrot aina yhdelle annokselle. Ne ovat reseptin tunnusluku ja se luku
                 // jolla reseptejä vertaillaan keskenään — annosmäärän mukana heiluva
-                // energialukema ei vertaudu mihinkään.
+                // energialukema ei vertaudu mihinkään. Ainesvaihdot lasketaan mukaan:
+                // luku kertoo mitä ollaan kirjaamassa, ei mitä reseptissä lukee.
                 Section {
-                    MacroEnergySplit(macros: recipe.macrosPerServing, caption: "kcal / annos")
+                    MacroEnergySplit(macros: effectiveMacrosPerServing, caption: "kcal / annos")
+                } footer: {
+                    if !swapByLine.isEmpty {
+                        Text("Makrot on laskettu valituilla vaihtoehdoilla.")
+                    }
                 }
 
                 if recipe.ingredients?.isEmpty == false {
@@ -107,11 +114,7 @@ struct RecipeDetailSheet: View {
                 ForEach(Array(recipe.ingredientGroups.enumerated()), id: \.offset) { index, group in
                     Section {
                         ForEach(group.items) { item in
-                            LabeledContent(item.name) {
-                                Text(item.amountText(servings: servings, defaultServings: recipe.defaultServings))
-                                    .monospacedDigit()
-                                    .foregroundStyle(.secondary)
-                            }
+                            ingredientRow(item)
                         }
                     } header: {
                         // Pelkkä ryhmän nimi: "Ainesosat" on jo annosmäärän otsikkona,
@@ -186,6 +189,70 @@ struct RecipeDetailSheet: View {
         }
     }
 
+    /// Ainesrivi. Rivi jolla on vaihtoehtoja on valikko: valinta vaihtaa nimen,
+    /// määrän ja makrot. Valikko on arvon valintaa, joten se on neutraali kuten
+    /// muutkin arvovalitsimet — korostusväri kuuluu toiminnoille.
+    @ViewBuilder
+    private func ingredientRow(_ item: RecipeIngredientLine) -> some View {
+        if let alternatives = item.alternatives, !alternatives.isEmpty {
+            Menu {
+                Picker("Vaihtoehto", selection: swapBinding(for: item)) {
+                    Text(originalOptionLabel(item)).tag(nil as RecipeIngredientSwapOption?)
+                    ForEach(alternatives) { option in
+                        Text("\(option.name) · \(option.amountText(servings: servings, defaultServings: recipe.defaultServings))")
+                            .tag(option as RecipeIngredientSwapOption?)
+                    }
+                }
+            } label: {
+                LabeledContent {
+                    HStack(spacing: 6) {
+                        if let selected = swapByLine[item.name] {
+                            Text(selected.amountText(servings: servings, defaultServings: recipe.defaultServings))
+                                .monospacedDigit()
+                        } else {
+                            Text(item.amountText(servings: servings, defaultServings: recipe.defaultServings))
+                                .monospacedDigit()
+                        }
+                        // Merkki vain poikkeavalle kyvylle: tämä rivi on vaihdettavissa.
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary)
+                } label: {
+                    Text(swapByLine[item.name]?.name ?? item.name)
+                        .foregroundStyle(Color.primary)
+                }
+            }
+            .tint(Color.secondary)
+        } else {
+            LabeledContent(item.name) {
+                Text(item.amountText(servings: servings, defaultServings: recipe.defaultServings))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func swapBinding(for item: RecipeIngredientLine) -> Binding<RecipeIngredientSwapOption?> {
+        Binding(
+            get: { swapByLine[item.name] },
+            set: { newValue in swapByLine[item.name] = newValue }
+        )
+    }
+
+    /// Alkuperäisen rivin nimi valikossa määrineen — samassa muodossa kuin vaihtoehdot,
+    /// jotta vertailu on suoraa.
+    private func originalOptionLabel(_ item: RecipeIngredientLine) -> String {
+        let amount = item.amountText(servings: servings, defaultServings: recipe.defaultServings)
+        return amount.isEmpty ? item.name : "\(item.name) · \(amount)"
+    }
+
+    /// Annoksen makrot valituilla vaihdoilla. Laskenta on mallissa
+    /// (`Recipe.macrosPerServing(applying:)`), jotta se on testattavissa.
+    private var effectiveMacrosPerServing: RecipeMacros {
+        recipe.macrosPerServing(applying: swapByLine)
+    }
+
     private var bottomAction: some View {
         Button {
             if recipe.locked {
@@ -227,7 +294,8 @@ struct RecipeDetailSheet: View {
 
         // Aina yksi annos: valitsin kertoo paljonko tehdään, ei paljonko syötiin.
         // Määrää voi korjata riviltä jälkikäteen.
-        switch await onLog(1, mealTag) {
+        let swaps = swapByLine.map { RecipeSwapSelection(originalName: $0.key, ingredientId: $0.value.ingredientId) }
+        switch await onLog(1, mealTag, swaps) {
         case .logged:
             // Päivä haetaan ennen sulkemista, jotta "Kirjataan…" kattaa koko
             // operaation. Näkymä suljetaan vain onnistuneen tallennuksen

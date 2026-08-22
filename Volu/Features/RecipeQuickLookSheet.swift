@@ -19,7 +19,7 @@ struct RecipeQuickLookSheet: View {
                 RecipeDetailSheet(
                     recipe: recipe,
                     planDate: "",
-                    onLog: { _, _ in .failed },
+                    onLog: { _, _, _ in .failed },
                     onLogged: {},
                     onPaywall: { _ in },
                     // Rivi on jo kirjattu: kirjausnappi tarjoaisi saman aterian
