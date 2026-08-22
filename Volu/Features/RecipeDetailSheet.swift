@@ -42,10 +42,12 @@ struct RecipeDetailSheet: View {
         self.onLog = onLog
         self.onLogged = onLogged
         self.onPaywall = onPaywall
-        // Yksi annos, ei reseptin satoa. `defaultServings` kertoo montako annosta resepti antaa
-        // (esim. 4), ja sillä avattuna näkymä näytti 2 088 kcal heti sen jälkeen kun käyttäjä
-        // napautti korttia jossa luki 522 kcal. Kirjattava määrä on se mitä syödään.
-        _servings = State(initialValue: 1)
+        // Reseptin oma annosmäärä: lounaat ja illalliset tehdään pellillisinä (4 annosta),
+        // ja ainesosalistan kuuluu avautua siihen määrään jolla ruokaa oikeasti tehdään.
+        // Aiempi "aina 1" -oletus suojasi makrolukua, joka silloin skaalautui valitsimen
+        // mukana — nykyään makrot ovat aina per annos, joten suojattavaa ei ole.
+        // Kirjaus on silti aina yksi annos (ks. log()).
+        _servings = State(initialValue: recipe.defaultServings > 0 ? recipe.defaultServings : 1)
         _mealTag = State(initialValue: MealTag(rawValue: recipe.mealTag) ?? .snack)
     }
 
