@@ -33,81 +33,7 @@ struct BodyView: View {
 
                 if model.weightSeries.count >= 2 {
                     Section("Painon kehitys") {
-                        Chart(model.weightSeries) { point in
-                            // AreaMark ankkuroituu oletuksena nollaan, mikä
-                            // litistäisi 80 kg:n käyrän tunnistamattomaksi.
-                            // yStart sitoo täytön akselin alarajaan.
-                            AreaMark(
-                                x: .value("Päivä", point.date),
-                                yStart: .value("Alaraja", model.weightDomain.lowerBound),
-                                yEnd: .value("Paino", point.value)
-                            )
-                            .interpolationMethod(.monotone)
-                            .foregroundStyle(.linearGradient(
-                                colors: [.accentColor.opacity(0.28), .accentColor.opacity(0.03)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ))
-                            LineMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
-                                .interpolationMethod(.monotone)
-                                .lineStyle(StrokeStyle(lineWidth: 2))
-                            // Pisteet näyttävät missä mittaus on oikeasti tehty
-                            // — pehmennetty viiva niiden välissä on tulkintaa —
-                            // ja kertovat mistä kohtaa kannattaa napauttaa.
-                            PointMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
-                                .symbolSize(28)
-
-                            // Valittu kohta: pystyviiva, korostettu piste ja
-                            // lukema — muuten käyrästä ei näe mikä paino oli milloin.
-                            if let selected = model.point(nearest: selectedDate) {
-                                RuleMark(x: .value("Valittu", selected.date))
-                                    .foregroundStyle(.secondary.opacity(0.4))
-                                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                                PointMark(
-                                    x: .value("Valittu", selected.date),
-                                    y: .value("Paino", selected.value)
-                                )
-                                .symbolSize(90)
-                                // y: .fit pitää kuplan kaavion sisällä — .disabled
-                                // leikkasi lukeman pois käyrän huipulla.
-                                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
-                                    VStack(spacing: 1) {
-                                        Text(selected.value, format: .number.precision(.fractionLength(1)))
-                                            .font(.subheadline.weight(.semibold))
-                                            .monospacedDigit()
-                                        Text(selected.date, format: .dateTime.day().month())
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                                }
-                            }
-                        }
-                        // chartXSelection ei saa kosketusta Listin sisällä, koska
-                        // listan vieritysele vie sen. Oma ele plot-alueen päällä
-                        // toimii sekä napautuksella että vetämällä.
-                        .chartOverlay { proxy in
-                            GeometryReader { geometry in
-                                Rectangle()
-                                    .fill(.clear)
-                                    .contentShape(Rectangle())
-                                    .gesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { value in
-                                                guard let plotFrame = proxy.plotFrame else { return }
-                                                let x = value.location.x - geometry[plotFrame].origin.x
-                                                if let date: Date = proxy.value(atX: x) {
-                                                    selectedDate = date
-                                                }
-                                            }
-                                    )
-                            }
-                        }
-                        .chartYScale(domain: model.weightDomain)
-                        .frame(height: 180)
-                        .padding(.vertical, 4)
+                        weightChart
                     }
                 }
 
@@ -157,6 +83,102 @@ struct BodyView: View {
         .onChange(of: router.target) { openMeasurementIfRequested() }
     }
 
+    /// Painon kehitys.
+    ///
+    /// Akselin rajat ja valittu piste luetaan kerran tähän eikä pisteiden
+    /// closuren sisältä: closure ajetaan kerran per mittaus, joten sieltä
+    /// luettuna molemmat laskettiin uudelleen jokaista pistettä kohti — ja
+    /// valinnan merkit piirtyivät päällekkäin yhtä monta kertaa.
+    @ViewBuilder
+    private var weightChart: some View {
+        let domain = model.weightDomain
+        let selected = model.point(nearest: selectedDate)
+
+        Chart {
+            ForEach(model.weightSeries) { point in
+                // AreaMark ankkuroituu oletuksena nollaan, mikä
+                // litistäisi 80 kg:n käyrän tunnistamattomaksi.
+                // yStart sitoo täytön akselin alarajaan.
+                AreaMark(
+                    x: .value("Päivä", point.date),
+                    yStart: .value("Alaraja", domain.lowerBound),
+                    yEnd: .value("Paino", point.value)
+                )
+                .interpolationMethod(.monotone)
+                .foregroundStyle(.linearGradient(
+                    colors: [.accentColor.opacity(0.28), .accentColor.opacity(0.03)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+                LineMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                // Pisteet näyttävät missä mittaus on oikeasti tehty
+                // — pehmennetty viiva niiden välissä on tulkintaa —
+                // ja kertovat mistä kohtaa kannattaa napauttaa.
+                PointMark(x: .value("Päivä", point.date), y: .value("Paino", point.value))
+                    .symbolSize(28)
+            }
+
+            // Valittu kohta: pystyviiva, korostettu piste ja
+            // lukema — muuten käyrästä ei näe mikä paino oli milloin.
+            if let selected {
+                RuleMark(x: .value("Valittu", selected.date))
+                    .foregroundStyle(.secondary.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                PointMark(
+                    x: .value("Valittu", selected.date),
+                    y: .value("Paino", selected.value)
+                )
+                .symbolSize(90)
+                // y: .fit pitää kuplan kaavion sisällä — .disabled
+                // leikkasi lukeman pois käyrän huipulla.
+                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
+                    VStack(spacing: 1) {
+                        Text(selected.value, format: .number.precision(.fractionLength(1)))
+                            .font(.subheadline.weight(.semibold))
+                            .monospacedDigit()
+                        Text(selected.date, format: .dateTime.day().month())
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+        // chartXSelection ei saa kosketusta Listin sisällä, koska
+        // listan vieritysele vie sen. Oma ele plot-alueen päällä
+        // toimii sekä napautuksella että vetämällä.
+        .chartOverlay { proxy in
+            GeometryReader { geometry in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                guard let plotFrame = proxy.plotFrame else { return }
+                                let x = value.location.x - geometry[plotFrame].origin.x
+                                // Kohdistetaan lähimpään mittaukseen jo tässä:
+                                // vapaa päivämäärä muuttui joka kosketuksen
+                                // liikkeellä ja piirsi kaavion uusiksi, vaikka
+                                // korostettu piste pysyi samana.
+                                if let date: Date = proxy.value(atX: x),
+                                   let nearest = model.point(nearest: date),
+                                   nearest.date != selectedDate {
+                                    selectedDate = nearest.date
+                                }
+                            }
+                    )
+            }
+        }
+        .chartYScale(domain: domain)
+        .frame(height: 180)
+        .padding(.vertical, 4)
+    }
+
     /// Muistutuksen napautus avaa suoraan lomakkeen: kehotus kirjata mittaus ja
     /// sen kirjaaminen kuuluvat samaan hetkeen.
     private func openMeasurementIfRequested() {
@@ -191,10 +213,24 @@ struct BodyMeasurement: Decodable, Identifiable {
     let id: String
     let weightKg: Double?
     let waistCm: Double?
-    let measuredAt: String
+    /// Jäsennetty kerran purussa, ei laskettuna propertyna.
+    ///
+    /// Laskettuna se jäsennettiin joka lukukerralla, ja kaavio lukee saman
+    /// rivin päivämäärän kymmeniä kertoja yhtä piirtoa kohti — historian
+    /// kasvaessa avaus hidastui juuri tästä.
+    let measuredDate: Date
 
-    var measuredDate: Date {
-        parseAPIDate(measuredAt) ?? .distantPast
+    private enum CodingKeys: String, CodingKey {
+        case id, weightKg, waistCm, measuredAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+        waistCm = try container.decodeIfPresent(Double.self, forKey: .waistCm)
+        let measuredAt = try container.decode(String.self, forKey: .measuredAt)
+        measuredDate = parseAPIDate(measuredAt) ?? .distantPast
     }
 
     /// Onko rivillä seurattavaa mittaa. Pelkän pituuden rivit ovat
@@ -231,6 +267,12 @@ final class BodyModel: CachedModel {
     /// tuoreimmalla mittausrivillä sitä ei ole ja näkymä näytti viivaa vaikka
     /// arvo oli tallessa.
     private(set) var heightCm: Double?
+    /// Historiaan vain rivit joilla on painoa tai vyötäröä.
+    private(set) var trackedMeasurements: [BodyMeasurement] = []
+    /// Aikajärjestyksessä, päivältä vain viimeisin punnitus; mittaukset
+    /// tulevat uusin ensin.
+    private(set) var weightSeries: [WeightPoint] = []
+    private(set) var weightDomain: ClosedRange<Double> = 0 ... 1
     var isLoading = false
     var errorMessage: String?
 
@@ -241,33 +283,34 @@ final class BodyModel: CachedModel {
     let analyticsArea: FunnelEvent.Source? = .body
     var hasContent: Bool { !measurements.isEmpty }
 
+    /// Vain testeille: mittausten asetus ilman verkkoa.
+    func setMeasurementsForTesting(_ rows: [BodyMeasurement]) {
+        setMeasurements(rows)
+    }
+
+    /// Johdetut arvot lasketaan kerran mittausten vaihtuessa, ei näkymän
+    /// lukiessa niitä. Kaavio lukee sarjan ja akselin rajat useasti yhtä
+    /// piirtoa kohti, joten laskettuina ne tekivät avauksesta neliöllisen
+    /// mittausten määrään nähden.
+    private func setMeasurements(_ rows: [BodyMeasurement]) {
+        measurements = rows
+        trackedMeasurements = rows.filter(\.hasTrackedMetric)
+        weightSeries = Self.dailySeries(
+            rows.compactMap { entry in
+                entry.weightKg.map { WeightPoint(id: entry.id, date: entry.measuredDate, value: $0) }
+            }
+        )
+        weightDomain = Self.domain(for: weightSeries)
+    }
+
     /// Kunkin mitan tuorein kirjattu arvo, ei tuoreimman rivin arvo.
     ///
     /// Rivi kantaa vain sen mitä silloin kirjattiin: Healthista tuotu paino ei
     /// sisällä vyötäröä, joten uusin rivi näytti vyötäröksi viivaa vaikka arvo
     /// oli tallessa muutaman päivän takaa. Sama vika oli pituudessa, ja sielläkin
     /// syy oli se että arvoa haettiin väärältä riviltä.
-    /// Vain testeille: mittausten asetus ilman verkkoa.
-    func setMeasurementsForTesting(_ rows: [BodyMeasurement]) {
-        measurements = rows
-    }
-
-    var latestWeight: Double? { measurements.compactMap(\.weightKg).first }
-    var latestWaist: Double? { measurements.compactMap(\.waistCm).first }
-
-    /// Historiaan vain rivit joilla on painoa tai vyötäröä.
-    var trackedMeasurements: [BodyMeasurement] {
-        measurements.filter(\.hasTrackedMetric)
-    }
-
-    /// Uusin ensin -järjestyksessä; kaavio tarvitsee aikajärjestyksen.
-    var weightSeries: [WeightPoint] {
-        Self.dailySeries(
-            measurements.compactMap { entry in
-                entry.weightKg.map { WeightPoint(id: entry.id, date: entry.measuredDate, value: $0) }
-            }
-        )
-    }
+    var latestWeight: Double? { measurements.first { $0.weightKg != nil }?.weightKg }
+    var latestWaist: Double? { measurements.first { $0.waistCm != nil }?.waistCm }
 
     /// Päivältä vain viimeisin punnitus, aikajärjestyksessä.
     ///
@@ -288,8 +331,8 @@ final class BodyModel: CachedModel {
 
     /// Akselin rajat datasta pienellä marginaalilla: kiinteä 0-alku
     /// piilottaisi painon vaihtelun kokonaan.
-    var weightDomain: ClosedRange<Double> {
-        let values = weightSeries.map(\.value)
+    static func domain(for series: [WeightPoint]) -> ClosedRange<Double> {
+        let values = series.map(\.value)
         guard let min = values.min(), let max = values.max() else { return 0 ... 1 }
         let padding = Swift.max((max - min) * 0.25, 0.5)
         return (min - padding) ... (max + padding)
@@ -316,7 +359,7 @@ final class BodyModel: CachedModel {
 
     func apply(_ data: Data) {
         guard let decoded = try? JSONDecoder().decode(MeasurementsResponse.self, from: data) else { return }
-        measurements = decoded.measurements
+        setMeasurements(decoded.measurements)
         heightCm = decoded.heightCm
     }
 }
