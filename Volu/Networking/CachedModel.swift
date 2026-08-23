@@ -40,9 +40,12 @@ extension CachedModel {
     func load() async {
         if let cached = await ResponseCache.shared.read(cacheKey) {
             apply(cached)
-        } else {
-            isLoading = true
         }
+        // Spinneri myös silloin kun välimuistista tuli sisältöä jota malli ei
+        // ottanut vastaan — esimerkiksi väärän päivän vastaus. Aiemmin pelkkä
+        // osuma välimuistiin riitti piilottamaan sen, jolloin päivän vaihto
+        // näytti tyhjää ruutua ilman merkkiä siitä että haku on kesken.
+        if !hasContent { isLoading = true }
         await refresh()
         isLoading = false
     }
@@ -64,9 +67,18 @@ extension CachedModel {
     /// kerro syytä — sama umpikuja johon treenin viimeistely ajautui.
     private func refreshCapturingError() async -> Error? {
         guard let api else { return APIError.transport }
+        // Avain ja polku talteen ennen hakua. Molemmat riippuvat mallin
+        // tilasta — ravinnossa valitusta päivästä — ja tila voi vaihtua kesken
+        // haun. Awaitin jälkeen luettuna vastaus tallentui sen päivän avaimelle
+        // johon käyttäjä oli juuri siirtynyt, eli väärän päivän välimuistiin.
+        let key = cacheKey
+        let path = resourcePath
         do {
-            let data = try await api.get(resourcePath)
-            await ResponseCache.shared.write(cacheKey, data: data)
+            let data = try await api.get(path)
+            await ResponseCache.shared.write(key, data: data)
+            // Vastaus kuuluu sille tilalle josta se pyydettiin. Jos päivä on
+            // sillä välin vaihtunut, se jää välimuistiin eikä mene ruudulle.
+            guard key == cacheKey else { return nil }
             apply(data)
             errorMessage = nil
             return nil

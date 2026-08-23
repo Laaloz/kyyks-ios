@@ -356,26 +356,37 @@ struct NutritionView: View {
     @ToolbarContentBuilder
     private var dateToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            Button {
-                Task { await model.shiftDay(by: -1) }
-            } label: {
-                Image(systemName: "chevron.left")
-            }
-            .accessibilityLabel("Edellinen päivä")
+            dayButton(offset: -1, symbol: "chevron.left", label: "Edellinen päivä")
         }
         ToolbarItem(placement: .principal) {
             Text(model.dateLabel)
                 .font(.headline)
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                Task { await model.shiftDay(by: 1) }
-            } label: {
-                Image(systemName: "chevron.right")
-            }
-            .disabled(model.isToday)
-            .accessibilityLabel("Seuraava päivä")
+            dayButton(offset: 1, symbol: "chevron.right", label: "Seuraava päivä")
+                .disabled(model.isToday)
         }
+    }
+
+    /// Päivänuoli.
+    ///
+    /// Päivä vaihdetaan synkronisesti painalluksessa ja vasta lataus jää
+    /// taustalle: `Task`in sisällä koko siirtymä näytti satunnaisesti
+    /// jääneen väliin, kun main actor oli varattu edellisestä hausta.
+    ///
+    /// Osuma-alue on nimenomaisesti 44 pt: toolbar-item mitoittuu
+    /// sisältöönsä, ja pelkkä chevron on ~13 pt leveä — ensimmäinen
+    /// napautus meni usein ohi.
+    private func dayButton(offset: Int, symbol: String, label: String) -> some View {
+        Button {
+            guard model.selectDay(offsetBy: offset) else { return }
+            Task { await model.load() }
+        } label: {
+            Image(systemName: symbol)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
     }
 
     private var macroSummary: some View {

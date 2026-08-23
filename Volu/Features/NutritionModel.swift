@@ -60,15 +60,28 @@ final class NutritionModel: CachedModel {
         (day?.entries ?? []).filter { $0.mealTag == tag.rawValue }.sorted { $0.position < $1.position }
     }
 
-    func shiftDay(by days: Int) async {
+    /// Päivän vaihto ilman odotusta; palauttaa vaihtuiko päivä.
+    ///
+    /// Erillään latauksesta, jotta napin painallus muuttaa tilan heti.
+    /// Kun koko siirtymä oli `Task`in sisällä, otsikko ja sisältö vaihtuivat
+    /// vasta kun main actor ehti — kiireisellä hetkellä napautus näytti
+    /// jääneen kokonaan huomiotta.
+    @discardableResult
+    func selectDay(offsetBy days: Int) -> Bool {
         let calendar = Calendar.current
-        guard let shifted = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return }
+        guard let shifted = calendar.date(byAdding: .day, value: days, to: selectedDate) else { return false }
         // Vertailu päivinä eikä hetkinä: selectedDate kantaa avaushetken
         // kellonajan, joten hetkivertailu esti keskiyön jälkeen siirtymisen
         // oikeaan kuluvaan päivään (23.50 + 1 vrk > nyt).
-        if days > 0 && calendar.startOfDay(for: shifted) > calendar.startOfDay(for: .now) { return }
+        if days > 0 && calendar.startOfDay(for: shifted) > calendar.startOfDay(for: .now) { return false }
         selectedDate = shifted
         day = nil
+        isLoading = true
+        return true
+    }
+
+    func shiftDay(by days: Int) async {
+        guard selectDay(offsetBy: days) else { return }
         await load()
     }
 
