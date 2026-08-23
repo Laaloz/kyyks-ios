@@ -21,6 +21,16 @@ extension ISO8601DateFormatter {
         return formatter
     }()
 
+    /// Ilman murto-osasekunteja: Healthista tuodut mittaukset tulevat tässä
+    /// muodossa. Jaettu vakio siksi, että tämä on `parseAPIDate`in yleisin
+    /// polku — aiemmin fallback loi uuden muotoilijan joka kutsulla, ja
+    /// kalliita ne ovat luoda nimenomaan silmukassa.
+    static let withoutFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     /// Pelkkä päivä ilman kellonaikaa (`plan_date`, `scheduled_date`).
     static let dateOnly: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -32,7 +42,7 @@ extension ISO8601DateFormatter {
 /// API:n aikaleima Dateksi muodosta riippumatta.
 func parseAPIDate(_ value: String) -> Date? {
     ISO8601DateFormatter.withFractionalSeconds.date(from: value)
-        ?? ISO8601DateFormatter().date(from: value)
+        ?? ISO8601DateFormatter.withoutFractionalSeconds.date(from: value)
         ?? ISO8601DateFormatter.dateOnly.date(from: String(value.prefix(10)))
 }
 

@@ -64,9 +64,25 @@ struct ExerciseProgress: Decodable, Identifiable {
         let value: Double
         let load: Double
         let reps: Double
+        /// Jäsennetty kerran purussa, ei laskettuna propertyna: kaavio lukee
+        /// saman pisteen päivän moneen kertaan yhtä piirtoa kohti, ja
+        /// liikelistan jokainen rivi piirtää oman trendiviivansa.
+        let day: Date
 
         var id: String { "\(date)-\(load)-\(reps)" }
-        var day: Date { parseAPIDate(date) ?? .now }
+
+        private enum CodingKeys: String, CodingKey {
+            case date, value, load, reps
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            date = try container.decode(String.self, forKey: .date)
+            value = try container.decode(Double.self, forKey: .value)
+            load = try container.decode(Double.self, forKey: .load)
+            reps = try container.decode(Double.self, forKey: .reps)
+            day = parseAPIDate(date) ?? .now
+        }
     }
 
     struct RepRecord: Decodable, Identifiable {
