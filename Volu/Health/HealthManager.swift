@@ -500,7 +500,7 @@ final class HealthManager {
                     // Healthin oma kulutus on tarkempi kuin MET-arvio; ilman sitä
                     // palvelin laskee arvion kuten käsin kirjatuille.
                     manualKcal: kcal.map { $0.rounded() },
-                    occurredAt: ISO8601DateFormatter().string(from: workout.startDate),
+                    occurredAt: ISO8601DateFormatter.withoutFractionalSeconds.string(from: workout.startDate),
                     source: "healthkit",
                     externalId: id,
                     distanceMeters: distanceMeters,
@@ -630,7 +630,7 @@ final class HealthManager {
                         // Punnituksen tarkkuus on 0,1 kg; enempi desimaali on
                         // vaa'an kohinaa eikä muutosta painossa.
                         weightKg: (sample.kilograms * 10).rounded() / 10,
-                        measuredAt: ISO8601DateFormatter().string(from: sample.date)
+                        measuredAt: ISO8601DateFormatter.withoutFractionalSeconds.string(from: sample.date)
                     )
                 }
             ))

@@ -211,29 +211,41 @@ struct ExerciseProgressDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    /// e1RM:n kehitys.
+    ///
+    /// Akselin rajat ja valittu piste luetaan kerran tähän eikä pisteiden
+    /// closuren sisältä: closure ajetaan kerran per treenikerta, joten sieltä
+    /// luettuna molemmat laskettiin uudelleen jokaista pistettä kohti — ja
+    /// valinnan merkit piirtyivät päällekkäin yhtä monta kertaa.
+    @ViewBuilder
     private var chart: some View {
-        Chart(exercise.trend) { point in
-            AreaMark(
-                x: .value("Päivä", point.day),
-                yStart: .value("Alaraja", ExerciseProgress.domain(for: exercise.trend).lowerBound),
-                yEnd: .value("e1RM", point.value)
-            )
-            .interpolationMethod(.monotone)
-            .foregroundStyle(.linearGradient(
-                colors: [.accentColor.opacity(0.28), .accentColor.opacity(0.03)],
-                startPoint: .top,
-                endPoint: .bottom
-            ))
-            LineMark(x: .value("Päivä", point.day), y: .value("e1RM", point.value))
-                .interpolationMethod(.monotone)
-                .lineStyle(StrokeStyle(lineWidth: 2))
-            // Treenikertoja on harvassa, ja pehmennetty viiva niiden välissä
-            // näyttäisi jatkuvalta kehitykseltä. Pisteet kertovat missä
-            // todellinen mittaus on.
-            PointMark(x: .value("Päivä", point.day), y: .value("e1RM", point.value))
-                .symbolSize(28)
+        let domain = ExerciseProgress.domain(for: exercise.trend)
+        let selected = exercise.point(nearest: selectedDate)
 
-            if let selected = exercise.point(nearest: selectedDate) {
+        Chart {
+            ForEach(exercise.trend) { point in
+                AreaMark(
+                    x: .value("Päivä", point.day),
+                    yStart: .value("Alaraja", domain.lowerBound),
+                    yEnd: .value("e1RM", point.value)
+                )
+                .interpolationMethod(.monotone)
+                .foregroundStyle(.linearGradient(
+                    colors: [.accentColor.opacity(0.28), .accentColor.opacity(0.03)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ))
+                LineMark(x: .value("Päivä", point.day), y: .value("e1RM", point.value))
+                    .interpolationMethod(.monotone)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                // Treenikertoja on harvassa, ja pehmennetty viiva niiden välissä
+                // näyttäisi jatkuvalta kehitykseltä. Pisteet kertovat missä
+                // todellinen mittaus on.
+                PointMark(x: .value("Päivä", point.day), y: .value("e1RM", point.value))
+                    .symbolSize(28)
+            }
+
+            if let selected {
                 RuleMark(x: .value("Valittu", selected.day))
                     .foregroundStyle(.secondary.opacity(0.4))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
@@ -272,14 +284,20 @@ struct ExerciseProgressDetailView: View {
                             .onChanged { value in
                                 guard let plotFrame = proxy.plotFrame else { return }
                                 let x = value.location.x - geometry[plotFrame].origin.x
-                                if let date: Date = proxy.value(atX: x) {
-                                    selectedDate = date
+                                // Kohdistetaan lähimpään treenikertaan jo
+                                // tässä: vapaa päivämäärä muuttui joka
+                                // liikkeellä ja piirsi kaavion uusiksi, vaikka
+                                // korostettu piste pysyi samana.
+                                if let date: Date = proxy.value(atX: x),
+                                   let nearest = exercise.point(nearest: date),
+                                   nearest.day != selectedDate {
+                                    selectedDate = nearest.day
                                 }
                             }
                     )
             }
         }
-        .chartYScale(domain: ExerciseProgress.domain(for: exercise.trend))
+        .chartYScale(domain: domain)
         .frame(height: 180)
         .padding(.vertical, 4)
     }
