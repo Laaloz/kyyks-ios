@@ -1,4 +1,5 @@
 import ActivityKit
+import Combine
 import SwiftUI
 import UserNotifications
 
@@ -206,10 +207,30 @@ extension View {
     /// jolloin esimerkiksi "Aloita treeni" jää lepopalkin taakse, myös
     /// kosketuksille.
     func restTimerBar(_ timer: RestTimerManager) -> some View {
-        safeAreaInset(edge: .bottom) {
-            if timer.isActive {
-                RestTimerBar(timer: timer)
+        modifier(RestTimerBarInset(timer: timer))
+    }
+}
+
+/// Näppäimistön ajaksi lepopalkki väistyy: safeAreaInset nousisi näppäimistön
+/// ja sen työkalurivin mukana keskelle ruutua peittämään sarjarivit, joita
+/// juuri kirjoitetaan. Ajastin jatkaa taustalla ja palkki palaa näppäimistön
+/// sulkeutuessa; sillä välin aika näkyy Dynamic Islandissa ja lukitusnäytöllä.
+private struct RestTimerBarInset: ViewModifier {
+    let timer: RestTimerManager
+    @State private var keyboardVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .safeAreaInset(edge: .bottom) {
+                if timer.isActive && !keyboardVisible {
+                    RestTimerBar(timer: timer)
+                }
             }
-        }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                withAnimation(.snappy) { keyboardVisible = true }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                withAnimation(.snappy) { keyboardVisible = false }
+            }
     }
 }

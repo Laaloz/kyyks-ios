@@ -24,7 +24,9 @@ struct SetTable: View {
     let previous: (WorkoutSetLog) -> PreviousSet?
     /// Rivillä kirjoitetut arvot. Tyhjä kenttä on nil, ei nolla.
     let onCommit: (WorkoutSetLog, Double?, Double?) -> Void
-    let onToggle: (WorkoutSetLog) -> Void
+    /// Kuittaus saa mukaansa kentissä olevat vahvistamattomat arvot (tyhjä
+    /// kenttä on nil), jotta kuittaus ja arvot lähtevät yhtenä kirjauksena.
+    let onToggle: (WorkoutSetLog, Double?, Double?) -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -59,7 +61,7 @@ struct SetTable: View {
                     isNext: log.id == nextSetId,
                     showsPrevious: showsPrevious,
                     onCommit: { reps, load in onCommit(log, reps, load) },
-                    onToggle: { onToggle(log) }
+                    onToggle: { reps, load in onToggle(log, reps, load) }
                 )
             }
         }
@@ -101,11 +103,15 @@ private struct SetRow: View {
     let isNext: Bool
     let showsPrevious: Bool
     let onCommit: (Double?, Double?) -> Void
-    let onToggle: () -> Void
+    let onToggle: (Double?, Double?) -> Void
 
     @State private var repsText: String
     @State private var loadText: String
     @FocusState private var focus: Field?
+    /// Kuittaus vie kenttien arvot mukanaan ja pudottaa fokuksen; ilman tätä
+    /// lippua fokuksen poisto ajaisi perään oman committinsa, joka vertaisi
+    /// kentän vanhaa tekstiä juuri kirjattuun arvoon ja pyyhkisi sen.
+    @State private var suppressCommitOnFocusLoss = false
 
     private enum Field { case reps, load }
 
@@ -115,7 +121,7 @@ private struct SetRow: View {
         isNext: Bool,
         showsPrevious: Bool,
         onCommit: @escaping (Double?, Double?) -> Void,
-        onToggle: @escaping () -> Void
+        onToggle: @escaping (Double?, Double?) -> Void
     ) {
         self.log = log
         self.previousSummary = previousSummary
@@ -157,14 +163,29 @@ private struct SetRow: View {
             field(text: $loadText, field: .load, placeholder: targetLoadPlaceholder, width: 72)
 
             Button {
-                // Kirjoitettu mutta vahvistamaton arvo mukaan: kuittaus kesken
-                // kirjoituksen ei saa hukata juuri näppäiltyä lukua. Kirjaus
-                // merkitsee sarjan jo tehdyksi (kirjaus = tehty), joten toggle
-                // ajetaan vain kun mitään ei ollut kirjattavana — muuten se
-                // peruisi juuri syntyneen kuittauksen saman tien.
-                if !commit() {
-                    onToggle()
+                // Kirjoitettu mutta vahvistamaton arvo kuittauksen mukaan:
+                // kuittaus kesken kirjoituksen ei saa hukata juuri näppäiltyä
+                // lukua, ja yhtenä kirjauksena arvot ja kuittaus eivät voi
+                // ohittaa toisiaan verkossa. Fokus pois samalla: sarja on
+                // tehty ja näppäimistön alta paljastuu lepopalkki.
+                let reps = Self.parse(repsText)
+                let load = Self.parse(loadText)
+                if focus != nil {
+                    suppressCommitOnFocusLoss = true
+                    focus = nil
+                    // Fokusoidun kentän teksti ei seuraa mallia (onChange
+                    // ohittaa sen näppäilyn suojaksi), joten kirjattava arvo
+                    // peilataan tekstiin tässä — sama esitäyttöketju kuin
+                    // mallissa. Muuten kenttä jäisi näyttämään tyhjää, vaikka
+                    // kuittaus kirjasi tavoitteen.
+                    if !log.isLogged {
+                        repsText = Self.format(reps ?? log.actualReps ?? log.targetReps)
+                        if let appliedLoad = load ?? log.actualLoad ?? log.targetLoad {
+                            loadText = Self.format(appliedLoad)
+                        }
+                    }
                 }
+                onToggle(reps, load)
             } label: {
                 // Kuittaus korostusvärillä, ei vihreällä: väri on varattu
                 // tavoitepoikkeamalle, ja muoto kertoo tilan.
@@ -188,7 +209,39 @@ private struct SetRow: View {
         // Fokus pois kentästä = arvo talteen. Erillistä tallennusnappia ei ole,
         // koska rivillä ei ole mitään muuta vahvistettavaa.
         .onChange(of: focus) { previous, current in
-            if previous != nil && current == nil { commit() }
+            guard previous != nil, current == nil else { return }
+            if suppressCommitOnFocusLoss {
+                suppressCommitOnFocusLoss = false
+            } else {
+                commit()
+            }
+        }
+        // Näppäimistön työkalurivi rivin fokuksen ehdolla. Kenttäkohtaisena
+        // jokainen näkyvä kenttä toi listaan oman ryhmänsä ja "Valmis"-napit
+        // pinoutuivat päällekkäin; ehto rajaa ryhmän siihen ainoaan riviin,
+        // jonka kenttää juuri kirjoitetaan. Askelnapit säätävät ilman
+        // näppäilyä: toistot ±1, kuorma ±2,5 kg (pienin yleinen levypari).
+        .toolbar {
+            if let field = focus {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Button {
+                        adjust(by: -1)
+                    } label: {
+                        Image(systemName: "minus")
+                            .frame(width: 44, height: 32)
+                    }
+                    .accessibilityLabel(field == .reps ? "Vähennä toistoja" : "Vähennä kuormaa")
+                    Button {
+                        adjust(by: 1)
+                    } label: {
+                        Image(systemName: "plus")
+                            .frame(width: 44, height: 32)
+                    }
+                    .accessibilityLabel(field == .reps ? "Lisää toistoja" : "Lisää kuormaa")
+                    Spacer()
+                    Button("Valmis") { focus = nil }
+                }
+            }
         }
         // Taustasynkka voi korjata arvon (esim. epäonnistunut kirjaus
         // palautetaan). Kentät seuraavat mallia vain kun niitä ei juuri
@@ -211,15 +264,6 @@ private struct SetRow: View {
             .focused($focus, equals: field)
             .submitLabel(.done)
             .onSubmit { focus = nil }
-            .toolbar {
-                // Numeronäppäimistössä ei ole rivinvaihtoa, joten ilman tätä
-                // ainoa ulospääsy oli vierittäminen. "Valmis" on iOS:n
-                // vakiintunut paikka sille.
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Valmis") { focus = nil }
-                }
-            }
             .frame(width: width)
             .padding(.vertical, 7)
             // Solu näyttää syöttökentältä, koska se on syöttökenttä. Vuorossa
@@ -239,16 +283,37 @@ private struct SetRow: View {
     }
 
     /// Tyhjä kenttä on nil eikä nolla: nolla toistoa on eri asia kuin
-    /// kirjaamaton sarja, ja palvelin erottaa ne toisistaan.
-    /// Palauttaa kirjattiinko jotain — kuittausnappi tarvitsee tiedon, koska
-    /// kirjaus merkitsee sarjan tehdyksi eikä togglea saa ajaa sen perään.
-    @discardableResult
-    private func commit() -> Bool {
+    /// kirjaamaton sarja, ja palvelin erottaa ne toisistaan. Commit tallentaa
+    /// vain arvot — tehdyksi merkitsee ainoastaan kuittausnappi.
+    private func commit() {
         let reps = Self.parse(repsText)
         let load = Self.parse(loadText)
-        guard reps != log.actualReps || load != log.actualLoad else { return false }
+        guard reps != log.actualReps || load != log.actualLoad else { return }
         onCommit(reps, load)
-        return true
+    }
+
+    /// Askelsäätö näppäimistön työkaluriviltä fokusoituun kenttään. Tyhjään
+    /// kenttään ensimmäinen napautus tuo lähtöarvon — esitäytön tai
+    /// tavoitteen — ja vasta seuraavat siirtävät sitä: säätö alkaa aina
+    /// näkyvästä luvusta eikä hyppää sen ohi.
+    private func adjust(by direction: Double) {
+        guard let field = focus else { return }
+        switch field {
+        case .reps:
+            if let current = Self.parse(repsText) {
+                repsText = Self.format(max(0, current + direction))
+            } else {
+                repsText = Self.format(log.actualReps ?? log.targetReps)
+            }
+        case .load:
+            if let current = Self.parse(loadText) {
+                loadText = Self.format(max(0, current + direction * 2.5))
+            } else if let base = log.actualLoad ?? log.targetLoad {
+                loadText = Self.format(base)
+            } else {
+                loadText = Self.format(max(0, direction * 2.5))
+            }
+        }
     }
 
     private var targetLoadPlaceholder: String {

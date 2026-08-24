@@ -116,42 +116,35 @@ final class WorkoutModel: CachedModel {
         pendingSets[patch.logId] = patch
     }
 
-    /// Toteuman kirjaaminen merkitsee sarjan tehdyksi: jos toistot tai kuorma on
-    /// syötetty, sarja on tehty. Erillinen kuittaus jäi kannassa tekemättä 84
-    /// kertaa valmiiksi merkityissä treeneissä (mm. maastaveto 4 × 120 kg), eli
-    /// se oli pelkkä virhelähde. Kuittausruutu jää nopeaksi poluksi tavoitteen
-    /// mukaiselle sarjalle ja kuittauksen perumiseen.
-    /// Palauttaa lepoajan, jos sarja siirtyi tehdyksi.
-    @discardableResult
-    func updateSet(logId: String, reps: Double?, load: Double?) -> (restSeconds: Int, exerciseName: String)? {
-        guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return nil }
+    /// Toteuman kirjaaminen päivittää vain arvot. Aiemmin arvon kirjaus
+    /// merkitsi sarjan samalla tehdyksi ("kirjaus = tehty"), mutta sääntö
+    /// laukesi myös pelkästä luvun korjaamisesta: kenttä kuittasi sarjan ja
+    /// käynnisti lepoajastimen, vaikka käyttäjä vasta muokkasi arvoa.
+    /// Tehdyksi merkitsee vain kuittaus ([[toggleDone]]), joka saa kentissä
+    /// olevat arvot mukaansa — joten kirjoitettu luku ei huku, vaikka
+    /// kuittaus tehdään kesken kirjoituksen.
+    func updateSet(logId: String, reps: Double?, load: Double?) {
+        guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return }
         let previous = setLogs[index]
+        guard reps != previous.actualReps || load != previous.actualLoad else { return }
         setLogs[index].actualReps = reps
         setLogs[index].actualLoad = load
-
-        let becameDone = (reps != nil || load != nil) && !previous.done
-        if becameDone {
-            setLogs[index].done = true
-        }
         sync(setLogs[index], revertTo: previous)
-
-        // Sama sääntö kuin kuittauksessa: viimeisestä sarjasta ei lepoa.
-        guard becameDone, let nextExercise = nextPendingExerciseName() else { return nil }
-        let rest = Int(previous.targetRestSeconds ?? 90)
-        return (restSeconds: rest > 0 ? rest : 90, exerciseName: nextExercise)
     }
 
     /// Optimistinen kirjaus: paikallinen tila heti, synkka taustalla,
-    /// virheessä tila palautetaan. Kirjattaessa toteuma esitäytetään
-    /// tavoitteesta, jos käyttäjä ei ole syöttänyt omaa.
+    /// virheessä tila palautetaan. `reps` ja `load` ovat kentissä juuri
+    /// kirjoitetut, vielä vahvistamattomat arvot: kuittaus kesken kirjoituksen
+    /// ei saa hukata näppäiltyä lukua, ja yhtenä kirjauksena arvot ja kuittaus
+    /// eivät voi ohittaa toisiaan verkossa.
     ///
-    /// Napin tila luetaan `isLogged`istä eikä `done`sta, ja perutessa myös
-    /// arvot tyhjennetään. Muuten nappi voisi olla eri mieltä kuin ruutu:
-    /// arvolliseen mutta kuittaamattomaan riviin napautus olisi vaihtanut
-    /// pelkän lipun eikä mikään olisi muuttunut näkyvästi.
+    /// Kirjattaessa toteuma otetaan ensisijaisesti kentästä, sitten mallissa
+    /// jo olevasta esitäytöstä (edellisen kerran tulos) ja vasta lopuksi
+    /// tavoitteesta. Ilman esitäyttöporrasta kuittaus nollasi "viimeksi"-
+    /// lukemat toistohaarukan alarajaan (`targetReps` on haarukan alaraja).
     /// Palauttaa lepoajan, jos sarja siirtyi kirjatuksi (ajastimen käynnistys).
     @discardableResult
-    func toggleDone(logId: String) -> (restSeconds: Int, exerciseName: String)? {
+    func toggleDone(logId: String, reps: Double? = nil, load: Double? = nil) -> (restSeconds: Int, exerciseName: String)? {
         guard let index = setLogs.firstIndex(where: { $0.id == logId }) else { return nil }
         let previous = setLogs[index]
 
@@ -159,16 +152,22 @@ final class WorkoutModel: CachedModel {
             // Vain kuittaus perutaan. Arvot jäävät paikalleen, koska ne ovat
             // palvelimen esitäyttö edelliseltä kerralta — niiden nollaaminen
             // hävittäisi ehdotuksen, eikä kirjaamaton sarja näytä arvojaan
-            // muutenkaan.
+            // muutenkaan. Kentissä olevat arvot otetaan silti talteen, jottei
+            // kesken kirjoituksen tehty peruminen hukkaa näppäiltyä lukua.
             setLogs[index].done = false
+            if let reps { setLogs[index].actualReps = reps }
+            if let load { setLogs[index].actualLoad = load }
         } else {
             setLogs[index].done = true
-            setLogs[index].actualReps = previous.targetReps
-            // Kuorma ensisijaisesti esitäytöstä: se on se mitä samalla sarjalla
-            // nostettiin viimeksi, ja juuri se on kuittauksen oletus. Sitten
-            // ohjelman tavoitekuorma, ja vasta lopuksi haku edellisestä
-            // treenistä. Ilman tätä kuittaus kirjaisi pelkät toistot.
-            setLogs[index].actualLoad = previous.actualLoad
+            setLogs[index].actualReps = reps
+                ?? previous.actualReps
+                ?? previous.targetReps
+            // Kuorma ensisijaisesti kentästä tai esitäytöstä: se on se mitä
+            // samalla sarjalla nostettiin viimeksi, ja juuri se on kuittauksen
+            // oletus. Sitten ohjelman tavoitekuorma, ja vasta lopuksi haku
+            // edellisestä treenistä. Ilman tätä kuittaus kirjaisi pelkät toistot.
+            setLogs[index].actualLoad = load
+                ?? previous.actualLoad
                 ?? previous.targetLoad
                 ?? previousSet(for: previous)?.actualLoad
         }

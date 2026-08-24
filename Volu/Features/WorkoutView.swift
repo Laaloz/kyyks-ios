@@ -395,16 +395,12 @@ struct WorkoutView: View {
                 logs: exercise.logs,
                 previous: { model.previousSet(for: $0) },
                 onCommit: { log, reps, load in
-                    // Sama polku kuin ennen modaalista: kirjaus merkitsee
-                    // sarjan tehdyksi ja käynnistää lepoajastimen.
-                    if let rest = model.updateSet(logId: log.id, reps: reps, load: load) {
-                        withAnimation(.snappy) {
-                            restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
-                        }
-                    }
+                    // Pelkkä arvojen tallennus: tehdyksi merkitsee ja
+                    // lepoajastimen käynnistää vain kuittaus (onToggle).
+                    model.updateSet(logId: log.id, reps: reps, load: load)
                 },
-                onToggle: { log in
-                    if let rest = model.toggleDone(logId: log.id) {
+                onToggle: { log, reps, load in
+                    if let rest = model.toggleDone(logId: log.id, reps: reps, load: load) {
                         withAnimation(.snappy) {
                             restTimer.start(seconds: rest.restSeconds, exerciseName: rest.exerciseName)
                         }
