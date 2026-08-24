@@ -1,9 +1,11 @@
-Volun ensimmäinen versio.
+Treenin kirjaus tarkentui:
 
-• Treenin kirjaus sarja kerrallaan: toistot, kuormat ja lepoajastin
-• Oma ohjelma: luonti sovelluksessa ja treenin aloitus siitä
-• Kehitys liikkeittäin käyränä
-• Ravintokirjaus, reseptikirjasto ja tekoälyn tekemä ateria-arvio
-• Mitat ja painon kehitys
-• Apple Health: askeleet, yöuni, suoritukset ja punnitukset
-• Valinnainen treenien vienti Apple Healthiin
+• Toistojen tai kuorman muokkaus ei enää merkitse sarjaa tehdyksi — sarjan kuittaa vain kuittausruutu
+• Kuittaus säilyttää edellisen kerran toistot eikä pudota niitä ohjelman alarajaan
+• Toistoja ja kuormaa voi nyt säätää plus- ja miinusnapeilla ilman näppäilyä
+• Näppäimistön Valmis-painike ei enää monistu, eikä lepoajastin jää näppäimistön alle
+
+Lisäksi:
+
+• Keho- ja Kehitys-välilehdet sekä liikkeiden kaaviot avautuvat selvästi nopeammin
+• Ravinnon päivänvaihto reagoi ensimmäiseen napautukseen, ja päivänuolten osuma-alue on suurempi
