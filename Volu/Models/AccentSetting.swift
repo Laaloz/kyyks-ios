@@ -10,8 +10,9 @@ import UIKit
 /// (`AccentColor`-resurssi), ja tämä noudattaa sitä.
 ///
 /// Sävyt on valittu laskien eikä silmällä: jokaisen kontrasti omaa taustaansa
-/// vasten ylittää WCAG:n 4,5:1 rajan, mikä koskee sekä linkkitekstiä että
-/// valkoista tekstiä korostetun napin päällä. Lukitseva testi:
+/// vasten ylittää WCAG:n 4,5:1 rajan, mikä koskee linkkitekstiä, valkoista
+/// tekstiä korostetun napin päällä ja TabView'n valintakapselia (aiempi
+/// vihreä 008048 jäi kapselilla 4,02:1:een). Lukitseva testi:
 /// `AccentContrastTests`.
 enum AccentSetting: String, CaseIterable, Identifiable {
     case green
@@ -43,7 +44,7 @@ enum AccentSetting: String, CaseIterable, Identifiable {
     /// Sävy vaalealla taustalla. Tummempi kuin tumman teeman vastine.
     var lightHex: String {
         switch self {
-        case .green: "008048"
+        case .green: "00713F"
         case .blue: "0A5FCC"
         case .purple: "6A3FBF"
         case .orange: "A64B00"

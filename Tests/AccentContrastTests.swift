@@ -48,6 +48,16 @@ struct AccentContrastTests {
     }
 
     @Test(arguments: AccentSetting.allCases)
+    func vaaleaSavyEroaaValintakapselista(_ option: AccentSetting) {
+        // TabView piirtää valitun välilehden aksentilla valintakapseliin,
+        // joka on vaaleassa teemassa mitattuna E6E6E6 (musta 10 %:n
+        // peitolla valkoisella). Aiemmat testit eivät mitanneet tätä paria,
+        // ja vihreä 008048 jäi siinä 4,02:1:een — siksi nyt 00713F.
+        let mitattu = suhde(option.lightHex, "E6E6E6")
+        #expect(mitattu >= vaadittuSuhde, "\(option.label) kapselilla: \(mitattu)")
+    }
+
+    @Test(arguments: AccentSetting.allCases)
     func savytOvatEriVarit(_ option: AccentSetting) {
         // Jos vaalea ja tumma sävy olisivat sama, toinen teema jäisi
         // korjaamatta — juuri se vika jota tämä asetus välttää.
@@ -56,9 +66,11 @@ struct AccentContrastTests {
     }
 
     @Test func oletusOnBrandivihrea() {
-        // Oletus ei saa muuttua tämän asetuksen myötä: nykyisten käyttäjien
-        // sovellus näyttää samalta kunnes he itse valitsevat toisin.
-        #expect(AccentSetting.green.lightHex == "008048")
+        // Vaalea sävy tummennettiin 008048 → 00713F, koska vanha jäi
+        // TabView'n valintakapselilla 4,02:1:een. Sama arvo on Androidissa
+        // (ThemeSettings.kt) ja AccentColor-assetissa — kolme kopiota,
+        // joten lukitus on tarpeen.
+        #expect(AccentSetting.green.lightHex == "00713F")
         #expect(AccentSetting.green.darkHex == "54D795")
     }
 
