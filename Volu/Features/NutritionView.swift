@@ -117,7 +117,15 @@ struct NutritionView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Valmis") { isQuickFocused = false }
+                    // Sama kuvake kuin sarjariveillä: nappi vain piilottaa
+                    // näppäimistön, eikä "Valmis" saa lukea kirjaukselta.
+                    Button {
+                        isQuickFocused = false
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .frame(width: 44, height: 32)
+                    }
+                    .accessibilityLabel("Piilota näppäimistö")
                 }
             }
             .safeAreaInset(edge: .bottom) {

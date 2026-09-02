@@ -239,7 +239,16 @@ private struct SetRow: View {
                     }
                     .accessibilityLabel(field == .reps ? "Lisää toistoja" : "Lisää kuormaa")
                     Spacer()
-                    Button("Valmis") { focus = nil }
+                    // Kuvake eikä "Valmis": nappi vain sulkee näppäimistön ja
+                    // tallentaa arvon, mutta teksti luki kuin se kuittaisi sarjan.
+                    // X lukisi väärin toiseen suuntaan (peru), vaikka arvo jää.
+                    Button {
+                        focus = nil
+                    } label: {
+                        Image(systemName: "keyboard.chevron.compact.down")
+                            .frame(width: 44, height: 32)
+                    }
+                    .accessibilityLabel("Piilota näppäimistö")
                 }
             }
         }

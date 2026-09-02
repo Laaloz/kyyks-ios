@@ -6,4 +6,5 @@ Luvat kysytään vasta kun tarvitset niitä:
 
 Lisäksi:
 
+• Näppäimistön "Valmis"-nappi on korvattu piilotuskuvakkeella: se vain sulkee näppäimistön, eikä sitä enää sekoita sarjan kuittaukseen
 • Vihreä korostusväri on vaaleassa teemassa hieman tummempi, jotta välilehtipalkin valinta erottuu paremmin
