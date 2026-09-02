@@ -1,11 +1,9 @@
-Treenin kirjaus tarkentui:
+Luvat kysytään vasta kun tarvitset niitä:
 
-• Toistojen tai kuorman muokkaus ei enää merkitse sarjaa tehdyksi — sarjan kuittaa vain kuittausruutu
-• Kuittaus säilyttää edellisen kerran toistot eikä pudota niitä ohjelman alarajaan
-• Toistoja ja kuormaa voi nyt säätää plus- ja miinusnapeilla ilman näppäilyä
-• Näppäimistön Valmis-painike ei enää monistu, eikä lepoajastin jää näppäimistön alle
+• Ilmoituslupaa ei enää kysytä heti kirjautumisen jälkeen — se pyydetään Profiilin Muistutukset-osiosta, kun haluat viikkomuistutuksen myös ilmoituksena
+• Apple Health -lupaa ei enää kysytä Tänään-välilehden avautuessa — yhdistäminen tehdään kortin Yhdistä Apple Health -napista, joka kertoo mitä luetaan
+• Jos ilmoitukset on estetty, Profiili näyttää polun Asetuksiin sen sijaan että kysyisi uudelleen
 
 Lisäksi:
 
-• Keho- ja Kehitys-välilehdet sekä liikkeiden kaaviot avautuvat selvästi nopeammin
-• Ravinnon päivänvaihto reagoi ensimmäiseen napautukseen, ja päivänuolten osuma-alue on suurempi
+• Vihreä korostusväri on vaaleassa teemassa hieman tummempi, jotta välilehtipalkin valinta erottuu paremmin
