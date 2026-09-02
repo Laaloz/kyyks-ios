@@ -74,25 +74,37 @@ final class PushManager: NSObject {
         if api == nil { api = APIClient(auth: auth) }
     }
 
-    /// Kysyy luvan vain jos sitä ei ole vielä kysytty. iOS ei näytä kyselyä
-    /// toista kertaa, joten kieltäneelle tämä on hiljainen no-op.
-    func requestAuthorizationIfNeeded() async {
+    /// Lukee lupatilan kysymättä mitään. Ajetaan käynnistyksessä ja kun
+    /// sovellus palaa Asetuksista: tunniste uusitaan joka kerta kun lupa on,
+    /// koska Apple voi vaihtaa sen ilman varoitusta.
+    func refreshAuthorization() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         switch settings.authorizationStatus {
         case .notDetermined:
-            let granted = (try? await UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-            authorization = granted ? .authorized : .denied
+            authorization = .notDetermined
         case .denied:
             authorization = .denied
         default:
             authorization = .authorized
         }
+        registerIfAuthorized()
+    }
 
-        // Rekisteröinti vain kun lupa on: ilman sitä APNs ei anna tunnistetta.
-        if authorization == .authorized {
-            UIApplication.shared.registerForRemoteNotifications()
-        }
+    /// Kysyy luvan järjestelmältä. Kutsutaan vain käyttäjän omasta toiminnosta
+    /// (Profiilin "Salli ilmoitukset"): iOS näyttää kyselyn kerran, ja
+    /// kirjautumisen perään lävähtänyt kysely kiellettiin ennen kuin käyttäjä
+    /// tiesi mihin lupaa tarvitaan — kiellon jälkeen ainoa tie on Asetukset.
+    func requestAuthorization() async {
+        let granted = (try? await UNUserNotificationCenter.current()
+            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        authorization = granted ? .authorized : .denied
+        registerIfAuthorized()
+    }
+
+    /// Rekisteröinti vain kun lupa on: ilman sitä APNs ei anna tunnistetta.
+    private func registerIfAuthorized() {
+        guard authorization == .authorized else { return }
+        UIApplication.shared.registerForRemoteNotifications()
     }
 
     /// Kutsutaan AppDelegatesta kun APNs on antanut tunnisteen.

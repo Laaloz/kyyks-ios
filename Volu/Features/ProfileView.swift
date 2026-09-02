@@ -37,6 +37,9 @@ struct ProfileView: View {
     @Environment(SubscriptionStore.self) private var subscriptions
     @Environment(HealthManager.self) private var health
     @Environment(PushManager.self) private var push
+    /// Ilmoitusluvan tila luetaan uudelleen kun sovellus palaa Asetuksista:
+    /// "Salli ilmoitukset Asetuksissa" -rivin on kadottava heti kun lupa on.
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage(HealthExportSetting.key) private var exportWorkouts = HealthExportSetting.defaultValue
     @FocusState private var focused: Field?
 
@@ -52,6 +55,25 @@ struct ProfileView: View {
         let oldest = calendar.date(byAdding: .year, value: -100, to: .now) ?? .distantPast
         let youngest = calendar.date(byAdding: .year, value: -13, to: .now) ?? .now
         return oldest ... youngest
+    }
+
+    private var remindersOn: Bool {
+        model.profile?.weeklyMeasurementReminders ?? true
+    }
+
+    /// Alaviite kertoo mitä muistutus tekee nykyisellä lupatilalla — se on
+    /// vahvistus juuri tehdystä valinnasta, ei tietoa jota etsitään.
+    private var reminderFooter: String {
+        let base = "Muistutus näkyy Tänään-välilehdellä perjantaista sunnuntaihin."
+        guard remindersOn else { return base }
+        switch push.authorization {
+        case .notDetermined:
+            return base + " Ilmoituksena se tavoittaa myös silloin, kun Volu ei ole auki."
+        case .denied:
+            return base + " Ilmoitukset on estetty Asetuksissa, joten ilmoitusta ei tule."
+        case .authorized:
+            return base + " Se tulee myös ilmoituksena."
+        }
     }
 
     private var hasChanges: Bool {
@@ -239,14 +261,38 @@ struct ProfileView: View {
                     Text("Reseptiä luetaan kädet taikinassa, jolloin sammuva näyttö keskeyttää tekemisen. Treenissä puhelin on useimmiten taskussa, ja päällä pysyvä näyttö kuluttaisi akkua koko treenin ajan.")
                 }
 
-                Section("Muistutukset") {
+                Section {
                     // Muistutus ilmestyy Tänään-välilehdelle pe klo 6 → su.
                     // Sen on oltava kytkettävissä pois samasta paikasta kuin
                     // muutkin omat asetukset.
                     Toggle("Viikoittainen mittausmuistutus", isOn: Binding(
-                        get: { model.profile?.weeklyMeasurementReminders ?? true },
+                        get: { remindersOn },
                         set: { newValue in Task { await model.setWeeklyReminders(newValue) } }
                     ))
+                    // Ilmoituslupa pyydetään täältä eikä käynnistyksessä: tämä
+                    // on ainoa paikka jossa käyttäjä tietää mihin lupaa
+                    // tarvitaan. Kysely on kertakäyttöinen — kiellon jälkeen
+                    // rivi vie Asetuksiin eikä kysy uudelleen.
+                    if remindersOn {
+                        switch push.authorization {
+                        case .notDetermined:
+                            Button("Salli ilmoitukset") {
+                                Task { await push.requestAuthorization() }
+                            }
+                        case .denied:
+                            Button("Salli ilmoitukset Asetuksissa") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            }
+                        case .authorized:
+                            EmptyView()
+                        }
+                    }
+                } header: {
+                    Text("Muistutukset")
+                } footer: {
+                    Text(reminderFooter)
                 }
 
                 Section {
@@ -398,9 +444,16 @@ struct ProfileView: View {
             }
         }
         .task {
+            // Lupatila ensin: se ei odota verkkoa, ja muistutusrivin on
+            // oltava oikein heti kun näkymä aukeaa.
+            await push.refreshAuthorization()
             model.configure(auth: auth)
             await model.load()
             resetFields()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await push.refreshAuthorization() }
         }
         .onChange(of: model.profile?.email) { _, _ in resetFields() }
         .onChange(of: birthDate) { _, _ in

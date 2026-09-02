@@ -177,13 +177,15 @@ struct VoluApp: App {
                         subscriptions.configure(auth: auth, userId: userId)
                         await subscriptions.start()
                     }
-                    // Push-lupa kysytään vasta kirjautuneelta: ilmoitus koskee
-                    // omia mittauksia, joten kysely ennen kirjautumista olisi
-                    // vailla kontekstia.
+                    // Push-lupaa ei kysytä täällä. Kirjautumisen perään
+                    // lävähtänyt kysely kiellettiin ennen kuin käyttäjä tiesi
+                    // mihin sitä tarvitaan, eikä iOS näytä sitä toista kertaa.
+                    // Se pyydetään Profiilin muistutusasetuksesta; täällä vain
+                    // luetaan tila ja uusitaan tunniste, jos lupa jo on.
                     .task(id: userId) {
                         AppDelegate.push = push
                         push.configure(auth: auth)
-                        await push.requestAuthorizationIfNeeded()
+                        await push.refreshAuthorization()
                     }
                     .fullScreenCover(isPresented: $needsOnboarding) {
                         OnboardingView(auth: auth, initialName: onboardingName) {

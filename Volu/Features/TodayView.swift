@@ -173,11 +173,20 @@ struct TodayView: View {
                                 }
                             }
                         case .notDetermined:
-                            Button {
-                                Task { await connectHealth() }
-                            } label: {
-                                Label("Yhdistä Apple Health", systemImage: "heart.text.square")
+                            // Selitys ennen järjestelmän lupasivua: käyttäjä
+                            // päättää napista tietäen mitä luetaan, eikä
+                            // lupasivu ole ensimmäinen asia jonka hän näkee.
+                            VStack(alignment: .leading, spacing: 6) {
+                                Button {
+                                    Task { await connectHealth() }
+                                } label: {
+                                    Label("Yhdistä Apple Health", systemImage: "heart.text.square")
+                                }
+                                Text("Askeleet, uni, muissa sovelluksissa tehdyt suoritukset ja paino luetaan Apple Healthista.")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
+                            .padding(.vertical, 2)
                         case .denied:
                             Text("Apple Health ei ole käytössä. Voit sallia lukuoikeuden Asetuksista.")
                                 .font(.footnote)
@@ -268,16 +277,14 @@ struct TodayView: View {
         }
     }
 
-    /// Käynnistyksen Health-kierros. Lupa kysytään vain kerran laitteella;
-    /// sen jälkeen kyselyt ajetaan suoraan, ja jos oikeutta ei ole, ne palaavat
-    /// tyhjinä ja kortti kertoo sen.
+    /// Käynnistyksen Health-kierros: vain jos lupa on jo kysytty. Kysely kuuluu
+    /// "Yhdistä Apple Health" -napin taakse — välilehden avautuessa lävähtänyt
+    /// lupasivu kiellettiin ennen kuin käyttäjä oli nähnyt riviäkään omaa
+    /// dataansa, eikä iOS näytä sitä toista kertaa. Jos oikeutta ei ole,
+    /// kyselyt palaavat tyhjinä ja kortti kertoo sen.
     private func startHealth() async {
-        if health.availability == .notDetermined {
-            await health.requestAuthorization()
-        }
-        if health.availability == .asked {
-            await refreshHealth()
-        }
+        guard health.availability == .asked else { return }
+        await refreshHealth()
     }
 
     private func connectHealth() async {
