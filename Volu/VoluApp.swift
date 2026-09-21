@@ -42,11 +42,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     /// Näytä muistutus myös edessä olevassa sovelluksessa. Ilman ääntä:
     /// käyttäjä katsoo jo ruutua, joten pelkkä palkki riittää.
+    ///
+    /// Lepoajastin on poikkeus. Sen ilmoitus on olemassa taskussa olevaa
+    /// puhelinta varten; edessä olevassa sovelluksessa lepopalkki näyttää saman
+    /// ajan ja ajastin tärähtää, joten banneri olisi kolmas kerta samasta
+    /// asiasta — juuri se peruste, jolla ilmoitus kerran poistettiin kokonaan.
+    /// Vain aktiivinen tila vaimennetaan: lukitulla näytöllä sovellus voi olla
+    /// edessä ilman että kukaan näkee palkkia.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list]
+        let isActive = await MainActor.run { UIApplication.shared.applicationState == .active }
+        if notification.request.identifier == RestTimerManager.notificationId, isActive {
+            return []
+        }
+        return [.banner, .list]
     }
 
     /// Napautus vie sinne mitä ilmoitus koski. Ilman tätä muistutus avaa vain

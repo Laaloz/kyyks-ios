@@ -1,12 +1,13 @@
 import ActivityKit
 import Combine
 import SwiftUI
+import UIKit
 import UserNotifications
 
 /// Lepoajastin sarjojen väliin. Aika lasketaan seinäkellosta (endsAt),
 /// joten ajastin näyttää oikein vaikka näyttö lukittuisi tai appi menisi
-/// taustalle. Päättymisestä muistuttaa paikallinen notifikaatio, ja tila
-/// säilyy UserDefaultsissa myös apin uudelleenkäynnistyksen yli.
+/// taustalle. Päättymisestä kerrotaan värinällä ja paikallisella ilmoituksella,
+/// ja tila säilyy UserDefaultsissa myös apin uudelleenkäynnistyksen yli.
 @Observable
 @MainActor
 final class RestTimerManager {
@@ -14,7 +15,10 @@ final class RestTimerManager {
     private(set) var totalSeconds: Int = 0
     private(set) var exerciseName = ""
 
-    private static let notificationId = "rest-timer-done"
+    /// Julkinen, koska AppDelegate vaimentaa juuri tämän ilmoituksen bannerin
+    /// edessä olevassa sovelluksessa. `nonisolated`, koska se luetaan
+    /// ilmoitusdelegaatista, joka ei ole pääaktorilla.
+    nonisolated static let notificationId = "rest-timer-done"
     private static let endsAtKey = "restTimerEndsAt"
     private static let totalKey = "restTimerTotal"
     private static let nameKey = "restTimerName"
@@ -40,6 +44,7 @@ final class RestTimerManager {
         totalSeconds = seconds
         self.exerciseName = exerciseName
         persist()
+        scheduleFinish()
         startActivity(from: start)
     }
 
@@ -48,6 +53,7 @@ final class RestTimerManager {
         endsAt = current.addingTimeInterval(TimeInterval(seconds))
         totalSeconds += seconds
         persist()
+        scheduleFinish()
         updateActivity()
     }
 
@@ -58,10 +64,9 @@ final class RestTimerManager {
         UserDefaults.standard.removeObject(forKey: Self.endsAtKey)
         UserDefaults.standard.removeObject(forKey: Self.totalKey)
         UserDefaults.standard.removeObject(forKey: Self.nameKey)
-        // Ajastin ei enää lähetä ilmoitusta: aika näkyy ruudulla, Dynamic
-        // Islandissa ja lukitusnäytöllä, joten erillinen banneri kertoi saman
-        // asian kolmannen kerran. Peruutus jää siltä varalta että edellinen
-        // versio ehti ajastaa ilmoituksen ennen päivitystä.
+        // Ohitettu lepo ei enää pääty: sekä värinä että ilmoitus perutaan.
+        haptic?.cancel()
+        haptic = nil
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [Self.notificationId])
         endActivity()
     }
@@ -81,8 +86,109 @@ final class RestTimerManager {
             endsAt = restored
             totalSeconds = UserDefaults.standard.integer(forKey: Self.totalKey)
             exerciseName = UserDefaults.standard.string(forKey: Self.nameKey) ?? ""
+            // Kesken levon uudelleen käynnistynyt sovellus: ilmoitus on
+            // edellisen prosessin ajastama ja säilyy, mutta sama tunniste
+            // korvaa sen — ja värinäajastin on tässä prosessissa uusi.
+            scheduleFinish()
         } else {
             stop()
+        }
+    }
+
+    // MARK: - Levon päättyminen
+    //
+    // Lepo on ajastin, ja ajastimen tehtävä on herättää huomio — ei näyttää
+    // lukua. Sarjojen välissä puhelin on taskussa tai pöydällä näyttö
+    // pimeänä, eikä palkki, Dynamic Island tai lukitusnäyttö kerro sinne
+    // mitään: ne kolme näyttävät ajan sille, joka jo katsoo. Siksi päättymisen
+    // merkki on värinä ja ilmoitus, ei neljäs paikka jossa luku näkyy.
+    //
+    // Ilmoitus oli olemassa aiemmin ja poistettiin (5861d09) perusteella "sama
+    // asia kolmannen kerran". Peruste koski tiedon toistoa ja on siltä osin
+    // oikea, minkä vuoksi banneri vaimennetaan kun sovellus on edessä
+    // (AppDelegate). Vanhan toteutuksen oikea vika oli toisaalla: se pyysi
+    // ilmoituslupaa suoraan ensimmäisen sarjan kuittauksesta, kesken treenin.
+    // Tässä lupaa ei pyydetä, vaan tarkistetaan onko se jo annettu — lupa
+    // kysytään Profiilin muistutusrivistä (PushManager).
+
+    /// Värinä levon päättyessä, kun sovellus on edessä.
+    ///
+    /// Taustalla iOS jäädyttää prosessin, jolloin tämä ei laukea ajallaan;
+    /// siitä tapauksesta huolehtii ilmoitus.
+    private var haptic: Task<Void, Never>?
+
+    private func scheduleFinish() {
+        scheduleHaptic()
+        scheduleNotification()
+    }
+
+    private func scheduleHaptic() {
+        haptic?.cancel()
+        guard let endsAt else { return }
+        let delay = endsAt.timeIntervalSinceNow
+        guard delay > 0 else { return }
+
+        haptic = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.finishNow(expected: endsAt)
+        }
+    }
+
+    private func finishNow(expected: Date) {
+        // Taustalla nukkunut task herää vasta kun sovellus palaa eteen. Silloin
+        // lepo on jo ohi ja ilmoitus on kertonut sen; myöhässä tärähtävä
+        // puhelin kertoisi väärästä hetkestä.
+        guard Date.now.timeIntervalSince(expected) < 1 else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    /// Ilmoitus ajastetaan päättymishetkeen — se on ainoa merkki, joka kantaa
+    /// myös jäädytetystä prosessista.
+    ///
+    /// Äänettömällä puhelimella ilmoitusääni ei soi. Se on iOS:n sääntö, eikä
+    /// sen ohittaminen ole tämän arvoista: kriittisen ilmoituksen oikeus
+    /// haetaan Applelta erikseen ja myönnetään turvallisuus- ja
+    /// terveyshälytyksille, ja taustalla soiva ääni tarkoittaisi äänitaustatilaa
+    /// koko levon ajaksi. Jäljelle jää värinä, joka tuntuu myös äänettömällä —
+    /// salilla tasku on joka tapauksessa se kanava joka toimii.
+    private func scheduleNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [Self.notificationId])
+        guard let endsAt, endsAt > .now else { return }
+        let name = exerciseName
+
+        Task { [weak self] in
+            // Sama tulkinta kuin PushManagerissa: väliaikainenkin lupa riittää,
+            // vain kysymätön ja kielletty eivät.
+            let status = await center.notificationSettings().authorizationStatus
+            guard status != .notDetermined, status != .denied else { return }
+
+            // Lupatarkistus on asynkroninen, ja sinä aikana lepo on voitu
+            // ohittaa tai pidentää. `stop()` poistaa ilmoituksen heti, mutta
+            // tämä tehtävä ehtisi lisätä sen perään — jolloin ohitettu lepo
+            // hälyttäisi silti. Päättymishetki kertoo onko kyse yhä samasta
+            // levosta; ellei, ajastus kuuluu jollekin toiselle kutsulle.
+            guard let self, self.endsAt == endsAt else { return }
+
+            // Sekunnit vasta luvan tarkistuksen jälkeen: trigger laskee ajan
+            // lisäyshetkestä, ja nolla tai negatiivinen olisi virhe.
+            let seconds = endsAt.timeIntervalSinceNow
+            guard seconds >= 1 else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Lepo ohi"
+            content.body = name.isEmpty ? "Seuraava sarja." : "Seuraava sarja: \(name)"
+            content.sound = .default
+            // Aikaherkkä läpäisee keskittymistilan, joka on salilla tavallinen.
+            // Oikeus on project.ymlissä; ilman sitä iOS pudottaa tason
+            // hiljaisesti tavalliseksi.
+            content.interruptionLevel = .timeSensitive
+
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: false)
+            try? await center.add(
+                UNNotificationRequest(identifier: Self.notificationId, content: content, trigger: trigger)
+            )
         }
     }
 
