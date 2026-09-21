@@ -29,6 +29,7 @@ struct SetTable: View {
     let onToggle: (WorkoutSetLog, Double?, Double?) -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    private var widths = SetColumnWidths()
 
     /// Näytetäänkö "viimeksi"-sarake.
     ///
@@ -60,6 +61,7 @@ struct SetTable: View {
                     previousSummary: previous(log)?.summary,
                     isNext: log.id == nextSetId,
                     showsPrevious: showsPrevious,
+                    widths: widths,
                     onCommit: { reps, load in onCommit(log, reps, load) },
                     onToggle: { reps, load in onToggle(log, reps, load) }
                 )
@@ -69,8 +71,16 @@ struct SetTable: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text("Sarja")
-                .frame(width: 40, alignment: .leading)
+            // "Sarja" ei mahdu sarakkeeseensa saavutettavuuskoossa edes
+            // kutistettuna, ja "S…" ei kerro mitään. Sama ratkaisu kuin
+            // "Viimeksi"-sarakkeella: otsikko jätetään pois, sarake jää
+            // paikalleen. Numerot sen alla ovat itsestään selviä.
+            if dynamicTypeSize.isAccessibilitySize {
+                Color.clear.frame(width: 40, height: 1)
+            } else {
+                Text("Sarja")
+                    .frame(width: 40, alignment: .leading)
+            }
             if showsPrevious {
                 Text("Viimeksi")
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -78,20 +88,59 @@ struct SetTable: View {
                 Spacer(minLength: 8)
             }
             Text("Toistot")
-                .frame(width: 62, alignment: .center)
+                .frame(width: widths.reps, alignment: .center)
             Text("Kuorma")
-                .frame(width: 72, alignment: .center)
+                .frame(width: widths.load, alignment: .center)
             // Sarake kuittausruudulle, jotta otsikot osuvat sarakkeiden päälle.
             Color.clear.frame(width: 44, height: 1)
         }
         // Ei versaaleja: suomen sanat ovat pitkiä, ja "SARJA" katkesi
         // kahdelle riville kapeassa sarakkeessa.
         .font(.caption2)
+        // Samasta syystä otsikot kutistuvat eivätkä katkea: suurimmassa
+        // tekstikoossa "Toistot" pilkkoutui tavuiksi allekkain, mikä vei rivin
+        // verran korkeutta kertomatta enää mitään.
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
         // Toissijainen, ei tertiäärinen: sama peruste kuin arvoriveillä —
         // tertiäärin kontrasti jää alle luettavan rajan.
         .foregroundStyle(.secondary)
         .padding(.bottom, 8)
         .accessibilityHidden(true)
+    }
+}
+
+/// Sarakeleveydet yhdessä paikassa, jotta otsikot ja arvorivit eivät voi
+/// ajautua erilleen.
+///
+/// Leveys kasvaa tekstikoon mukana, mutta enintään puolitoistakertaiseksi.
+/// Kiinteä 62/72 pt riitti oletuskoossa mutta ei suurissa tekstikoissa:
+/// kenttä ei kutista lukua vaan katkaisee sen, jolloin "67,5" näkyi muodossa
+/// "6…" ja kaksinumeroiset toistot pelkkänä katkomerkkinä — eli juuri se luku,
+/// jonka takia rivi on olemassa, jäi lukematta.
+///
+/// Katto on siinä, että leveys on jaettava sarjanumeron ja kuittausnapin
+/// kanssa. 1,5× mitattiin simulaattorissa: suurimmalla tekstikoolla rivi
+/// mahtuu 375 pt:n näytölle (iPhone SE, 13 mini) ja sitä leveämmille.
+/// 320 pt — SE suurennetussa näyttötilassa — ei riitä, mutta se ei riitä
+/// näille sarakkeille jo perusleveyksilläkään, eli kyse ei ole tästä katosta.
+/// Loppumatkan hoitaa kenttien `minimumScaleFactor`, joka pienentää luvun
+/// mieluummin kuin piilottaa sen.
+struct SetColumnWidths: DynamicProperty {
+    /// Mittatikku: sama dynaaminen kerroin kuin kenttien `.callout`-fontilla.
+    @ScaledMetric(relativeTo: .callout) private var unit: CGFloat = 100
+
+    var reps: CGFloat { Self.width(62, unit: unit) }
+    var load: CGFloat { Self.width(72, unit: unit) }
+
+    /// Erillinen puhdas funktio testejä varten: `@ScaledMetric` lukee arvonsa
+    /// ympäristöstä, jota testistä ei voi asettaa.
+    ///
+    /// Alaraja 1 on yhtä tarkoituksellinen kuin yläraja: pientä tekstikokoa
+    /// käyttävä ei pyydä kapeampaa kosketuskohdetta, ja sarake on jo valmiiksi
+    /// 44 pt:n alarajalla.
+    static func width(_ base: CGFloat, unit: CGFloat) -> CGFloat {
+        (base * min(max(unit / 100, 1), 1.5)).rounded()
     }
 }
 
@@ -102,6 +151,7 @@ private struct SetRow: View {
     let previousSummary: String?
     let isNext: Bool
     let showsPrevious: Bool
+    let widths: SetColumnWidths
     let onCommit: (Double?, Double?) -> Void
     let onToggle: (Double?, Double?) -> Void
 
@@ -120,6 +170,7 @@ private struct SetRow: View {
         previousSummary: String?,
         isNext: Bool,
         showsPrevious: Bool,
+        widths: SetColumnWidths,
         onCommit: @escaping (Double?, Double?) -> Void,
         onToggle: @escaping (Double?, Double?) -> Void
     ) {
@@ -127,6 +178,7 @@ private struct SetRow: View {
         self.previousSummary = previousSummary
         self.isNext = isNext
         self.showsPrevious = showsPrevious
+        self.widths = widths
         self.onCommit = onCommit
         self.onToggle = onToggle
         // Kentässä on vain oma toteuma. Tavoite näkyy vihjetekstinä, koska
@@ -143,6 +195,8 @@ private struct SetRow: View {
                 // vasemmasta reunasta, ei keskeltä.
                 .foregroundStyle(isNext ? .primary : .secondary)
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .frame(width: 40, alignment: .leading)
                 .accessibilityHidden(true)
 
@@ -159,8 +213,8 @@ private struct SetRow: View {
                 Spacer(minLength: 8)
             }
 
-            field(text: $repsText, field: .reps, placeholder: log.targetRepsLabel, width: 62)
-            field(text: $loadText, field: .load, placeholder: targetLoadPlaceholder, width: 72)
+            field(text: $repsText, field: .reps, placeholder: log.targetRepsLabel, width: widths.reps)
+            field(text: $loadText, field: .load, placeholder: targetLoadPlaceholder, width: widths.load)
 
             Button {
                 // Kirjoitettu mutta vahvistamaton arvo kuittauksen mukaan:
@@ -268,6 +322,13 @@ private struct SetRow: View {
             .keyboardType(field == .reps ? .numberPad : .decimalPad)
             .multilineTextAlignment(.center)
             .monospacedDigit()
+            // Leveämpi sarake ei yksin riitä suurimmissa tekstikoissa: neljä
+            // merkkiä ("67,5") vie enemmän kuin sarakkeelle voi rivistä antaa.
+            // Kutistaminen on ainoa vaihtoehto, jossa luku pysyy näkyvissä —
+            // ilman tätä kenttä katkaisee sen, eikä katkaistu kuorma kerro
+            // mitään.
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
             .font(.callout.weight(log.isLogged || isNext ? .semibold : .regular))
             .foregroundStyle(valueColor)
             .focused($focus, equals: field)
