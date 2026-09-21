@@ -1,10 +1,10 @@
-Luvat kysytään vasta kun tarvitset niitä:
+Lepoajastin kertoo nyt kun lepo loppuu:
 
-• Ilmoituslupaa ei enää kysytä heti kirjautumisen jälkeen — se pyydetään Profiilin Muistutukset-osiosta, kun haluat viikkomuistutuksen myös ilmoituksena
-• Apple Health -lupaa ei enää kysytä Tänään-välilehden avautuessa — yhdistäminen tehdään kortin Yhdistä Apple Health -napista, joka kertoo mitä luetaan
-• Jos ilmoitukset on estetty, Profiili näyttää polun Asetuksiin sen sijaan että kysyisi uudelleen
+• Puhelin värähtää ja näyttää ilmoituksen levon päättyessä — myös silloin kun puhelin on taskussa tai näyttö pimeänä
+• Ilmoitus läpäisee keskittymistilan, joka on salilla tavallinen
+• Sovelluksen ollessa edessä riittää värähdys, koska lepopalkki näyttää ajan jo itse
+• Ilmoitus vaatii ilmoitusluvan, jonka voi antaa Profiilin Muistutukset-osiosta
 
 Lisäksi:
 
-• Näppäimistön "Valmis"-nappi on korvattu piilotuskuvakkeella: se vain sulkee näppäimistön, eikä sitä enää sekoita sarjan kuittaukseen
-• Vihreä korostusväri on vaaleassa teemassa hieman tummempi, jotta välilehtipalkin valinta erottuu paremmin
+• Sarjarivin toistot ja kuorma näkyvät kokonaan myös suurimmilla tekstikoilla — aiemmin esimerkiksi kuorma 67,5 katkesi muotoon ”6…”
