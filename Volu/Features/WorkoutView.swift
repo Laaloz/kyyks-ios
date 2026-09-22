@@ -34,7 +34,25 @@ struct WorkoutView: View {
         var id: Int { hashValue }
     }
 
+    private let errorSectionId = "workout-error"
+
     var body: some View {
+        ScrollViewReader { scrollProxy in
+            list
+                // Virhe (esim. epäonnistunut valmiiksi-merkintä) syntyy listan
+                // yläreunaan, mutta käyttäjä on juuri napauttanut alareunan
+                // nappia — hän ei koskaan vieritä ylös huomaamaan sitä.
+                // Vastaava korjaus Android-puolella: commit c2523bf.
+                .onChange(of: model.errorMessage) {
+                    guard model.errorMessage != nil else { return }
+                    withAnimation {
+                        scrollProxy.scrollTo(errorSectionId, anchor: .top)
+                    }
+                }
+        }
+    }
+
+    private var list: some View {
         List {
             if let error = model.errorMessage {
                 Section {
@@ -42,6 +60,7 @@ struct WorkoutView: View {
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
+                .id(errorSectionId)
             }
 
             if !model.setLogs.isEmpty {
