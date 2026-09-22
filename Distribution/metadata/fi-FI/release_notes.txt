@@ -1,10 +1,1 @@
-Lepoajastin kertoo nyt kun lepo loppuu:
-
-• Puhelin värähtää ja näyttää ilmoituksen levon päättyessä — myös silloin kun puhelin on taskussa tai näyttö pimeänä
-• Ilmoitus läpäisee keskittymistilan, joka on salilla tavallinen
-• Sovelluksen ollessa edessä riittää värähdys, koska lepopalkki näyttää ajan jo itse
-• Ilmoitus vaatii ilmoitusluvan, jonka voi antaa Profiilin Muistutukset-osiosta
-
-Lisäksi:
-
-• Sarjarivin toistot ja kuorma näkyvät kokonaan myös suurimmilla tekstikoilla — aiemmin esimerkiksi kuorma 67,5 katkesi muotoon ”6…”
+Korjaus: jos treenin merkitseminen valmiiksi epäonnistuu (esim. verkkokatko), virheilmoitus näkyy nyt heti — aiemmin se saattoi jäädä huomaamatta näytön yläreunaan, koska "Merkitse valmiiksi" -nappi on alareunassa.
