@@ -45,10 +45,11 @@ final class AuthManager {
     /// Uusi tili sähköpostilla. Profiili syntyy kannassa triggerillä
     /// (migraatio 072): ilman kutsua rooliksi tulee itsenäinen treenaaja.
     ///
-    /// Sähköpostin vahvistusta ei vaadita, joten istunto on käytettävissä
-    /// heti. Jos vahvistus kytketään myöhemmin päälle Supabasesta, `session`
-    /// on nil eikä käyttäjä pääse sisään ennen linkin klikkausta — siksi
-    /// tilaa ei aseteta arvaamalla vaan vain kun istunto oikeasti saatiin.
+    /// Supabase vaatii sähköpostin vahvistuksen, joten `session` on nil eikä
+    /// käyttäjä pääse sisään ennen linkin klikkausta — siksi tilaa ei aseteta
+    /// arvaamalla vaan vain kun istunto oikeasti saatiin. Vahvistuslinkki
+    /// palaa volu.fi:hin, joka ohjaa sen vahvistussivulle (web-repo:
+    /// lib/email-confirmation.ts).
     func signUp(email: String, password: String, fullName: String) async throws {
         let response = try await client.auth.signUp(
             email: email,
@@ -107,7 +108,7 @@ final class AuthManager {
         var errorDescription: String? {
             switch self {
             case .confirmationRequired:
-                "Vahvista sähköpostiosoitteesi lähettämästämme linkistä, niin pääset sisään."
+                "Tili luotiin. Vahvista sähköpostiosoitteesi lähettämästämme viestistä ja kirjaudu sitten sisään."
             }
         }
     }

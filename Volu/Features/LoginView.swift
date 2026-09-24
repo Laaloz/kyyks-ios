@@ -30,6 +30,10 @@ struct LoginView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var errorMessage: String?
+    /// Onnistumisen jatko-ohje, ei virhe: vahvistusta odottava tili näytettiin
+    /// ennen punaisena, ja käyttäjä luuli rekisteröinnin epäonnistuneen vaikka
+    /// vahvistusviesti oli jo matkalla.
+    @State private var notice: String?
     @State private var isSubmitting = false
     @State private var showPasswordReset = false
     @FocusState private var focused: Field?
@@ -83,6 +87,16 @@ struct LoginView: View {
                         .font(.footnote)
                         .foregroundStyle(.red)
                         .transition(.opacity)
+                } else if let notice {
+                    // Kirjekuori ja tavallinen tekstiväri: ero virheeseen ei
+                    // ole pelkän värin varassa.
+                    Label {
+                        Text(notice).foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "envelope").foregroundStyle(.tint)
+                    }
+                    .font(.footnote)
+                    .transition(.opacity)
                 }
 
                 Button(action: submit) {
@@ -187,6 +201,7 @@ struct LoginView: View {
         guard !isSubmitting else { return }
         isSubmitting = true
         errorMessage = nil
+        notice = nil
         Task {
             do {
                 try await auth.signInWithGoogle()
@@ -207,6 +222,7 @@ struct LoginView: View {
             Button(mode.switchAction) {
                 // Virheilmoitus kuuluu edelliseen yritykseen, ei uuteen tilaan.
                 errorMessage = nil
+                notice = nil
                 mode = mode == .signIn ? .signUp : .signIn
             }
             .font(.subheadline.weight(.semibold))
@@ -243,6 +259,7 @@ struct LoginView: View {
         focused = nil
         isSubmitting = true
         errorMessage = nil
+        notice = nil
 
         Task {
             do {
@@ -256,6 +273,11 @@ struct LoginView: View {
                         fullName: fullName.trimmingCharacters(in: .whitespaces)
                     )
                 }
+            } catch AuthManager.AuthError.confirmationRequired {
+                notice = AuthManager.AuthError.confirmationRequired.errorDescription
+                // Tili syntyi ja odottaa vahvistusta: seuraava askel on
+                // kirjautuminen samoilla tunnuksilla, ei uusi rekisteröinti.
+                mode = .signIn
             } catch {
                 errorMessage = message(for: error)
             }
@@ -267,6 +289,11 @@ struct LoginView: View {
     /// käännetään; muut näytetään sellaisenaan, ettei todellinen syy katoa.
     private func message(for error: Error) -> String {
         let raw = error.localizedDescription.lowercased()
+        // Vahvistamaton tili ei ole väärä salasana, eikä englanninkielinen
+        // "Email not confirmed" kerro käyttäjälle mitä tehdä.
+        if raw.contains("not confirmed") {
+            return "Sähköpostiosoitetta ei ole vielä vahvistettu. Avaa lähettämämme vahvistuslinkki ja kirjaudu sitten uudelleen."
+        }
         if raw.contains("invalid login") || raw.contains("invalid credentials") {
             return "Sähköposti tai salasana ei täsmää."
         }
