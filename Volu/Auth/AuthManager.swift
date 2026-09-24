@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import Supabase
 
 /// Supabase Auth -istunto. supabase-swift säilöö istunnon Keychainiin
@@ -16,6 +17,10 @@ final class AuthManager {
     }
 
     private(set) var state: State = .loading
+
+    /// Kirjautumisnäkymän ilmoitus, joka syntyi sovelluksen ulkopuolelta
+    /// (paluulinkki). Näkymä ottaa sen itselleen `consumeLinkNotice()`:lla.
+    private(set) var linkNotice: String?
 
     let client = SupabaseClient(
         supabaseURL: AppConfig.supabaseURL,
@@ -112,6 +117,37 @@ final class AuthManager {
             }
         }
     }
+
+    /// Sähköpostin vahvistussivun (volu.fi/vahvistettu) "Avaa Volu" -painike
+    /// avaa sovelluksen osoitteella fi.volu.app://login-callback?code=…
+    /// Koodi vaihdetaan istunnoksi PKCE-verifierillä, jonka signUp tallensi
+    /// Keychainiin — käyttäjä on sisällä ilman salasanan kirjoittamista.
+    ///
+    /// Vaihto onnistuu vain laitteella jolla tili luotiin. Muualla vahvistus
+    /// on silti tehty (Supabase teki sen ennen ohjausta), joten epäonnistuminen
+    /// ei ole virhe käyttäjälle: kirjautumisnäkymä kertoo että voi kirjautua.
+    /// Kirjautuneena linkkiä ei käsitellä, ettei tili vaihdu kysymättä.
+    func handleOpenURL(_ url: URL) async {
+        guard url.scheme == "fi.volu.app", url.host == "login-callback" else { return }
+        guard state == .signedOut else {
+            Self.log.info("Paluulinkki ohitettiin: käyttäjä on jo kirjautunut")
+            return
+        }
+        do {
+            let session = try await client.auth.session(from: url)
+            state = .signedIn(userId: session.user.id.uuidString.lowercased())
+        } catch {
+            Self.log.warning("Paluulinkin koodin vaihto epäonnistui: \(error.localizedDescription, privacy: .public)")
+            linkNotice = "Sähköposti on vahvistettu. Kirjaudu sisään sähköpostilla ja salasanalla."
+        }
+    }
+
+    func consumeLinkNotice() -> String? {
+        defer { linkNotice = nil }
+        return linkNotice
+    }
+
+    private static let log = Logger(subsystem: "fi.volu.app", category: "auth")
 
     func signOut() async {
         try? await client.auth.signOut()

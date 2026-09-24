@@ -46,6 +46,19 @@ struct LoginView: View {
     }
 
     var body: some View {
+        scroll
+            // Vahvistussivun "Avaa Volu" toi käyttäjän tänne, mutta koodin
+            // vaihto ei onnistunut (eri laite): ohje samaan paikkaan kuin
+            // rekisteröinnin jälkeinen, ja lomake valmiiksi kirjautumiseen.
+            .onChange(of: auth.linkNotice, initial: true) {
+                guard let linkNotice = auth.consumeLinkNotice() else { return }
+                errorMessage = nil
+                notice = linkNotice
+                mode = .signIn
+            }
+    }
+
+    private var scroll: some View {
         // Pystysuunnassa keskitetty, mutta vieritettävä: `minHeight` säiliön
         // korkeuteen keskittää sisällön kun se mahtuu, ja antaa sen kasvaa
         // yli kun näppäimistö nousee tai rekisteröinnin lisäkenttä ilmestyy.

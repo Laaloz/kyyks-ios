@@ -1,4 +1,5 @@
-Korjauksia rekisteröitymiseen:
+Rekisteröityminen on nyt sujuvampaa:
 
+• Kun vahvistat sähköpostiosoitteesi, vahvistussivun Avaa Volu -painike kirjaa sinut suoraan sovellukseen
 • Tilin luomisen jälkeinen ohje vahvistaa sähköpostiosoite näkyy nyt ilmoituksena eikä punaisena virheenä — rekisteröityminen oli onnistunut, vaikka viesti näytti muuta
 • Jos yrität kirjautua ennen kuin olet vahvistanut sähköpostiosoitteesi, sovellus kertoo sen nyt suomeksi

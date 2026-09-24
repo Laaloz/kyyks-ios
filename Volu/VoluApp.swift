@@ -229,6 +229,12 @@ struct VoluApp: App {
             .preferredColorScheme(appearance.colorScheme)
             .tint(accent.color)
             .task { auth.bootstrap() }
+            // Sähköpostin vahvistussivun "Avaa Volu" -painike. Googlen
+            // selainvuo ei kulje tätä kautta: ASWebAuthenticationSession
+            // ottaa oman paluulinkkinsä itse.
+            .onOpenURL { url in
+                Task { await auth.handleOpenURL(url) }
+            }
         }
     }
 }
