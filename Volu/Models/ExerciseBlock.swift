@@ -3,11 +3,14 @@ import Foundation
 /// Treeninäkymän tyypit, jotka eivät ole näkymää: kortiksi ryhmitellyt sarjat
 /// (yksikkötestattu, ks. WorkoutBlocksTests) ja näkymän välittämät valinnat.
 
-/// Miten treeni päätettiin — keskeytys säilyttää kirjaukset, poisto ei.
+/// Miten treeni päätettiin.
+///
+/// Keskeytystä ei enää ole: keskeytetty treeni katosi näkyvistä kuten
+/// poistettu, mutta sen esitäytetyt arvot näkyivät "viimeksi"-lukemana. Kesken
+/// jäänyt treeni joko merkitään valmiiksi (tehdyt sarjat säilyvät) tai poistetaan.
 enum WorkoutEndAction {
-    case cancelled
     case deleted
-    /// Valmiiksi merkitty. Toisin kuin keskeytys ja poisto, tämä on jo
+    /// Valmiiksi merkitty. Toisin kuin poisto, tämä on jo
     /// tallennettu palvelimelle näkymässä — listan tarvitsee vain päivittyä,
     /// eikä riviä poisteta: treeni siirtyy "Käynnissä"-osiosta "Tehdyt"-osioon.
     case completed

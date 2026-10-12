@@ -154,9 +154,12 @@ struct WorkoutsListView: View {
                     program: target.program,
                     workout: target.workout,
                     lastDone: lastDone(of: target.workout),
-                    inProgressTitle: inProgress.first?.title,
+                    inProgress: inProgress.first,
                     starter: starter,
-                    onStarted: handleStarted
+                    onStarted: handleStarted,
+                    onContinue: { current in
+                        startedWorkout = StartedWorkout(id: current.id, title: current.title)
+                    }
                 )
             }
             .navigationTitle("Treeni")
@@ -210,7 +213,7 @@ struct WorkoutsListView: View {
         }
         if let autoCancelledNotice {
             Section {
-                Label("Keskeytettiin: \(autoCancelledNotice)", systemImage: "info.circle")
+                Label("Kesken jäänyt treeni merkittiin valmiiksi: \(autoCancelledNotice)", systemImage: "info.circle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

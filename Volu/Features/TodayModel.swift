@@ -78,8 +78,6 @@ final class TodayModel: CachedModel {
         Task {
             do {
                 switch action {
-                case .cancelled:
-                    _ = try await api.post("/api/workouts/\(workoutId)/cancel")
                 case .deleted:
                     _ = try await api.delete("/api/workouts/\(workoutId)")
                 case .completed:
@@ -89,9 +87,7 @@ final class TodayModel: CachedModel {
                 await refreshAfterChange()
             } catch {
                 workouts = previousWorkouts
-                errorMessage = action == .deleted
-                    ? "Treenin poisto epäonnistui — yritä uudelleen."
-                    : "Treenin keskeytys epäonnistui — yritä uudelleen."
+                errorMessage = "Treenin poisto epäonnistui — yritä uudelleen."
             }
         }
     }

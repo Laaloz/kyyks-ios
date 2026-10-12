@@ -3,20 +3,21 @@ import SwiftUI
 /// Ohjelman treenin esikatselu: mitä treeni sisältää, ennen kuin sen aloittaa.
 ///
 /// Rivin napautus avaa tämän eikä aloita mitään. Aloitus oli ennen rivin
-/// napautus, ja sillä on sivuvaikutuksia (palvelin luo session ja peruu
-/// käynnissä olevan treenin), joten treeniä ei voinut katsoa ilman että sen
-/// aloitti.
+/// napautus, ja sillä on sivuvaikutuksia (palvelin luo session), joten
+/// treeniä ei voinut katsoa ilman että sen aloitti.
 struct WorkoutPreviewSheet: View {
     let auth: AuthManager
     let program: Program
     let workout: ProgramWorkoutSummary
     /// Milloin treeni tehtiin viimeksi, jos tiedetään.
     let lastDone: Date?
-    /// Käynnissä olevan treenin nimi: aloitus keskeyttää sen, ja se kerrotaan
-    /// ennen aloitusta eikä vasta jälkikäteen.
-    let inProgressTitle: String?
+    /// Käynnissä oleva treeni. Palvelin ei aloita uutta sen rinnalle ("Jatka
+    /// se ensin"), joten painike vie siihen eikä yritä aloitusta, joka
+    /// epäonnistuisi. Sama ohjelman treeni jatkuu aloituksellakin.
+    let inProgress: ScheduledWorkout?
     let starter: WorkoutStarter
     let onStarted: (WorkoutStarter.Started) -> Void
+    let onContinue: (ScheduledWorkout) -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -46,10 +47,10 @@ struct WorkoutPreviewSheet: View {
                     }
                 }
 
-                if let inProgressTitle {
+                if let blocking {
                     Section {
                         Label(
-                            "Käynnissä oleva treeni ”\(inProgressTitle)” keskeytetään, kun aloitat tämän.",
+                            "Sinulla on kesken treeni ”\(blocking.title)”. Tee se valmiiksi tai poista se ennen uuden aloitusta.",
                             systemImage: "info.circle"
                         )
                         .font(.footnote)
@@ -74,6 +75,11 @@ struct WorkoutPreviewSheet: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button {
+                    if let current = inProgress {
+                        onContinue(current)
+                        dismiss()
+                        return
+                    }
                     Task {
                         if let started = await starter.start(programId: program.id, workout: workout, auth: auth) {
                             onStarted(started)
@@ -83,10 +89,13 @@ struct WorkoutPreviewSheet: View {
                 } label: {
                     HStack(spacing: 8) {
                         if starter.startingWorkoutId == workout.id { ProgressView() }
-                        Label(
-                            inProgressTitle == nil ? "Aloita treeni" : "Aloita ja keskeytä käynnissä oleva",
-                            systemImage: "figure.strengthtraining.traditional"
-                        )
+                        if let blocking {
+                            Label("Jatka: \(blocking.title)", systemImage: "play.fill")
+                        } else if inProgress != nil {
+                            Label("Jatka treeniä", systemImage: "play.fill")
+                        } else {
+                            Label("Aloita treeni", systemImage: "figure.strengthtraining.traditional")
+                        }
                     }
                     .font(.headline)
                     .frame(maxWidth: .infinity)
@@ -102,6 +111,12 @@ struct WorkoutPreviewSheet: View {
             }
         }
         .presentationDetents([.large])
+    }
+
+    /// Käynnissä oleva treeni, joka on jokin muu kuin tämä.
+    private var blocking: ScheduledWorkout? {
+        guard let inProgress, inProgress.programWorkoutId != workout.id else { return nil }
+        return inProgress
     }
 
     private var summaryLine: String {

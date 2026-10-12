@@ -30,7 +30,7 @@ struct WorkoutView: View {
     @State private var showDurationEdit = false
 
     private enum Confirmation: Identifiable {
-        case complete, cancel, delete
+        case complete, delete
         var id: Int { hashValue }
     }
 
@@ -170,13 +170,6 @@ struct WorkoutView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    if model.isEditable {
-                        Button(role: .destructive) {
-                            confirmation = .cancel
-                        } label: {
-                            Label("Keskeytä treeni", systemImage: "xmark.circle")
-                        }
-                    }
                     Button(role: .destructive) {
                         confirmation = .delete
                     } label: {
@@ -230,12 +223,6 @@ struct WorkoutView: View {
                     restTimer.stop()
                     Task { await complete() }
                 }
-            case .cancel:
-                Button("Keskeytä treeni", role: .destructive) {
-                    restTimer.stop()
-                    onFinished?(.cancelled, workoutId)
-                    dismiss()
-                }
             case .delete:
                 Button("Poista treeni", role: .destructive) {
                     restTimer.stop()
@@ -251,10 +238,12 @@ struct WorkoutView: View {
             case .complete:
                 let remaining = model.setLogs.filter { !$0.isLogged }.count
                 Text(remaining > 0 ? "\(remaining) sarjaa on vielä kuittaamatta." : "Kaikki sarjat on kuitattu.")
-            case .cancel:
-                Text("Treeni merkitään keskeytetyksi. Kirjatut sarjat säilyvät.")
             case .delete:
-                Text("Treeni ja sen kirjaukset poistetaan pysyvästi.")
+                // Kesken jääneen treenin tehdyt sarjat säilyvät vain valmiiksi
+                // merkitsemällä, joten vaihtoehto kerrotaan tässä.
+                Text(model.isEditable
+                    ? "Treeni ja sen kirjaukset poistetaan pysyvästi. Jos haluat säilyttää tehdyt sarjat, merkitse treeni valmiiksi."
+                    : "Treeni ja sen kirjaukset poistetaan pysyvästi.")
             case nil:
                 EmptyView()
             }
@@ -264,7 +253,6 @@ struct WorkoutView: View {
     private var confirmationTitle: String {
         switch confirmation {
         case .complete: "Merkitäänkö treeni valmiiksi?"
-        case .cancel: "Keskeytetäänkö treeni?"
         case .delete: "Poistetaanko treeni?"
         case nil: ""
         }
