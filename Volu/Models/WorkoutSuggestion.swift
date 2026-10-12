@@ -86,17 +86,21 @@ struct ProgressionHint: Equatable {
     let previousLoad: Double?
     /// Ehdotettu kuorma. nil kun kuormaa ei seurattu eikä lukua voi ehdottaa.
     let suggestedLoad: Double?
+    /// Pienin edellisen kerran toistomäärä: jokainen sarja yltää vähintään tähän.
+    let reps: Int
 
     /// Oletusaskel. Käyttäjän oma asetus (1 / 2,5 / 5 kg) ei vielä kulje
     /// mobiiliprofiilin mukana; 2,5 on myös sen oletus.
     static let defaultIncrement = 2.5
 
+    /// "Viimeksi 60 kg × 8 kaikissa sarjoissa. Kokeile nyt 62,5 kg." Luvut
+    /// kertovat miksi nostoa ehdotetaan; "toistot täynnä" ei kertonut mitään.
     var text: String {
         guard let previousLoad, let suggestedLoad else {
-            return "Viime kerralla kaikki toistot täynnä. Kokeile lisätä painoa."
+            return "Viimeksi \(reps) toistoa kaikissa sarjoissa. Kokeile lisätä painoa."
         }
-        return "Viime kerralla kaikki toistot täynnä (\(WorkoutSetLog.loadText(previousLoad))). "
-            + "Kokeile \(WorkoutSetLog.loadText(suggestedLoad))."
+        return "Viimeksi \(WorkoutSetLog.loadText(previousLoad)) × \(reps) kaikissa sarjoissa. "
+            + "Kokeile nyt \(WorkoutSetLog.loadText(suggestedLoad))."
     }
 
     /// Ehdotus liikkeelle, tai nil kun ehdolle ei ole perusteita.
@@ -137,10 +141,11 @@ struct ProgressionHint: Equatable {
         }
         guard allAtCeiling else { return nil }
 
+        let reps = results.compactMap { $0.previous.actualReps }.min().map { Int($0) } ?? 0
         let loads = results.compactMap { $0.previous.actualLoad }.filter { $0 > 0 }
         guard let base = loads.max() else {
-            return ProgressionHint(previousLoad: nil, suggestedLoad: nil)
+            return ProgressionHint(previousLoad: nil, suggestedLoad: nil, reps: reps)
         }
-        return ProgressionHint(previousLoad: base, suggestedLoad: base + increment)
+        return ProgressionHint(previousLoad: base, suggestedLoad: base + increment, reps: reps)
     }
 }

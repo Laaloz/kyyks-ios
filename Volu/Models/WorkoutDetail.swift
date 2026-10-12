@@ -111,7 +111,7 @@ struct ProgramWorkoutSummary: Decodable, Identifiable {
 /// /api/workouts/start -vastaus.
 struct StartWorkoutResponse: Decodable {
     let scheduledWorkoutId: String
-    /// Palvelin peruu käynnissä olevan treenin, jos uusi aloitetaan.
+    /// Unohtunut treeni, jonka palvelin merkitsi valmiiksi uuden tieltä.
     let autoCancelledWorkoutTitle: String?
 }
 

@@ -7,7 +7,7 @@ struct WorkoutView: View {
     let auth: AuthManager
     let workoutId: String
     let workoutTitle: String
-    /// Keskeytys ja poisto suoritetaan kutsujan mallissa, jotta pyyntö jatkuu
+    /// Poisto suoritetaan kutsujan mallissa, jotta pyyntö jatkuu
     /// vaikka näkymä suljetaan heti — ja lista voi poistaa rivin optimistisesti.
     var onFinished: ((WorkoutEndAction, String) -> Void)?
 
@@ -190,7 +190,7 @@ struct WorkoutView: View {
             // Ennen hakua: edellisellä kerralla lähettämättä jäänyt kirjaus
             // näkyy heti, eikä vasta jos uudelleenlähetys onnistuu.
             await model.restorePendingWrites()
-            await model.load()
+            await model.loadInitial()
             await model.flushPendingWrites()
         }
         // Paluu taustalta on tavallisin hetki, jolloin verkko on taas käytössä:

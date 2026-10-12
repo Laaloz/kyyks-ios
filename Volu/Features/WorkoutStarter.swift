@@ -3,14 +3,14 @@ import Observation
 
 /// Treenin aloitus ohjelmasta. Yksi toteutus kolmelle polulle — alanappi,
 /// esikatselun nappi ja virhe — koska aloituksella on sivuvaikutuksia:
-/// palvelin luo session ja peruu käynnissä olevan treenin.
+/// palvelin luo session.
 @Observable
 @MainActor
 final class WorkoutStarter {
     struct Started {
         let workoutId: String
         let title: String
-        /// Palvelimen peruman, kesken olleen treenin nimi.
+        /// Unohtunut treeni, jonka palvelin merkitsi valmiiksi uuden tieltä.
         let autoCancelledTitle: String?
     }
 
@@ -30,6 +30,8 @@ final class WorkoutStarter {
             struct Body: Encodable {
                 let programId: String
                 let programWorkoutId: String
+                /// Treeninäkymän runko vastaukseen, ks. WorkoutModel.seed.
+                let detail = true
             }
             let data = try await APIClient(auth: auth).post(
                 "/api/workouts/start",
@@ -38,6 +40,9 @@ final class WorkoutStarter {
             guard let response = try? JSONDecoder().decode(StartWorkoutResponse.self, from: data) else {
                 errorMessage = "Treenin aloitus epäonnistui."
                 return nil
+            }
+            if let detail = Self.detailData(from: data) {
+                await WorkoutModel.seed(detail, workoutId: response.scheduledWorkoutId)
             }
             return Started(
                 workoutId: response.scheduledWorkoutId,
@@ -52,5 +57,14 @@ final class WorkoutStarter {
                 ?? "Treenin aloitus epäonnistui — yritä uudelleen."
             return nil
         }
+    }
+
+    /// Vastauksen `detail` sellaisenaan: välimuisti tallettaa saman muodon
+    /// kuin treenin haku palauttaa. Puuttuu vanhalta palvelimelta.
+    nonisolated static func detailData(from response: Data) -> Data? {
+        guard let root = (try? JSONSerialization.jsonObject(with: response)) as? [String: Any],
+              let detail = root["detail"] as? [String: Any]
+        else { return nil }
+        return try? JSONSerialization.data(withJSONObject: detail)
     }
 }

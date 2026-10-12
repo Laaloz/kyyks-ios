@@ -108,16 +108,17 @@ final class ProgressionHintTests: XCTestCase {
 
     func testSuggestsConcreteLoadWhenAllSetsReachedCeiling() {
         let result = hint(logs: [log("1"), log("2")], results: ["1": (10, 60), "2": (10, 60)])
-        XCTAssertEqual(result, ProgressionHint(previousLoad: 60, suggestedLoad: 62.5))
-        XCTAssertEqual(result?.text, "Viime kerralla kaikki toistot täynnä (60 kg). Kokeile 62,5 kg.")
+        XCTAssertEqual(result, ProgressionHint(previousLoad: 60, suggestedLoad: 62.5, reps: 10))
+        XCTAssertEqual(result?.text, "Viimeksi 60 kg × 10 kaikissa sarjoissa. Kokeile nyt 62,5 kg.")
     }
 
     func testOneSetShortDoesNotSuggest() {
         XCTAssertNil(hint(logs: [log("1"), log("2")], results: ["1": (10, 60), "2": (9, 60)]))
     }
 
-    func testExceedingCeilingAlsoSuggests() {
-        XCTAssertNotNil(hint(logs: [log("1"), log("2")], results: ["1": (12, 60), "2": (11, 60)]))
+    func testExceedingCeilingAlsoSuggestsAndShowsLowestReps() {
+        let result = hint(logs: [log("1"), log("2")], results: ["1": (12, 60), "2": (11, 60)])
+        XCTAssertEqual(result?.reps, 11)
     }
 
     func testMissingPreviousSetDoesNotSuggest() {
@@ -143,12 +144,12 @@ final class ProgressionHintTests: XCTestCase {
         XCTAssertEqual(result?.suggestedLoad, 42.5)
     }
 
-    func testBodyweightGivesGenericTextWithoutNumbers() {
+    func testBodyweightGivesRepsWithoutLoad() {
         let result = hint(
             logs: [log("1", targetLoad: nil)], results: ["1": (10, nil)]
         )
-        XCTAssertEqual(result, ProgressionHint(previousLoad: nil, suggestedLoad: nil))
-        XCTAssertEqual(result?.text, "Viime kerralla kaikki toistot täynnä. Kokeile lisätä painoa.")
+        XCTAssertEqual(result, ProgressionHint(previousLoad: nil, suggestedLoad: nil, reps: 10))
+        XCTAssertEqual(result?.text, "Viimeksi 10 toistoa kaikissa sarjoissa. Kokeile lisätä painoa.")
     }
 
     func testDisappearsOnceAnySetIsLogged() {

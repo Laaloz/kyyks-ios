@@ -86,6 +86,28 @@ final class WorkoutModel: CachedModel {
         self.workoutId = workoutId
     }
 
+    /// Treenit, joiden runko tuli juuri aloitusvastauksen mukana.
+    private static var seededWorkoutIds: Set<String> = []
+
+    /// Aloitus palauttaa saman rungon kuin treenin haku. Se talletetaan
+    /// välimuistiin, ja näkymä avautuu siitä ilman erillistä hakua — ennen
+    /// treeni oli käytettävissä vasta kokonaisen toisen pyynnön jälkeen.
+    static func seed(_ data: Data, workoutId: String) async {
+        await ResponseCache.shared.write("workout-\(workoutId)", data: data)
+        seededWorkoutIds.insert(workoutId)
+    }
+
+    /// Ensilataus: juuri aloitetun treenin runko on tuore, joten haku
+    /// ohitetaan. Muuten tavallinen välimuisti + haku.
+    func loadInitial() async {
+        if Self.seededWorkoutIds.remove(workoutId) != nil,
+           let cached = await ResponseCache.shared.read(cacheKey) {
+            apply(cached)
+            if hasContent { return }
+        }
+        await load()
+    }
+
     /// Vain testeille: lokien asetus ilman verkkoa.
     func setLogsForTesting(_ logs: [WorkoutSetLog]) {
         setLogs = logs
