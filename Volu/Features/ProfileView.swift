@@ -37,6 +37,7 @@ struct ProfileView: View {
     @Environment(SubscriptionStore.self) private var subscriptions
     @Environment(HealthManager.self) private var health
     @Environment(PushManager.self) private var push
+    @Environment(RestTimerManager.self) private var restTimer
     /// Ilmoitusluvan tila luetaan uudelleen kun sovellus palaa Asetuksista:
     /// "Salli ilmoitukset Asetuksissa" -rivin on kadottava heti kun lupa on.
     @Environment(\.scenePhase) private var scenePhase
@@ -516,6 +517,11 @@ struct ProfileView: View {
         // Myös lähettämättömät sarjakirjaukset: ne ovat käyttäjän dataa eivätkä
         // saa jäädä laitteelle seuraavalle kirjautujalle.
         await PendingSetStore.shared.clear()
+        // Health-muistilistat ja lepoajastin kuten Androidissa: edellisen
+        // käyttäjän tuontilista ohittaisi seuraavan suoritukset hiljaa, ja
+        // lepoilmoitus tai Live Activity jäisi näkyviin.
+        health.clearLocalState()
+        restTimer.stop()
         await auth.signOut()
     }
 

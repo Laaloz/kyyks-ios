@@ -36,7 +36,30 @@ final class AuthManager {
         } else {
             state = .signedOut
         }
+        observeSignOut()
     }
+
+    /// Istunnon purku kirjaston päässä: refresh token mitätöitiin (salasanan
+    /// vaihto, uloskirjautuminen toiselta laitteelta), jolloin supabase-swift
+    /// poistaa istunnon ja lähettää `.signedOut`. Ilman tätä tila jäi
+    /// kirjautuneeksi ja jokainen kutsu epäonnistui yleisellä virheellä ilman
+    /// tietä kirjautumiseen. Verkkokatko ei lähetä tätä tapahtumaa, joten
+    /// salilla ilman kenttää käyttäjä pysyy sisällä.
+    private func observeSignOut() {
+        guard signOutObserver == nil else { return }
+        signOutObserver = Task { [weak self] in
+            guard let changes = self?.client.auth.authStateChanges else { return }
+            for await (event, _) in changes where event == .signedOut {
+                guard let self else { return }
+                if self.state != .signedOut {
+                    Self.log.info("Istunto purettiin kirjastossa — kirjautumisnäkymään")
+                    self.state = .signedOut
+                }
+            }
+        }
+    }
+
+    private var signOutObserver: Task<Void, Never>?
 
     func signIn(email: String, password: String, captchaToken: String? = nil) async throws {
         let session = try await client.auth.signIn(

@@ -97,6 +97,22 @@ final class HealthManager {
     /// Kuinka usein synkka ajetaan enintään.
     static let syncInterval: TimeInterval = 15 * 60
 
+    /// Käyttäjäkohtaiset muistilistat pois uloskirjautuessa.
+    ///
+    /// Tuontilista ohittaa jo tuodut suoritukset hiljaa: jos se periytyisi
+    /// laitteen seuraavalle kirjautujalle, hänen omat suorituksensa jäisivät
+    /// tuomatta. Sama vientilistalle ja jäähdytykselle (Android tekee saman,
+    /// `HealthConnectManager.clearLocalState`). Lupakyselyn muisti jää: se
+    /// kuvaa laitteen HealthKit-lupaa, ei käyttäjää.
+    func clearLocalState() {
+        importedWorkoutIds = []
+        exportedWorkoutIds = []
+        lastSyncAt = nil
+        exportStatusMessage = nil
+        UserDefaults.standard.removeObject(forKey: Self.importedWorkoutIdsKey)
+        UserDefaults.standard.removeObject(forKey: Self.exportedWorkoutIdsKey)
+    }
+
     /// Ajetaanko synkka nyt. Erillinen funktio, jotta sääntö on yhdessä
     /// paikassa eikä kutsujan muistin varassa.
     func shouldSync(now: Date = .now) -> Bool {
