@@ -87,14 +87,21 @@ struct WorkoutPreviewSheet: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 8) {
-                        if starter.startingWorkoutId == workout.id { ProgressView() }
+                    // Rinkula kuvakkeen paikalla, jotta sisältö pysyy keskellä.
+                    Label {
                         if let blocking {
-                            Label("Jatka: \(blocking.title)", systemImage: "play.fill")
+                            Text("Jatka: \(blocking.title)")
                         } else if inProgress != nil {
-                            Label("Jatka treeniä", systemImage: "play.fill")
+                            Text("Jatka treeniä")
                         } else {
-                            Label("Aloita treeni", systemImage: "figure.strengthtraining.traditional")
+                            Text("Aloita treeni")
+                        }
+                    } icon: {
+                        if starter.startingWorkoutId == workout.id {
+                            ProgressView().controlSize(.small).tint(Color(.systemBackground))
+                        } else {
+                            Image(systemName: inProgress == nil
+                                ? "figure.strengthtraining.traditional" : "play.fill")
                         }
                     }
                     .font(.headline)

@@ -348,11 +348,10 @@ struct WorkoutsListView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                if isBusy { ProgressView() }
-                Label(title, systemImage: systemImage)
-                    .lineLimit(1)
-            }
+            // Rinkula kuvakkeen paikalla: erillisenä tekstin vieressä se siirsi
+            // sisällön ja jäi pois keskeltä.
+            busyLabel(title, systemImage: systemImage, isBusy: isBusy)
+                .lineLimit(1)
             .font(.headline)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -366,6 +365,18 @@ struct WorkoutsListView: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(.bar)
+    }
+
+    private func busyLabel(_ title: String, systemImage: String, isBusy: Bool) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            if isBusy {
+                ProgressView().controlSize(.small).tint(Color(.systemBackground))
+            } else {
+                Image(systemName: systemImage)
+            }
+        }
     }
 
     // MARK: - Toiminnot
