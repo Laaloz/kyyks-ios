@@ -26,6 +26,8 @@ struct ProgramTemplate: Decodable, Identifiable {
         let targetRepsMin: Int
         let targetRepsMax: Int
         let restSeconds: Int
+        /// Käyttäjän muistiinpano liikkeelle, jos on. Näkyy esikatselussa.
+        let note: String?
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -36,19 +38,21 @@ struct ProgramTemplate: Decodable, Identifiable {
             targetRepsMin = repsMin
             targetRepsMax = try container.decodeIfPresent(Int.self, forKey: .targetRepsMax) ?? max(repsMin, 12)
             restSeconds = try container.decodeIfPresent(Int.self, forKey: .restSeconds) ?? 90
+            note = try container.decodeIfPresent(String.self, forKey: .note)
         }
 
-        init(exerciseId: String, exerciseName: String, setCount: Int, targetRepsMin: Int, targetRepsMax: Int, restSeconds: Int) {
+        init(exerciseId: String, exerciseName: String, setCount: Int, targetRepsMin: Int, targetRepsMax: Int, restSeconds: Int, note: String? = nil) {
             self.exerciseId = exerciseId
             self.exerciseName = exerciseName
             self.setCount = setCount
             self.targetRepsMin = targetRepsMin
             self.targetRepsMax = targetRepsMax
             self.restSeconds = restSeconds
+            self.note = note
         }
 
         private enum CodingKeys: String, CodingKey {
-            case exerciseId, exerciseName, setCount, targetRepsMin, targetRepsMax, restSeconds
+            case exerciseId, exerciseName, setCount, targetRepsMin, targetRepsMax, restSeconds, note
         }
     }
 }

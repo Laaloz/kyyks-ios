@@ -10,11 +10,13 @@ final class WorkoutModel: CachedModel {
     private(set) var session: WorkoutSession?
     var isLoading = false
     var errorMessage: String?
-    private(set) var savedNoteBody = ""
+    /// Käyttäjän muistiinpanot liikkeille, liikkeen id:llä.
+    private(set) var exerciseNotes: [String: String] = [:]
+    /// Tallennetut mutta palvelimen vastauksessa vielä näkymättömät muutokset:
+    /// ilman tätä vanhempi vastaus pyyhkisi juuri kirjoitetun. "" = poistettu.
+    private var noteOverrides: [String: String] = [:]
     private(set) var isStructureSyncing = false
     private(set) var isCompleting = false
-    var noteDraft = ""
-    private var noteUpdatedAt: String?
 
     var doneCount: Int { setLogs.filter(\.isLogged).count }
     /// Arvioitu kesto sarjamäärästä, sama kaava kuin ohjelman treeneillä
@@ -300,20 +302,32 @@ final class WorkoutModel: CachedModel {
         return "Valmiiksi merkintä epäonnistui — tarkista verkkoyhteys ja yritä uudelleen."
     }
 
-    func saveNote() async {
+    /// Liikkeen muistiinpano. Näkyy heti (optimistisesti); epäonnistuessa
+    /// edellinen teksti palautuu ja syy kerrotaan. Tyhjä teksti poistaa.
+    func saveExerciseNote(exerciseId: String, body: String) async {
         guard let api else { return }
-        let body = noteDraft
+        let text = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        let previous = exerciseNotes[exerciseId]
+        noteOverrides[exerciseId] = text
+        exerciseNotes[exerciseId] = text.isEmpty ? nil : text
         do {
-            struct Body: Encodable {
-                let body: String
-                let expectedUpdatedAt: String?
-            }
-            _ = try await api.put("/api/workouts/\(workoutId)/note", body: Body(body: body, expectedUpdatedAt: noteUpdatedAt))
-            savedNoteBody = body
-            await refreshAfterChange()
+            struct Body: Encodable { let body: String }
+            let encoded = Self.pathComponent(exerciseId)
+            _ = try await api.put("/api/exercise-notes/\(encoded)", body: Body(body: text))
+            // Seuraava haku tuo saman; ohitus poistuu kun palvelin on samaa mieltä.
         } catch {
+            noteOverrides[exerciseId] = nil
+            exerciseNotes[exerciseId] = previous
             errorMessage = "Muistiinpanon tallennus epäonnistui."
         }
+    }
+
+    /// Liikkeen id polun osana: kauttaviiva tai muu erikoismerkki ei saa
+    /// muuttaa reittiä.
+    nonisolated static func pathComponent(_ value: String) -> String {
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
     func replaceExercise(templateExerciseId: String, with exercise: ExerciseSearchResult) {
@@ -498,12 +512,17 @@ final class WorkoutModel: CachedModel {
         )
         workout = detail.workout
         session = detail.session
-        let previousSaved = savedNoteBody
-        savedNoteBody = detail.note?.body ?? ""
-        noteUpdatedAt = detail.note?.updatedAt
-        // Luonnosta ei ylikirjoiteta, jos käyttäjä on ehtinyt kirjoittaa omaa.
-        if noteDraft.isEmpty || noteDraft == previousSaved {
-            noteDraft = savedNoteBody
+        var notes = Dictionary(
+            (detail.exerciseNotes ?? []).map { ($0.exerciseId, $0.body) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (exerciseId, text) in noteOverrides {
+            if (notes[exerciseId] ?? "") == text {
+                noteOverrides[exerciseId] = nil
+            } else {
+                notes[exerciseId] = text.isEmpty ? nil : text
+            }
         }
+        exerciseNotes = notes
     }
 }

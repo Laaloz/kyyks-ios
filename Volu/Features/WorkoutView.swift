@@ -15,6 +15,7 @@ struct WorkoutView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = WorkoutModel()
     @State private var pickerMode: ExercisePickerMode?
+    @State private var noteEdit: NoteEdit?
     /// Kentät ovat oletuksena näkyvissä; nämä kaksi joukkoa ovat käyttäjän
     /// tekemiä poikkeuksia oletukseen kumpaankin suuntaan.
     @State private var collapsedByUser: Set<String> = []
@@ -107,8 +108,6 @@ struct WorkoutView: View {
                     .disabled(model.isStructureSyncing)
                 }
             }
-
-            noteSection
 
             if model.isEditable && !model.setLogs.isEmpty {
                 Section {
@@ -204,6 +203,12 @@ struct WorkoutView: View {
                 await model.updateDuration(seconds: seconds)
             }
             .presentationDetents([.height(300)])
+        }
+        .sheet(item: $noteEdit) { edit in
+            ExerciseNoteSheet(exerciseName: edit.name, initialText: edit.text) { text in
+                Task { await model.saveExerciseNote(exerciseId: edit.exerciseId, body: text) }
+            }
+            .presentationDetents([.medium])
         }
         .sheet(item: $pickerMode) { mode in
             ExercisePickerSheet(auth: auth, mode: mode) { exercise in
@@ -384,6 +389,7 @@ struct WorkoutView: View {
             // juuri tätä liikettä eikä koko treeniä. Lasketaan edellisen kerran
             // tuloksista ja näytetään vain kirjaamattomalle liikkeelle, eli
             // uuden treenin alussa — ei kesken treenin eikä tehdyllä treenillä.
+            exerciseNoteRow(exercise)
             if let hint = ProgressionHint.make(for: exercise, previous: { model.previousSet(for: $0) }) {
                 Label(hint.text, systemImage: "arrow.up.circle")
                     .font(.footnote)
@@ -408,6 +414,30 @@ struct WorkoutView: View {
             )
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 10, trailing: 16))
+        }
+    }
+
+    /// Muistiinpano liikkeen yllä: näkyy aina kun sellainen on, ja sitä voi
+    /// muokata kesken olevalla treenillä. Ilman muistiinpanoa tarjotaan vain
+    /// lisäys, ja vain muokattavalla treenillä.
+    @ViewBuilder
+    private func exerciseNoteRow(_ exercise: ExerciseGroup) -> some View {
+        if let exerciseId = exercise.logs.first?.exerciseId {
+            let note = model.exerciseNotes[exerciseId]
+            if note != nil || model.isEditable {
+                Button {
+                    guard model.isEditable else { return }
+                    noteEdit = NoteEdit(exerciseId: exerciseId, name: exercise.name, text: note ?? "")
+                } label: {
+                    Label(note ?? "Lisää muistiinpano", systemImage: note == nil ? "plus" : "note.text")
+                        .font(.footnote)
+                        .foregroundStyle(note == nil ? Color.accentColor : Color.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .listRowSeparator(.hidden)
+                .accessibilityHint(model.isEditable ? "Muokkaa muistiinpanoa kaksoisnapauttamalla" : "")
+            }
         }
     }
 
@@ -486,19 +516,6 @@ struct WorkoutView: View {
             .foregroundStyle(isEditable ? Color.accentColor : Color.secondary)
             .monospacedDigit()
             .accessibilityLabel("Kesto \(formatDuration(minutes: seconds / 60))")
-    }
-
-    private var noteSection: some View {
-        Section("Muistiinpano") {
-            TextField("Miten treeni meni?", text: $model.noteDraft, axis: .vertical)
-                .lineLimit(2 ... 6)
-            if model.noteDraft != model.savedNoteBody {
-                Button("Tallenna muistiinpano") {
-                    Task { await model.saveNote() }
-                }
-                .font(.subheadline.weight(.medium))
-            }
-        }
     }
 
     /// Kentät suoraan näkyviin, valmis liike pois tieltä.

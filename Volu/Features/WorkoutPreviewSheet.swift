@@ -134,6 +134,13 @@ struct WorkoutPreviewSheet: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
+            // Oma muistiinpano ("keltainen nauha") näkyy jo ennen aloitusta,
+            // jotta välineen osaa varata etukäteen.
+            if let note = exercise.note, !note.isEmpty {
+                Label(note, systemImage: "note.text")
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+            }
         }
         .accessibilityElement(children: .combine)
     }

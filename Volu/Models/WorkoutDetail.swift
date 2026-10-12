@@ -1,11 +1,15 @@
 import Foundation
 
-/// /api/mobile/workouts/{id} -vastaus: treeni + sessio + sarjalokit + muistiinpano.
+/// /api/mobile/workouts/{id} -vastaus: treeni + sessio + sarjalokit + liikkeiden muistiinpanot.
 struct WorkoutDetail: Decodable {
     let workout: ScheduledWorkout
     let session: WorkoutSession?
     let setLogs: [WorkoutSetLog]
-    let note: WorkoutNote?
+    /// Käyttäjän muistiinpanot treenin liikkeille ("keltainen nauha").
+    /// Valinnainen samasta syystä kuin [previousSets]: vanha välimuistivastaus
+    /// ei sisällä kenttää. Treenin yleistä muistiinpanoa ei enää näytetä;
+    /// palvelin lähettää sen yhä vanhoille sovellusversioille.
+    let exerciseNotes: [ExerciseNote]?
     /// Edellisen kerran tulokset samoille liikkeille.
     ///
     /// Valinnainen tarkoituksella: levyllä oleva välimuistivastaus on
@@ -35,9 +39,11 @@ struct PreviousSet: Decodable {
     }
 }
 
-struct WorkoutNote: Decodable {
+/// Muistiinpano yhdelle liikkeelle. Kuuluu liikkeeseen eikä treeniin, joten
+/// se näkyy aina kun liike tulee vastaan.
+struct ExerciseNote: Decodable {
+    let exerciseId: String
     let body: String
-    let updatedAt: String
 }
 
 /// /api/mobile/programs -vastaus: sama data sekä treenin aloitukseen että
