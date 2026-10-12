@@ -351,6 +351,15 @@ struct WorkoutView: View {
                 Menu {
                     ForEach(block.exercises) { exercise in
                         Section(block.isSuperset ? exercise.name : "") {
+                            if let exerciseId = exercise.logs.first?.exerciseId {
+                                let note = model.exerciseNotes[exerciseId]
+                                Button {
+                                    noteEdit = NoteEdit(exerciseId: exerciseId, name: exercise.name, text: note ?? "")
+                                } label: {
+                                    Label(note == nil ? "Lisää muistiinpano" : "Muokkaa muistiinpanoa",
+                                          systemImage: "note.text")
+                                }
+                            }
                             Button {
                                 pickerMode = .replace(templateExerciseId: exercise.id, currentName: exercise.name)
                             } label: {
@@ -417,27 +426,25 @@ struct WorkoutView: View {
         }
     }
 
-    /// Muistiinpano liikkeen yllä: näkyy aina kun sellainen on, ja sitä voi
-    /// muokata kesken olevalla treenillä. Ilman muistiinpanoa tarjotaan vain
-    /// lisäys, ja vain muokattavalla treenillä.
+    /// Muistiinpano liikkeen yllä, vain kun sellainen on: lisäys ja muokkaus
+    /// ovat liikkeen valikossa, jotta tyhjä rivi ei vie tilaa jokaisesta
+    /// kortista. Napautus avaa muokkauksen kesken olevalla treenillä.
     @ViewBuilder
     private func exerciseNoteRow(_ exercise: ExerciseGroup) -> some View {
-        if let exerciseId = exercise.logs.first?.exerciseId {
-            let note = model.exerciseNotes[exerciseId]
-            if note != nil || model.isEditable {
-                Button {
-                    guard model.isEditable else { return }
-                    noteEdit = NoteEdit(exerciseId: exerciseId, name: exercise.name, text: note ?? "")
-                } label: {
-                    Label(note ?? "Lisää muistiinpano", systemImage: note == nil ? "plus" : "note.text")
-                        .font(.footnote)
-                        .foregroundStyle(note == nil ? Color.accentColor : Color.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .listRowSeparator(.hidden)
-                .accessibilityHint(model.isEditable ? "Muokkaa muistiinpanoa kaksoisnapauttamalla" : "")
+        if let exerciseId = exercise.logs.first?.exerciseId,
+           let note = model.exerciseNotes[exerciseId] {
+            Button {
+                guard model.isEditable else { return }
+                noteEdit = NoteEdit(exerciseId: exerciseId, name: exercise.name, text: note)
+            } label: {
+                Label(note, systemImage: "note.text")
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .buttonStyle(.plain)
+            .listRowSeparator(.hidden)
+            .accessibilityHint(model.isEditable ? "Muokkaa muistiinpanoa kaksoisnapauttamalla" : "")
         }
     }
 
