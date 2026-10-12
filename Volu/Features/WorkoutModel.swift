@@ -387,7 +387,7 @@ final class WorkoutModel: CachedModel {
             // Salin huonossa kentässä aiemmat kirjaukset ovat jääneet
             // odottamaan, eikä niiden pidä odottaa näkymästä poistumista.
             await flushPendingWrites()
-        } catch APIError.status(let code, _) where (400 ..< 500).contains(code) {
+        } catch let error as APIError where error.isPermanent {
             pendingSets.removeValue(forKey: patch.logId)
             let snapshot = pendingSets
             await PendingSetStore.shared.save(workoutId: workoutId, patches: snapshot)

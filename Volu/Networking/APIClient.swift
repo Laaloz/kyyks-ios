@@ -162,6 +162,16 @@ enum APIError: Error, LocalizedError {
         }
     }
 
+    /// Palvelin hylkäsi pyynnön niin, ettei uudelleenyritys auta.
+    ///
+    /// 401, 408 ja 429 eivät ole sellaisia: token ehti vanhentua matkalla,
+    /// pyyntö aikakatkaistiin tai sitä rajoitettiin. Pysyvinä ne pudottivat
+    /// salilla kirjatun sarjan jonosta ja palauttivat vanhan arvon ruudulle.
+    var isPermanent: Bool {
+        guard case .status(let code, _) = self else { return false }
+        return (400 ..< 500).contains(code) && ![401, 408, 429].contains(code)
+    }
+
     /// Palvelimen selitys, jos se on ihmiselle näytettävä. Näkymät käyttävät
     /// tätä oman yleisilmauksensa sijaan, jotta käyttäjä näkee syyn eikä vain
     /// sitä että jokin epäonnistui.
