@@ -130,6 +130,11 @@ final class HealthManager {
     /// nopeampi ehti pyyhkiä hitaamman tuloksen.
     private(set) var lastWorkoutImportCount = 0
     private(set) var lastWeightImportCount = 0
+    /// Kasvaa aina kun tuonti toi palvelimelle uusia rivejä. Tänään-näkymä
+    /// vertaa tätä ennen ja jälkeen kierroksen ja hakee päivän uudelleen vain
+    /// jos jotain tuli — muuten jokainen välilehden avaus oli turha API-kutsu.
+    /// Laskurit eivät kelpaa tähän, koska ne jäävät edellisen kierroksen arvoon.
+    private(set) var importGeneration = 0
 
     var lastSyncMessage: String? {
         let parts = [
@@ -578,6 +583,7 @@ final class HealthManager {
         UserDefaults.standard.set(Array(importedWorkoutIds), forKey: Self.importedWorkoutIdsKey)
 
         lastWorkoutImportCount = results.filter(\.1).count
+        if lastWorkoutImportCount > 0 { importGeneration += 1 }
     }
 
     private struct ActivityBody: Encodable, Sendable {
@@ -651,6 +657,7 @@ final class HealthManager {
                 }
             ))
             lastWeightImportCount = (try? JSONDecoder().decode(Response.self, from: data))?.imported ?? 0
+            if lastWeightImportCount > 0 { importGeneration += 1 }
         } catch {
             Self.log.error("Painon tuonti epäonnistui: \(error.localizedDescription, privacy: .public)")
         }

@@ -29,6 +29,14 @@ struct APIClient {
 
     init(auth: AuthManager) {
         self.auth = auth
+        self.session = Self.sharedSession
+    }
+
+    /// Yksi sessio koko sovellukselle. APIClient luodaan monessa paikassa
+    /// (osa joka haulla), ja oma sessio per instanssi tarkoitti omaa
+    /// yhteyspoolia: kertakutsu avasi joka kerta uuden TCP+TLS-yhteyden
+    /// (~45 ms + kättely), eikä HTTP/2-yhteyttä käytetty uudelleen.
+    private static let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
         // Oma SWR-välimuisti hoitaa cachen; URLCache pois häiritsemästä mittausta.
         config.urlCache = nil
@@ -36,8 +44,8 @@ struct APIClient {
         // Oletus riittää tavallisille reiteille; AI-arvio pyytää oman rajansa
         // (Gemini + Open Food Facts -varahaku voi kestää kymmeniä sekunteja).
         config.timeoutIntervalForRequest = 15
-        self.session = URLSession(configuration: config)
-    }
+        return URLSession(configuration: config)
+    }()
 
     func get(_ path: String) async throws -> Data {
         try await request("GET", path, body: Optional<Int>.none)

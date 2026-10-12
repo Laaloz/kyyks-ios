@@ -31,8 +31,7 @@ extension CachedModel {
     var analyticsArea: FunnelEvent.Source? { nil }
 
     /// Näkymät kutsuvat tätä `.task`-lohkosta, siis joka avauksella. Clientti
-    /// luodaan vain kerran: jokainen APIClient avaa oman URLSessionin, eikä
-    /// niitä ole syytä kerätä taustalle.
+    /// luodaan vain kerran (sessio on jaettu, ks. `APIClient.sharedSession`).
     func configure(auth: AuthManager) {
         if api == nil { api = APIClient(auth: auth) }
     }

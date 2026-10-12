@@ -36,8 +36,25 @@ final class TodayModel: CachedModel {
     func loadIfNeeded() async {
         guard !hasLoaded else { return }
         hasLoaded = true
+        lastFreshnessCheck = .now
         await load()
     }
+
+    /// Etualalle palatessa: haku vain jos päivä vaihtui tai edellisestä on
+    /// kulunut yli vartti. Ilman tätä yön yli muistissa ollut sovellus näytti
+    /// eilisen päivän kunnes käyttäjä veti päivityksen — `hasLoaded` ei
+    /// koskaan nollaudu. Joka paluulla haettuna jokainen sovellusvaihto olisi
+    /// API-kutsu.
+    func refreshIfStale(now: Date = .now) async {
+        guard hasLoaded else { return }
+        let dayChanged = !Calendar.current.isDate(lastFreshnessCheck, inSameDayAs: now)
+        guard dayChanged || now.timeIntervalSince(lastFreshnessCheck) >= Self.staleAfter else { return }
+        lastFreshnessCheck = now
+        await refresh()
+    }
+
+    private var lastFreshnessCheck = Date.distantPast
+    private static let staleAfter: TimeInterval = 15 * 60
 
     /// Keskeytys/poisto optimistisesti: rivi katoaa heti, pyyntö jatkuu taustalla
     /// (tämä malli elää näkymää pidempään). Virheessä rivi palautuu ja syy kerrotaan.

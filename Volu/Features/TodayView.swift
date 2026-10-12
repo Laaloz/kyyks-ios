@@ -16,6 +16,8 @@ struct TodayView: View {
     @State private var showAddMeasurement = false
 
     @Environment(RestTimerManager.self) private var restTimer
+    /// Paluu etualalle päivittää päivän jos se on vanhentunut (`refreshIfStale`).
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -275,6 +277,10 @@ struct TodayView: View {
             async let healthRound: Void = startHealth()
             _ = await (day, healthRound)
         }
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            Task { await model.refreshIfStale() }
+        }
     }
 
     /// Käynnistyksen Health-kierros: vain jos lupa on jo kysytty. Kysely kuuluu
@@ -303,11 +309,17 @@ struct TodayView: View {
         await health.requestMissingAuthorizationIfNeeded()
 
         let api = APIClient(auth: auth)
+        let generationBefore = health.importGeneration
         async let steps: Void = health.refreshTodaySteps()
         async let stepAverage: Void = health.refreshAverageSteps()
         async let sleep: Void = health.refreshAverageSleep()
         async let sync: Void = health.syncIfNeeded(using: api)
         _ = await (steps, stepAverage, sleep, sync)
-        await model.refreshAfterChange()
+        // Päivä uudelleen vain jos tuonti toi rivejä (Android tekee samoin).
+        // Ehdoitta haettuna jokainen välilehden avaus oli API-kutsu
+        // uusintayrityksineen, ja kylmäkäynnistys haki saman reitin kahdesti.
+        if health.importGeneration != generationBefore {
+            await model.refreshAfterChange()
+        }
     }
 }
