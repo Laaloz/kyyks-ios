@@ -109,7 +109,7 @@ final class ProgressionHintTests: XCTestCase {
     func testSuggestsConcreteLoadWhenAllSetsReachedCeiling() {
         let result = hint(logs: [log("1"), log("2")], results: ["1": (10, 60), "2": (10, 60)])
         XCTAssertEqual(result, ProgressionHint(previousLoad: 60, suggestedLoad: 62.5, reps: 10))
-        XCTAssertEqual(result?.text, "Viimeksi 60 kg × 10 kaikissa sarjoissa. Kokeile nyt 62,5 kg.")
+        XCTAssertEqual(result?.text, "Viimeksi 60 kg × 10 · kokeile 62,5 kg")
     }
 
     func testOneSetShortDoesNotSuggest() {
@@ -149,7 +149,7 @@ final class ProgressionHintTests: XCTestCase {
             logs: [log("1", targetLoad: nil)], results: ["1": (10, nil)]
         )
         XCTAssertEqual(result, ProgressionHint(previousLoad: nil, suggestedLoad: nil, reps: 10))
-        XCTAssertEqual(result?.text, "Viimeksi 10 toistoa kaikissa sarjoissa. Kokeile lisätä painoa.")
+        XCTAssertEqual(result?.text, "Viimeksi 10 toistoa · kokeile lisätä painoa")
     }
 
     func testDisappearsOnceAnySetIsLogged() {

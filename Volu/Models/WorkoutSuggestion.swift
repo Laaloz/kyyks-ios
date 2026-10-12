@@ -93,14 +93,13 @@ struct ProgressionHint: Equatable {
     /// mobiiliprofiilin mukana; 2,5 on myös sen oletus.
     static let defaultIncrement = 2.5
 
-    /// "Viimeksi 60 kg × 8 kaikissa sarjoissa. Kokeile nyt 62,5 kg." Luvut
-    /// kertovat miksi nostoa ehdotetaan; "toistot täynnä" ei kertonut mitään.
+    /// "Viimeksi 60 kg × 8 · kokeile 62,5 kg". Lyhyt, ja luvut kertovat miksi
+    /// nostoa ehdotetaan.
     var text: String {
         guard let previousLoad, let suggestedLoad else {
-            return "Viimeksi \(reps) toistoa kaikissa sarjoissa. Kokeile lisätä painoa."
+            return "Viimeksi \(reps) toistoa · kokeile lisätä painoa"
         }
-        return "Viimeksi \(WorkoutSetLog.loadText(previousLoad)) × \(reps) kaikissa sarjoissa. "
-            + "Kokeile nyt \(WorkoutSetLog.loadText(suggestedLoad))."
+        return "Viimeksi \(WorkoutSetLog.loadText(previousLoad)) × \(reps) · kokeile \(WorkoutSetLog.loadText(suggestedLoad))"
     }
 
     /// Ehdotus liikkeelle, tai nil kun ehdolle ei ole perusteita.
