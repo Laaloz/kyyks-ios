@@ -1,14 +1,21 @@
 import SwiftUI
 
-/// Treeni-välilehti: käynnissä oleva, tulevat ja tehdyt treenit lähipäiviltä,
-/// sekä uuden treenin aloitus ohjelmasta.
+/// Treeni-välilehti: mitä tehdään nyt ja seuraavaksi, ohjelman treenit
+/// esikatseltavina, ja tehdyt treenit ja suoritukset historiana.
+///
+/// Järjestys on sen mukaan mitä käyttäjä tekee, ei sen mukaan mitä tietoa on:
+/// käynnissä tai seuraava → muut ohjelman treenit → historia. Työkalut
+/// (kehitys, ohjelman hallinta) ovat yläpalkissa, koska niitä tarvitaan
+/// harvoin eikä niiden paikan pidä liikkua listan mukana.
 struct WorkoutsListView: View {
     let auth: AuthManager
     let userId: String
     /// Jaettu Tänään-välilehden kanssa: sama data, yksi haku.
     let model: TodayModel
     let programs: ProgramsModel
-    @State private var showStartSheet = false
+
+    @State private var starter = WorkoutStarter()
+    @State private var preview: PreviewTarget?
     @State private var startedWorkout: StartedWorkout?
     @State private var autoCancelledNotice: String?
     /// Yksi sheet-tila kahden sijaan: samaan näkymään kiinnitetyistä
@@ -16,28 +23,26 @@ struct WorkoutsListView: View {
     /// ei auennut lainkaan.
     @State private var activitySheet: ActivitySheet?
     @State private var showCreateProgram = false
+    @State private var showCoachPrograms = false
+    /// Poistettava suoritus. Kirjaus katoaa lopullisesti, joten se kysyy
+    /// varmistuksen.
+    @State private var pendingDelete: ExtraActivity?
+    @State private var showAllHistory = false
+    @Environment(RestTimerManager.self) private var restTimer
 
-    /// Poistettava rivi. Sekä suoritus että treeni katoavat lopullisesti, joten
-    /// molemmat kysyvät saman varmistuksen — ero olisi vain hämännyt.
-    @State private var pendingDelete: PendingDelete?
+    /// Historia rajataan oletuksena: 20 suoritusta ja 20 treeniä tekisivät
+    /// välilehdestä yhden pitkän vierityksen, jossa treenit katoavat.
+    private static let historyPreviewCount = 5
 
-    private enum PendingDelete: Identifiable {
-        case activity(ExtraActivity)
-        case workout(ScheduledWorkout)
+    struct StartedWorkout: Identifiable, Hashable {
+        let id: String
+        let title: String
+    }
 
-        var id: String {
-            switch self {
-            case .activity(let activity): "a-\(activity.id)"
-            case .workout(let workout): "w-\(workout.id)"
-            }
-        }
-
-        var name: String {
-            switch self {
-            case .activity(let activity): ExtraActivityType.label(for: activity.activityType)
-            case .workout(let workout): workout.title
-            }
-        }
+    private struct PreviewTarget: Identifiable {
+        let program: Program
+        let workout: ProgramWorkoutSummary
+        var id: String { workout.id }
     }
 
     private enum ActivitySheet: Identifiable {
@@ -51,19 +56,8 @@ struct WorkoutsListView: View {
             }
         }
     }
-    @State private var showAllCompleted = false
-    @State private var showAllActivities = false
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Lokit rajataan oletuksena: 20 suoritusta ja 20 treeniä tekisivät
-    /// välilehdestä yhden pitkän vierityksen, jossa muut osiot katoavat.
-    private static let activityPreviewCount = 3
-    private static let completedPreviewCount = 4
-
-    struct StartedWorkout: Identifiable, Hashable {
-        let id: String
-        let title: String
-    }
+    // MARK: - Johdettu tila
 
     private var inProgress: [ScheduledWorkout] { model.workouts.filter { $0.status == "in_progress" } }
     private var completed: [ScheduledWorkout] { model.workouts.filter { $0.status == "completed" } }
@@ -73,168 +67,59 @@ struct WorkoutsListView: View {
             .filter { $0.status != "in_progress" && $0.status != "completed" && $0.status != "cancelled" && $0.scheduledDate >= today }
             .sorted { $0.scheduledDate < $1.scheduledDate }
     }
+    private var history: [HistoryItem] { HistoryItem.merged(workouts: completed, activities: model.activities) }
+    private var activeProgram: Program? { programs.activeProgram }
+    private var nextWorkout: ProgramWorkoutSummary? {
+        activeProgram.flatMap { NextWorkout.pick(in: $0, completed: completed) }
+    }
 
-    @Environment(RestTimerManager.self) private var restTimer
+    /// Ohjelman muut treenit: Seuraavaksi-kortissa jo oleva ei toistu listassa.
+    private var otherWorkouts: [ProgramWorkoutSummary] {
+        guard let program = activeProgram else { return [] }
+        let shown = inProgress.isEmpty ? nextWorkout?.id : nil
+        return program.workouts.filter { $0.id != shown }
+    }
 
     var body: some View {
         NavigationStack {
             List {
-                if let error = model.errorMessage {
-                    Section {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                if let autoCancelledNotice {
-                    Section {
-                        Label("Keskeytettiin: \(autoCancelledNotice)", systemImage: "info.circle")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                notices
 
                 if !inProgress.isEmpty {
                     Section("Käynnissä") {
-                        ForEach(inProgress) { workoutRow($0) }
-                        // Toissijainen: alanappi jatkaa kesken olevaa, joten
-                        // uuden aloitus tarvitsee oman polkunsa. Palvelin peruu
-                        // kesken olevan treenin ja kertoo sen nimen.
-                        Button {
-                            showStartSheet = true
-                        } label: {
-                            Label("Aloita toinen treeni", systemImage: "arrow.triangle.2.circlepath")
+                        ForEach(inProgress) { ScheduledWorkoutRow(auth: auth, model: model, workout: $0) }
+                    }
+                } else if let program = activeProgram, let next = nextWorkout {
+                    Section("Seuraavaksi") {
+                        NextWorkoutCard(workout: next, lastDone: lastDone(of: next)) {
+                            preview = PreviewTarget(program: program, workout: next)
                         }
                     }
                 }
+
                 if !upcoming.isEmpty {
                     Section("Tulossa") {
-                        ForEach(upcoming) { workoutRow($0) }
-                    }
-                }
-                // Käytössä oleva ohjelma näkyviin: koko välilehti pyörii sen
-                // ympärillä, mutta se oli vain "Oma ohjelma" -näkymän sisällä
-                // kahden napautuksen takana — käyttäjä ei nähnyt mistään mikä
-                // ohjelma on käytössä. Napautus avaa saman näkymän.
-                if let active = programs.activeProgram {
-                    Section("Ohjelma") {
-                        Button {
-                            showCreateProgram = true
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(active.title)
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.primary)
-                                Text(active.workoutNames)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Käytössä oleva ohjelma: \(active.title), \(active.workoutNames)")
-                        .accessibilityHint("Avaa ohjelman")
+                        ForEach(upcoming) { ScheduledWorkoutRow(auth: auth, model: model, workout: $0) }
                     }
                 }
 
-                // Kehitys ennen lokeja: se on kiinteä kohde, jota etsitään
-                // nimellä. Lokien välissä sen paikka liikkuu sitä mukaa kun
-                // suorituksia ja treenejä kertyy, eikä sitä enää löydä.
-                Section {
-                    NavigationLink {
-                        ExerciseProgressListView(auth: auth)
-                    } label: {
-                        Label("Kehitys liikkeittäin", systemImage: "chart.line.uptrend.xyaxis")
-                    }
-                    // Ohjelman luonti oli vain "Aloita treeni" -sheetin sisällä,
-                    // eli sinne pääsi vain aloittamalla treenin — väärä paikka
-                    // toiminnolle, jota itsenäinen treenaaja tarvitsee ensin.
-                    //
-                    // Valmennettavalle sitä ei näytetä lainkaan: hänen
-                    // ohjelmansa tekee valmentaja, ja palvelin torjuu sekä
-                    // luonnin että muokkauksen. Napin näyttäminen olisi lupaus,
-                    // jota palvelin ei lunasta — käyttäjä tekisi työn ja saisi
-                    // eston vasta tallennuksessa.
-                    if programs.canManagePrograms {
-                        Button {
-                            showCreateProgram = true
-                        } label: {
-                            Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
-                        }
-                    }
-
-                    // Valmentajalle ja adminille: muiden ohjelmat ja se, keillä
-                    // kukin ohjelma on käytössä. Aiemmin jakamiseen pääsi käsiksi
-                    // vain webin työpöydältä.
-                    if model.currentUser?.canCoachOthers == true {
-                        NavigationLink {
-                            CoachProgramsView(auth: auth)
-                        } label: {
-                            Label("Treenaajien ohjelmat", systemImage: "person.2")
-                        }
-                    }
-                }
-
-                // Oheisaktiviteetit ovat treeniä siinä missä ohjelmatreenitkin,
-                // joten ne kirjataan ja näkyvät samalla välilehdellä.
-                Section("Muut suoritukset") {
-                    Button {
-                        activitySheet = .new
-                    } label: {
-                        Label("Lisää suoritus", systemImage: "plus.circle")
-                    }
-                    ForEach(visibleActivities) { activity in
-                        Button {
-                            activitySheet = .edit(activity)
-                        } label: {
-                            activityRow(activity)
-                                // Ilman tätä .plain-napin osumakohde rajautuu
-                                // tekstiin, eikä rivin napautus avannut mitään.
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing) {
-                            Button("Poista", role: .destructive) {
-                                pendingDelete = .activity(activity)
+                if let program = activeProgram, !otherWorkouts.isEmpty {
+                    Section(program.title) {
+                        ForEach(otherWorkouts) { workout in
+                            ProgramWorkoutRow(workout: workout, lastDone: lastDone(of: workout)) {
+                                preview = PreviewTarget(program: program, workout: workout)
                             }
                         }
                     }
-                    if model.activities.count > Self.activityPreviewCount {
-                        expandButton(
-                            isExpanded: showAllActivities,
-                            total: model.activities.count,
-                            expandedLabel: "suoritusta"
-                        ) { showAllActivities.toggle() }
-                    }
                 }
 
-                if !completed.isEmpty {
-                    Section("Tehdyt") {
-                        // Historia viimeisenä ja rajattuna: 14 vrk:n treenit
-                        // työnsivät muut suoritukset ruudullisen päähän.
-                        ForEach(showAllCompleted ? completed : Array(completed.prefix(Self.completedPreviewCount))) { workoutRow($0) }
-                        if completed.count > Self.completedPreviewCount {
-                            expandButton(
-                                isExpanded: showAllCompleted,
-                                total: completed.count,
-                                expandedLabel: "treeniä"
-                            ) { showAllCompleted.toggle() }
-                        }
-                    }
+                if !programs.isLoading, activeProgram == nil {
+                    noProgramSection
                 }
 
-                if model.workouts.isEmpty {
-                    Section {
-                        Text("Ei treenejä lähipäiviltä. Aloita treeni alta — jos ohjelmaa ei vielä ole, voit luoda sen samalla.")
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                historySection
 
-                // Tilaa alareunan "Aloita treeni" -napin alle, jottei viimeinen
-                // rivi jää sen taakse.
+                // Tilaa alareunan napin alle, jottei viimeinen rivi jää sen taakse.
                 Section {
                     Color.clear
                         .frame(height: 44)
@@ -243,16 +128,12 @@ struct WorkoutsListView: View {
                 .listSectionSpacing(0)
             }
             .confirmationDialog(
-                pendingDelete.map { "Poistetaanko \($0.name)?" } ?? "",
+                pendingDelete.map { "Poistetaanko \(ExtraActivityType.label(for: $0.activityType))?" } ?? "",
                 isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
                 titleVisibility: .visible
             ) {
                 Button("Poista", role: .destructive) {
-                    switch pendingDelete {
-                    case .activity(let activity): model.deleteActivity(activity)
-                    case .workout(let workout): model.finishWorkout(.deleted, workoutId: workout.id)
-                    case nil: break
-                    }
+                    if let activity = pendingDelete { model.deleteActivity(activity) }
                     pendingDelete = nil
                 }
                 Button("Peruuta", role: .cancel) { pendingDelete = nil }
@@ -267,42 +148,20 @@ struct WorkoutsListView: View {
                     Task { await model.refreshAfterChange() }
                 }
             }
-            .navigationTitle("Treeni")
-            .safeAreaInset(edge: .bottom) {
-                // Välilehden ensisijainen toiminto peukalon ulottuvilla — ei
-                // yläkulman "+"-napissa, jossa se näytti toissijaisemmalta kuin
-                // listan "Lisää suoritus".
-                //
-                // Kesken olevan treenin aikana ensisijainen toiminto on sen
-                // jatkaminen, ei uuden aloittaminen: "Aloita treeni" oli
-                // ristiriidassa saman ruudun "Käynnissä"-osion kanssa. Uuden
-                // aloittaminen säilyy listarivinä, koska palvelin sallii sen ja
-                // peruu kesken olevan — väärin valittu treeni pitää voida
-                // vaihtaa.
-                Button {
-                    if let current = inProgress.first {
-                        startedWorkout = StartedWorkout(id: current.id, title: current.title)
-                    } else {
-                        showStartSheet = true
-                    }
-                } label: {
-                    Label(
-                        inProgress.isEmpty ? "Aloita treeni" : "Jatka treeniä",
-                        systemImage: inProgress.isEmpty ? "figure.strengthtraining.traditional" : "play.fill"
-                    )
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .prominentButtonLabel()
-                .padding(.horizontal, 16)
-                // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa
-                // napin reunasta ja näyttää irralliselta kaistaleelta.
-                .padding(.top, 10)
-                .padding(.bottom, 8)
-                .background(.bar)
+            .sheet(item: $preview) { target in
+                WorkoutPreviewSheet(
+                    auth: auth,
+                    program: target.program,
+                    workout: target.workout,
+                    lastDone: lastDone(of: target.workout),
+                    inProgressTitle: inProgress.first?.title,
+                    starter: starter,
+                    onStarted: handleStarted
+                )
             }
+            .navigationTitle("Treeni")
+            .toolbar { toolbarContent }
+            .safeAreaInset(edge: .bottom) { primaryAction }
             .restTimerBar(restTimer)
             .refreshable { await model.refresh() }
             .navigationDestination(item: $startedWorkout) { started in
@@ -316,12 +175,8 @@ struct WorkoutsListView: View {
                     }
                 )
             }
-            .sheet(isPresented: $showStartSheet) {
-                StartWorkoutSheet(auth: auth, userId: userId, programs: programs) { workoutId, title, autoCancelled in
-                    autoCancelledNotice = autoCancelled
-                    startedWorkout = StartedWorkout(id: workoutId, title: title)
-                    Task { await model.refreshAfterChange() }
-                }
+            .navigationDestination(isPresented: $showCoachPrograms) {
+                CoachProgramsView(auth: auth)
             }
         }
         // Kiinnitetty NavigationStackiin eikä listaan: samaan näkymään
@@ -334,110 +189,191 @@ struct WorkoutsListView: View {
         .task {
             model.configure(auth: auth, userId: userId)
             programs.configure(auth: auth)
-            // Ohjelmat välimuistiin jo välilehdellä: muuten "Oma ohjelma"
-            // avautuu tyhjänä ja nykyinen ohjelma ilmestyy viiveellä.
+            // Ohjelmat välimuistiin jo välilehdellä: muuten esikatselu ja
+            // ehdotus ilmestyvät viiveellä.
             async let workouts: Void = model.loadIfNeeded()
             async let plans: Void = programs.loadIfNeeded()
             _ = await (workouts, plans)
         }
     }
 
-    private var visibleActivities: [ExtraActivity] {
-        showAllActivities ? model.activities : Array(model.activities.prefix(Self.activityPreviewCount))
-    }
+    // MARK: - Osat
 
-    private func expandButton(
-        isExpanded: Bool,
-        total: Int,
-        expandedLabel: String,
-        toggle: @escaping () -> Void
-    ) -> some View {
-        Button(isExpanded ? "Näytä vähemmän" : "Näytä kaikki (\(total))") {
-            withAnimation(.snappy) { toggle() }
+    @ViewBuilder
+    private var notices: some View {
+        if let error = model.errorMessage ?? starter.errorMessage {
+            Section {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
-        .font(.subheadline)
-        .accessibilityLabel(isExpanded ? "Näytä vähemmän" : "Näytä kaikki \(total) \(expandedLabel)")
-    }
-
-    private func activityRow(_ activity: ExtraActivity) -> some View {
-        // Vain kaksi lukua: vauhti, syke ja kalorit näkyvät kun suoritus
-        // avataan. Viisi lukua väliviivoin ei kerro vilkaisulla mitään.
-        let detail = ActivityMetrics.rowParts(
-            meters: activity.distanceMeters,
-            minutes: activity.durationMinutes,
-            kcal: activity.estimatedKcal,
-            mode: ExtraActivityType.distanceMode(for: activity.activityType)
-        ).joined(separator: " · ")
-        let name = ExtraActivityType.label(for: activity.activityType)
-        return VStack(alignment: .leading, spacing: 2) {
-            // Suurilla tekstikoilla rinnakkain ei mahdu: vierekkäinen asettelu
-            // typisti sekä lajin että lukemat.
-            if dynamicTypeSize.isAccessibilitySize {
-                Text(name)
-                Text(detail)
+        if let autoCancelledNotice {
+            Section {
+                Label("Keskeytettiin: \(autoCancelledNotice)", systemImage: "info.circle")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            } else {
-                HStack {
-                    Text(name)
-                    Spacer()
-                    Text(detail)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
             }
         }
-        .accessibilityElement(children: .combine)
-        // Ruudunlukija kuulee saman kuin ruudulla näkyy: rivin lyhentäminen
-        // näkyvästi mutta ei ääneen tekisi näistä kahdesta eri näkymää.
-        .accessibilityLabel(([name] + detail.components(separatedBy: " · ")).joined(separator: ", "))
     }
 
-    private func workoutRow(_ workout: ScheduledWorkout) -> some View {
-        NavigationLink {
-            WorkoutView(
-                auth: auth,
-                workoutId: workout.id,
-                workoutTitle: workout.title,
-                onFinished: { action, id in model.finishWorkout(action, workoutId: id) }
+    /// Ei ohjelmaa: tyhjä tila kertoo mitä tehdä sen mukaan kuka käyttäjä on.
+    /// Valmennettava ei voi luoda ohjelmaa, joten luontiin ohjaava teksti olisi
+    /// lupaus jota palvelin ei lunasta.
+    private var noProgramSection: some View {
+        Section {
+            ContentUnavailableView(
+                "Ei ohjelmaa vielä",
+                systemImage: "list.bullet.rectangle",
+                description: Text(
+                    programs.canManagePrograms
+                        ? "Valitse valmis pohja tai aloita tyhjästä. Treenit ilmestyvät tähän heti tallennuksen jälkeen."
+                        : "Valmentajasi tekee ohjelmasi. Se ilmestyy tähän heti kun se on valmis."
+                )
             )
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workout.title).font(.subheadline.weight(.medium))
-                HStack(spacing: 6) {
-                    Text(formatDate(workout.scheduledDate))
-                    // Kesto samalla rivillä päivämäärän kanssa, kuten
-                    // suorituksilla: tehty treeni ilman yhtään lukemaa erottui
-                    // listalla lenkin vierestä pelkkänä otsikkona.
-                    if let seconds = workout.durationSeconds, seconds > 0 {
-                        Text("· \(formatDuration(seconds: seconds))")
-                            .monospacedDigit()
-                    }
-                    // Merkintä vain poikkeukselle: "Tehdyt"-osiossa jokainen
-                    // rivi on tehty, joten check ei kantanut informaatiota.
-                    // Kesken jäänyt sen sijaan erottuu.
-                    if workout.status == "in_progress" {
-                        Text("Kesken")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(.tint.opacity(0.15), in: Capsule())
-                    }
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
+            .listRowBackground(Color.clear)
         }
     }
 
-    private func formatDate(_ isoDate: String) -> String {
-        let input = ISO8601DateFormatter.dateOnly
-        guard let date = input.date(from: String(isoDate.prefix(10))) else { return isoDate }
-        // Locale annetaan eksplisiittisesti: suora formatted() ei näe SwiftUI:n
-        // ympäristön localea, joten päivät tulivat englanniksi suomen seasta.
-        return date.formatted(.dateTime.weekday(.wide).day().month().locale(Locale(identifier: "fi_FI")))
+    private var historySection: some View {
+        Section("Historia") {
+            let visible = showAllHistory ? history : Array(history.prefix(Self.historyPreviewCount))
+            ForEach(visible) { item in
+                switch item {
+                case .workout(let workout):
+                    ScheduledWorkoutRow(auth: auth, model: model, workout: workout)
+                case .activity(let activity):
+                    Button {
+                        activitySheet = .edit(activity)
+                    } label: {
+                        ActivityRow(activity: activity)
+                            // Ilman tätä .plain-napin osumakohde rajautuu
+                            // tekstiin, eikä rivin napautus avannut mitään.
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing) {
+                        Button("Poista", role: .destructive) { pendingDelete = activity }
+                    }
+                }
+            }
+            if history.count > Self.historyPreviewCount {
+                Button(showAllHistory ? "Näytä vähemmän" : "Näytä kaikki (\(history.count))") {
+                    withAnimation(.snappy) { showAllHistory.toggle() }
+                }
+                .font(.subheadline)
+            }
+            // Lisäys historian lopussa: se on harvinaisempi kuin treenin
+            // aloitus, eikä sen kuulu olla treenien edellä.
+            Button {
+                activitySheet = .new
+            } label: {
+                Label("Lisää suoritus", systemImage: "plus.circle")
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            NavigationLink {
+                ExerciseProgressListView(auth: auth)
+            } label: {
+                Label("Kehitys liikkeittäin", systemImage: "chart.line.uptrend.xyaxis")
+            }
+            // Ohjelman hallinta vain sille joka voi sitä tehdä. Valmennettavalle
+            // sitä ei näytetä lainkaan: palvelin torjuu sekä luonnin että
+            // muokkauksen, ja nappi olisi lupaus jota se ei lunasta.
+            if programs.canManagePrograms || model.currentUser?.canCoachOthers == true {
+                Menu {
+                    if programs.canManagePrograms {
+                        Button {
+                            showCreateProgram = true
+                        } label: {
+                            Label("Oma ohjelma", systemImage: "list.bullet.rectangle")
+                        }
+                    }
+                    // Valmentajalle ja adminille: muiden ohjelmat ja se, keillä
+                    // kukin ohjelma on käytössä.
+                    if model.currentUser?.canCoachOthers == true {
+                        Button {
+                            showCoachPrograms = true
+                        } label: {
+                            Label("Treenaajien ohjelmat", systemImage: "person.2")
+                        }
+                    }
+                } label: {
+                    Label("Ohjelma", systemImage: "ellipsis.circle")
+                }
+            }
+        }
+    }
+
+    /// Välilehden ensisijainen toiminto alareunassa, ja se seuraa tilaa:
+    /// käynnissä olevan jatko, muuten seuraavan treenin aloitus, ja ilman
+    /// ohjelmaa sen luonti. Aloitus ei kysy esikatselua: Seuraavaksi-kortti on
+    /// samalla ruudulla, ja muun treenin voi valita listasta.
+    @ViewBuilder
+    private var primaryAction: some View {
+        if let current = inProgress.first {
+            actionButton("Jatka treeniä", systemImage: "play.fill") {
+                startedWorkout = StartedWorkout(id: current.id, title: current.title)
+            }
+        } else if let program = activeProgram, let next = nextWorkout {
+            actionButton(
+                starter.isStarting ? "Aloitetaan…" : "Aloita: \(next.name)",
+                systemImage: "figure.strengthtraining.traditional",
+                isBusy: starter.isStarting
+            ) {
+                Task {
+                    if let started = await starter.start(programId: program.id, workout: next, auth: auth) {
+                        handleStarted(started)
+                    }
+                }
+            }
+        } else if !programs.isLoading, activeProgram == nil, programs.canManagePrograms {
+            actionButton("Luo ensimmäinen ohjelma", systemImage: "plus.circle") {
+                showCreateProgram = true
+            }
+        }
+    }
+
+    private func actionButton(
+        _ title: String,
+        systemImage: String,
+        isBusy: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if isBusy { ProgressView() }
+                Label(title, systemImage: systemImage)
+                    .lineLimit(1)
+            }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.borderedProminent)
+        .prominentButtonLabel()
+        .disabled(isBusy)
+        .padding(.horizontal, 16)
+        // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa napin
+        // reunasta ja näyttää irralliselta kaistaleelta.
+        .padding(.top, 10)
+        .padding(.bottom, 8)
+        .background(.bar)
+    }
+
+    // MARK: - Toiminnot
+
+    private func handleStarted(_ started: WorkoutStarter.Started) {
+        autoCancelledNotice = started.autoCancelledTitle
+        startedWorkout = StartedWorkout(id: started.workoutId, title: started.title)
+        Task { await model.refreshAfterChange() }
+    }
+
+    private func lastDone(of workout: ProgramWorkoutSummary) -> Date? {
+        NextWorkout.lastDone(of: workout, in: completed)
     }
 }

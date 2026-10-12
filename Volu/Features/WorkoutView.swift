@@ -331,15 +331,6 @@ struct WorkoutView: View {
 
                     Spacer(minLength: 4)
 
-                    // Kehotus näkyy myös kutistettuna: merkki riittää listaan,
-                    // koko lause on kortin sisällä.
-                    if block.exercises.contains(where: \.isReadyForHeavierLoad) {
-                        Image(systemName: "arrow.up.circle")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.green)
-                            .accessibilityLabel("Kaikki toistot täynnä, nosta painoa ensi kerralla")
-                    }
-
                     // Valmis liike merkitään rastilla, kesken oleva laskurilla.
                     // "3/3" vaati lukemaan kaksi lukua ja vertaamaan ne
                     // keskenään, jotta näki onko liike tehty — rasti kertoo sen
@@ -402,13 +393,14 @@ struct WorkoutView: View {
                     .listRowSeparator(.hidden)
             }
             // Kaksoisprogression kehotus liikkeen omalla kortilla: se koskee
-            // juuri tätä liikettä eikä koko treeniä.
-            if exercise.isReadyForHeavierLoad {
-                Label("Kaikki toistot täynnä — nosta painoa ensi kerralla", systemImage: "arrow.up.circle")
+            // juuri tätä liikettä eikä koko treeniä. Lasketaan edellisen kerran
+            // tuloksista ja näytetään vain kirjaamattomalle liikkeelle, eli
+            // uuden treenin alussa — ei kesken treenin eikä tehdyllä treenillä.
+            if let hint = ProgressionHint.make(for: exercise, previous: { model.previousSet(for: $0) }) {
+                Label(hint.text, systemImage: "arrow.up.circle")
                     .font(.footnote)
                     .foregroundStyle(.green)
                     .listRowSeparator(.hidden)
-                    .accessibilityLabel("Kaikki toistot täynnä. Nosta painoa ensi kerralla.")
             }
             SetTable(
                 logs: exercise.logs,

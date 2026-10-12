@@ -48,6 +48,10 @@ struct ScheduledWorkout: Decodable, Identifiable {
     /// olevalla treenillä ei ole lopullista kestoa, ja levyllä oleva vanha
     /// välimuistivastaus on tallennettu ennen tätä kenttää.
     let durationSeconds: Double?
+    /// Ohjelman treeni josta tämä on aloitettu. Seuraavan treenin ehdotus ja
+    /// "viimeksi tehty" yhdistävät rivit ohjelman treeneihin tällä; nimi on
+    /// varalla, koska levyn vanha välimuistivastaus ei sisällä kenttää.
+    var programWorkoutId: String?
 }
 
 struct ExtraActivity: Decodable, Identifiable {
