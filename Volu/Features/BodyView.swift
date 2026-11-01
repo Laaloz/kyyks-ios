@@ -94,6 +94,21 @@ struct BodyView: View {
         let domain = model.weightDomain
         let selected = model.point(nearest: selectedDate)
 
+        VStack(alignment: .leading, spacing: 4) {
+        // Kiinteä korkeus: lukema ei siirrä kaaviota valinnan vaihtuessa.
+        VStack(alignment: .leading, spacing: 1) {
+            if let selected {
+                Text("\(selected.value.formatted(.number.precision(.fractionLength(1)))) kg")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text(selected.date, format: .dateTime.day().month().year())
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .accessibilityElement(children: .combine)
+
         Chart {
             ForEach(model.weightSeries) { point in
                 // AreaMark ankkuroituu oletuksena nollaan, mikä
@@ -131,21 +146,9 @@ struct BodyView: View {
                     y: .value("Paino", selected.value)
                 )
                 .symbolSize(90)
-                // y: .fit pitää kuplan kaavion sisällä — .disabled
-                // leikkasi lukeman pois käyrän huipulla.
-                .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
-                    VStack(spacing: 1) {
-                        Text(selected.value, format: .number.precision(.fractionLength(1)))
-                            .font(.subheadline.weight(.semibold))
-                            .monospacedDigit()
-                        Text(selected.date, format: .dateTime.day().month())
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                }
+                // Lukema ei ole annotaatio: kupla piirtyi käyrän päälle ja
+                // .regularMaterial renderöityi kaavion sisällä välillä mustana.
+                // Lukema on kiinteässä rivissä kaavion yläpuolella (readout).
             }
         }
         // chartXSelection ei saa kosketusta Listin sisällä, koska
@@ -176,6 +179,7 @@ struct BodyView: View {
         }
         .chartYScale(domain: domain)
         .frame(height: 180)
+        }
         .padding(.vertical, 4)
     }
 
