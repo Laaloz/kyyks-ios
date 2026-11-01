@@ -222,6 +222,23 @@ struct ExerciseProgressDetailView: View {
         let domain = ExerciseProgress.domain(for: exercise.trend)
         let selected = exercise.point(nearest: selectedDate)
 
+        VStack(alignment: .leading, spacing: 4) {
+        // Lukema kiinteässä rivissä: annotaatio peitti käyrää ja
+        // .regularMaterial renderöityi kaavion sisällä välillä mustana.
+        VStack(alignment: .leading, spacing: 1) {
+            if let selected {
+                Text("\(formatKg(selected.value)) kg")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                Text("\(formatKg(selected.load)) kg × \(formatReps(selected.reps)) · \(selected.day.formatted(.dateTime.day().month().year()))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .accessibilityElement(children: .combine)
+
         Chart {
             ForEach(exercise.trend) { point in
                 AreaMark(
@@ -251,25 +268,6 @@ struct ExerciseProgressDetailView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                 PointMark(x: .value("Valittu", selected.day), y: .value("e1RM", selected.value))
                     .symbolSize(90)
-                    // y: .fit pitää kuplan kaavion sisällä — .disabled leikkasi
-                    // lukeman pois, kun valittu piste oli käyrän huipulla.
-                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit, y: .fit)) {
-                        VStack(spacing: 1) {
-                            Text("\(formatKg(selected.value)) kg")
-                                .font(.subheadline.weight(.semibold))
-                                .monospacedDigit()
-                            Text("\(formatKg(selected.load)) kg × \(formatReps(selected.reps))")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                            Text(selected.day, format: .dateTime.day().month())
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                    }
             }
         }
         // chartXSelection ei saa kosketusta Listin sisällä (listan vieritysele
@@ -299,6 +297,7 @@ struct ExerciseProgressDetailView: View {
         }
         .chartYScale(domain: domain)
         .frame(height: 180)
+        }
         .padding(.vertical, 4)
     }
 
