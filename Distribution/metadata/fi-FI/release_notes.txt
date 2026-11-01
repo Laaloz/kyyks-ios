@@ -1,7 +1,3 @@
-Luotettavampi ja nopeampi:
+Selkeämmät kaaviot:
 
-• Kesken treenin kirjattu sarja ei enää katoa, jos yhteys tai kirjautuminen katkeaa hetkeksi — sarja tallentuu, kun yhteys palaa
-• Tänään-näkymä päivittyy, kun palaat sovellukseen myöhemmin tai seuraavana päivänä
-• Sarjojen tallennus ja treenin aloitus ovat nopeampia, ja sovellus käyttää yhteyksiä tehokkaammin
-• Uloskirjautuminen tyhjentää myös Apple Healthin tuontitiedot ja lepoajastimen, joten saman laitteen seuraava käyttäjä ei peri niitä
-• Jos istunto päättyy esimerkiksi salasanan vaihdon jälkeen, sovellus ohjaa kirjautumiseen virheilmoitusten sijaan
+• Painon ja liikkeen kehityksen valittu lukema näkyy nyt kaavion yläpuolella, eikä se enää peitä käyrää tai näy välillä mustana laatikkona
