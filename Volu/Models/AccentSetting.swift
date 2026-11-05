@@ -111,4 +111,14 @@ extension View {
     func prominentButtonLabel() -> some View {
         foregroundStyle(Color(.systemBackground))
     }
+
+    /// Korostusnappi odottaa pyyntöä: napautukset ohitetaan, mutta väri pysyy.
+    ///
+    /// Ei `.disabled`: se vaihtaa `.borderedProminent`-napin harmaaksi, jolloin
+    /// nappi näytti mustuvan ja systemBackground-värinen rinkula katosi sen
+    /// päälle — käyttäjä ei nähnyt että aloitus on käynnissä.
+    func busyButton(_ isBusy: Bool) -> some View {
+        allowsHitTesting(!isBusy)
+            .accessibilityValue(isBusy ? "Odotetaan" : "")
+    }
 }

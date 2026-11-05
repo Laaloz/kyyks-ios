@@ -358,7 +358,7 @@ struct WorkoutsListView: View {
         }
         .buttonStyle(.borderedProminent)
         .prominentButtonLabel()
-        .disabled(isBusy)
+        .busyButton(isBusy)
         .padding(.horizontal, 16)
         // Väli myös ylös, kuten Ravinnossa: ilman sitä tausta alkaa napin
         // reunasta ja näyttää irralliselta kaistaleelta.

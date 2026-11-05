@@ -110,7 +110,7 @@ struct WorkoutPreviewSheet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .prominentButtonLabel()
-                .disabled(starter.isStarting)
+                .busyButton(starter.isStarting)
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
                 .padding(.bottom, 8)
