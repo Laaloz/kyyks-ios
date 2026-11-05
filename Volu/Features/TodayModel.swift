@@ -87,7 +87,10 @@ final class TodayModel: CachedModel {
                 await refreshAfterChange()
             } catch {
                 workouts = previousWorkouts
-                errorMessage = "Treenin poisto epäonnistui — yritä uudelleen."
+                // Palvelimen syy näkyviin, kuten treenin aloituksessa: yleisilmaus
+                // ei erottanut katkennutta yhteyttä estyneestä poistosta.
+                errorMessage = (error as? APIError)?.serverMessage
+                    ?? "Treenin poisto epäonnistui — tarkista yhteys ja yritä uudelleen."
             }
         }
     }
