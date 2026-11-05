@@ -6,3 +6,4 @@ Uudistettu Treeni-välilehti ja reseptit:
 • Reseptit selataan nyt kuvina kahdessa sarakkeessa, ja ateriatyypin voi valita yhdellä napautuksella
 • Reseptinäkymä alkaa isosta kuvasta, ja ohjeen vaiheet on numeroitu selkeämmin
 • Ravinto-välilehti avautuu nopeammin, koska päivän tiedot haetaan jo sovelluksen käynnistyessä
+• Painon kehitys -käyrän lukema näkyy nyt selkeästi koko käyrällä
