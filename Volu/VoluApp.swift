@@ -209,6 +209,15 @@ struct VoluApp: App {
                     .task(id: userId) {
                         await checkOnboarding()
                     }
+                    // Kuluvan päivän ravinto välimuistiin jo käynnistyksessä, jotta
+                    // Ravinto-välilehti avautuu valmiina. Ensimmäinen haku kylmälle
+                    // palvelimelle vei mitattuna ~2,9 s, lämmin ~0,3 s: odotus siirtyy
+                    // pois napautuksen perästä, ja välilehden oma haku osuu lämpimään.
+                    .task(id: userId) {
+                        let prefetch = NutritionModel()
+                        prefetch.configure(auth: auth)
+                        await prefetch.refresh()
+                    }
                     // Applen antama nimi talteen heti ensimmäisen kirjautumisen
                     // jälkeen: Apple ei palauta sitä toista kertaa, joten tämä
                     // on ainoa hetki jolloin profiiliin saa oikean nimen.
