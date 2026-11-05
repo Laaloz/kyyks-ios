@@ -27,10 +27,16 @@ Huomioita arvioijalle:
    kuukausirajaa sekä koko reseptikirjaston. Ilmaisversiossa arvioita on viisi
    kuukaudessa, ja reseptikirjastossa on näyteresepti jokaiseen ateriapaikkaan.
 
-   Ostonäkymän pääsee katsomaan ilman kiintiön kuluttamista:
-   Tänään → profiilikuvake oikeassa yläkulmassa → "Tilaa Volu Pro".
-   Sama näkymä avautuu myös Ravinto → Reseptit → mikä tahansa lukittu resepti,
-   ja tekstiarviosta sen jälkeen kun kuukauden viisi arviota on käytetty.
+   Demotunnuksella on Volu Pro valmiiksi (myönnetty ylläpidosta, ei App Store
+   -tilaus), joten koko reseptikirjasto ja rajaton ateria-arvio ovat
+   arvioitavissa ilman ostoa. Siksi demotunnuksella ei näy ostonäkymää.
+
+   Ostonäkymän ja oston voi testata uudella ilmaistilillä: kirjaudu ulos
+   (Tänään → profiilikuvake → Kirjaudu ulos) ja kirjaudu Sign in with Apple
+   -painikkeella, jolloin syntyy uusi ilmaistili ilman sähköpostivahvistusta.
+   Sen jälkeen ostonäkymä avautuu: Tänään → profiilikuvake oikeassa
+   yläkulmassa → "Tilaa Volu Pro", tai Ravinto → Reseptit → mikä tahansa
+   lukittu resepti.
 
 4. Ateriakuva ja tekstikuvaus lähetetään Googlen Gemini-rajapintaan makrojen
    arviointia varten. Kuvaa ei tallenneta. Tämä on kerrottu
