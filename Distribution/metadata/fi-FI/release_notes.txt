@@ -1,7 +1,8 @@
-Luotettavampi ja nopeampi:
+Uudistettu Treeni-välilehti ja reseptit:
 
-• Kesken treenin kirjattu sarja ei enää katoa, jos yhteys tai kirjautuminen katkeaa hetkeksi — sarja tallentuu, kun yhteys palaa
-• Tänään-näkymä päivittyy, kun palaat sovellukseen myöhemmin tai seuraavana päivänä
-• Sarjojen tallennus ja treenin aloitus ovat nopeampia, ja sovellus käyttää yhteyksiä tehokkaammin
-• Uloskirjautuminen tyhjentää myös Apple Healthin tuontitiedot ja lepoajastimen, joten saman laitteen seuraava käyttäjä ei peri niitä
-• Jos istunto päättyy esimerkiksi salasanan vaihdon jälkeen, sovellus ohjaa kirjautumiseen virheilmoitusten sijaan
+• Treeni-välilehdellä treenit ovat ensin, ja treenin sisällön näkee esikatselusta ennen aloitusta
+• Liikkeille voi lisätä omat muistiinpanot liikkeen valikosta, ja ne näkyvät jo esikatselussa
+• Treenin aloitus on nopeampi, ja aloituspainike näyttää selvästi, että treeni on avautumassa
+• Reseptit selataan nyt kuvina kahdessa sarakkeessa, ja ateriatyypin voi valita yhdellä napautuksella
+• Reseptinäkymä alkaa isosta kuvasta, ja ohjeen vaiheet on numeroitu selkeämmin
+• Ravinto-välilehti avautuu nopeammin, koska päivän tiedot haetaan jo sovelluksen käynnistyessä
