@@ -17,55 +17,60 @@ struct RecipeLibraryView: View {
     @State private var paywallReason: PaywallReason?
     @Environment(SubscriptionStore.self) private var subscriptions
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// Kaksi saraketta, jotta selattavaa näkyy kerralla 6–8 eikä 2–3. Saavutettavuuden
+    /// tekstiko'oilla yksi: kapeaan korttiin ei mahdu nimeä eikä lukuja.
+    private var columns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        return Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: count)
+    }
 
     var body: some View {
-        List {
-            if let error = model.errorMessage {
-                Section {
-                    Text(error).font(.footnote).foregroundStyle(.red)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if let error = model.errorMessage {
+                    Text(error)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .padding(.horizontal, 16)
                 }
-            }
 
-            Section {
-                Picker("Ateriapaikka", selection: $model.mealFilter) {
-                    Text("Kaikki").tag(MealSlotGroup?.none)
-                    ForEach(MealSlotGroup.allCases) { group in
-                        Text(group.label).tag(MealSlotGroup?.some(group))
+                // Suodatin chipeinä: yksi napautus, ja kaikki vaihtoehdot näkyvät kerralla.
+                // Valittu chip on neutraali — korostusväri kuuluu toiminnoille, ei arvoille.
+                MealFilterChips(selection: $model.mealFilter)
+
+                LazyVGrid(columns: columns, alignment: .leading, spacing: 20) {
+                    ForEach(model.visibleRecipes) { recipe in
+                        Button {
+                            selected = recipe
+                        } label: {
+                            RecipeCard(recipe: recipe)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .pickerStyle(.menu)
-                // Korostusväri kuuluu toiminnoille, ei arvoille.
-                .tint(Color.secondary)
-            }
-
-            Section {
-                ForEach(model.visibleRecipes) { recipe in
-                    Button {
-                        selected = recipe
-                    } label: {
-                        RecipeRow(recipe: recipe)
-                    }
-                    .buttonStyle(.plain)
-                }
+                .padding(.horizontal, 16)
 
                 if model.visibleRecipes.isEmpty, model.hasContent {
-                    Text("Ei osumia haulla.").foregroundStyle(.secondary)
+                    Text("Ei osumia haulla.")
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
                 }
-            } footer: {
+
                 // Alaviite on oikea paikka juuri tälle: tieto ei ole sellaista jota
                 // etsitään, mutta se pitää olla kerrottuna.
                 if model.hasContent {
                     Text("Reseptikuvat ovat tekoälyllä luotuja kuvituskuvia.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
                 }
             }
-
+            .padding(.top, 4)
             // Kelluvan välilehtipalkin alle jää tilaa, ettei viimeinen rivi jää sen alle.
-            Section {
-                Color.clear
-                    .frame(height: 44)
-                    .listRowBackground(Color.clear)
-            }
-            .listSectionSpacing(0)
+            .padding(.bottom, 44)
         }
         .navigationTitle("Reseptit")
         .navigationBarTitleDisplayMode(.inline)
@@ -108,65 +113,91 @@ struct RecipeLibraryView: View {
     }
 }
 
-/// Rivillä kaksi lukua, ei viittä: energia ja proteiini ovat ne joilla resepti
-/// valitaan. Loput näkyvät avatussa näkymässä.
-private struct RecipeRow: View {
+/// Kuvakortti: ruoka valitaan katsomalla, joten kuva on kortin pääosa. Alla nimi ja
+/// kaksi lukua — energia ja proteiini ovat ne joilla resepti valitaan, loput näkyvät
+/// avatussa näkymässä. Ateriatyyppi ei mahdu kapeaan korttiin, ja suodatin kertoo sen.
+private struct RecipeCard: View {
     let recipe: Recipe
 
     var body: some View {
-        HStack(spacing: 12) {
-            RecipeThumbnail(url: recipe.imageUrl)
+        VStack(alignment: .leading, spacing: 8) {
+            Color.clear
+                .aspectRatio(4 / 3, contentMode: .fit)
+                .overlay {
+                    if let url = recipe.imageUrl, let parsed = URL(string: url) {
+                        AsyncImage(url: parsed) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Color.secondary.opacity(0.12)
+                        }
+                    } else {
+                        Color.secondary.opacity(0.12)
+                            .overlay {
+                                Image(systemName: "fork.knife")
+                                    .font(.title)
+                                    .foregroundStyle(.secondary)
+                            }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                // Merkki vain poikkeukselle: avoin resepti on normaalitila.
+                .overlay(alignment: .topTrailing) {
+                    if recipe.locked {
+                        Image(systemName: "lock.fill")
+                            .font(.caption.weight(.semibold))
+                            .padding(6)
+                            .background(.ultraThinMaterial, in: Circle())
+                            .padding(8)
+                            .accessibilityLabel("Kuuluu Pro-tilaukseen")
+                    }
+                }
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(recipe.name)
-                    .font(.subheadline.weight(.medium))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
-                Text(recipe.mealLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(Int(recipe.macrosPerServing.kcal.rounded())) kcal · \(Int(recipe.macrosPerServing.proteinG.rounded())) g proteiinia")
+                    .multilineTextAlignment(.leading)
+                Text("\(Int(recipe.macrosPerServing.kcal.rounded())) kcal · \(Int(recipe.macrosPerServing.proteinG.rounded())) g prot.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
-            }
-
-            Spacer(minLength: 4)
-
-            // Merkki vain poikkeukselle: avoin resepti on normaalitila eikä
-            // ansaitse omaa kuvakettaan.
-            if recipe.locked {
-                Image(systemName: "lock.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel("Kuuluu Pro-tilaukseen")
+                    .lineLimit(1)
+                    .accessibilityLabel("\(Int(recipe.macrosPerServing.kcal.rounded())) kilokaloria, \(Int(recipe.macrosPerServing.proteinG.rounded())) grammaa proteiinia")
             }
         }
-        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
-private struct RecipeThumbnail: View {
-    let url: String?
+private struct MealFilterChips: View {
+    @Binding var selection: MealSlotGroup?
 
     var body: some View {
-        Group {
-            if let url, let parsed = URL(string: url) {
-                AsyncImage(url: parsed) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.secondary.opacity(0.12)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                chip("Kaikki", isOn: selection == nil) { selection = nil }
+                ForEach(MealSlotGroup.allCases) { group in
+                    chip(group.label, isOn: selection == group) { selection = group }
                 }
-            } else {
-                Color.secondary.opacity(0.12)
-                    .overlay {
-                        Image(systemName: "fork.knife")
-                            .foregroundStyle(.secondary)
-                    }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
         }
-        .frame(width: 56, height: 56)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func chip(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .foregroundStyle(isOn ? Color(.systemBackground) : Color.primary)
+                .background(isOn ? Color.primary : Color.secondary.opacity(0.15), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 

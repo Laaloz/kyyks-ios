@@ -54,28 +54,48 @@ struct RecipeDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                if let url = recipe.imageUrl, let parsed = URL(string: url) {
-                    Section {
-                        // 4:3 kiinteän korkeuden sijaan: sama suhde joka reseptillä ja
-                        // laitteen leveydestä riippumatta.
-                        //
-                        // Muoto tulee läpinäkyvästä taustasta eikä kuvasta: `aspectRatio`
-                        // suoraan kuvalle jää vaikutuksetta, koska `scaledToFill` on jo
-                        // sitonut suhteen kuvan omaan mittaan — lopputulos oli 1:1.
-                        Color.clear
-                            .aspectRatio(4 / 3, contentMode: .fit)
-                            .overlay {
-                                AsyncImage(url: parsed) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    Color.secondary.opacity(0.12)
+                // Kuva reunasta reunaan ja nimi sen alla isona: resepti alkaa ruoasta,
+                // ei asetuslistan riviltä.
+                //
+                // Muoto tulee läpinäkyvästä taustasta eikä kuvasta: `aspectRatio`
+                // suoraan kuvalle jää vaikutuksetta, koska `scaledToFill` on jo
+                // sitonut suhteen kuvan omaan mittaan — lopputulos oli 1:1.
+                Section {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let url = recipe.imageUrl, let parsed = URL(string: url) {
+                            Color.clear
+                                .aspectRatio(4 / 3, contentMode: .fit)
+                                .overlay {
+                                    AsyncImage(url: parsed) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Color.secondary.opacity(0.12)
+                                    }
                                 }
+                                .clipped()
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(recipe.name)
+                                .font(.title2.bold())
+                            if !recipe.mealLabel.isEmpty {
+                                Text(recipe.mealLabel)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
-                            .clipped()
-                            .listRowInsets(EdgeInsets())
-                    } footer: {
-                        Text("Kuva on tekoälyllä luotu kuvituskuva.")
+                            if recipe.imageUrl != nil {
+                                Text("Kuva on tekoälyllä luotu kuvituskuva.")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 2)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
+                        .padding(.bottom, 4)
                     }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
 
                 // Makrot aina yhdelle annokselle. Ne ovat reseptin tunnusluku ja se luku
@@ -90,6 +110,11 @@ struct RecipeDetailSheet: View {
                     }
                 }
 
+                let groups = recipe.ingredientGroups
+                // Ryhmätön alkuosa kuuluu annosvalitsimen alle samaan osioon: valitsin
+                // ja sen ohjaamat määrät samassa kortissa, ei kahtena erillisenä.
+                let leading = groups.first.flatMap { $0.label == nil ? $0.items : nil } ?? []
+
                 if recipe.ingredients?.isEmpty == false {
                     Section {
                         // Kokonaisia annoksia 1–12, sama kuin webissä. Puolikkaat olivat
@@ -99,11 +124,10 @@ struct RecipeDetailSheet: View {
                                 Text(servingsText).monospacedDigit()
                             }
                         }
+                        ForEach(leading) { item in
+                            ingredientRow(item)
+                        }
                     } header: {
-                        // Osion otsikko kattaa sekä annosmäärän että sen alla olevat
-                        // ainesosaryhmät, kuten webissä. Aiemmin "Ainesosat" oli
-                        // liimattu ensimmäisen ryhmän otsikkoon ("Ainesosat · Bataatti"),
-                        // mikä luki kuin ryhmän nimi olisi osa sanaa.
                         Text("Ainesosat")
                     } footer: {
                         Text("Ainesosien määrät seuraavat valintaa. Syödyksi merkitään aina yksi annos.")
@@ -113,18 +137,18 @@ struct RecipeDetailSheet: View {
                 // Ainesosat reseptin osittain: kastikkeen ainekset erillään pohjasta, koska
                 // niitä myös käsitellään erillään. Määrät seuraavat annosvalitsinta kuten
                 // webissä — sama valitsin kertoo sekä paljonko syötiin että paljonko tehdään.
-                ForEach(Array(recipe.ingredientGroups.enumerated()), id: \.offset) { index, group in
-                    Section {
-                        ForEach(group.items) { item in
-                            ingredientRow(item)
-                        }
-                    } header: {
-                        // Pelkkä ryhmän nimi: "Ainesosat" on jo annosmäärän otsikkona,
-                        // ja ryhmätön resepti ei tarvitse otsikkoa lainkaan.
-                        if let label = group.label {
-                            Text(label)
-                        } else if index > 0 {
-                            Text("Muut ainekset")
+                ForEach(Array(groups.enumerated()), id: \.offset) { index, group in
+                    if !(index == 0 && group.label == nil) {
+                        Section {
+                            ForEach(group.items) { item in
+                                ingredientRow(item)
+                            }
+                        } header: {
+                            if let label = group.label {
+                                Text(label)
+                            } else {
+                                Text("Muut ainekset")
+                            }
                         }
                     }
                 }
@@ -132,13 +156,17 @@ struct RecipeDetailSheet: View {
                 if let steps = recipe.instructionSteps, !steps.isEmpty {
                     Section("Ohje") {
                         ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
-                            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Text("\(index + 1).")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.secondary)
+                            HStack(alignment: .top, spacing: 14) {
+                                Text("\(index + 1)")
+                                    .font(.footnote.weight(.bold))
                                     .monospacedDigit()
+                                    .frame(width: 26, height: 26)
+                                    .background(Color.secondary.opacity(0.18), in: Circle())
                                 Text(step)
+                                    .lineSpacing(3)
+                                    .padding(.top, 2)
                             }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
@@ -173,7 +201,7 @@ struct RecipeDetailSheet: View {
                 }
                 .listSectionSpacing(0)
             }
-            .navigationTitle(recipe.name)
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
