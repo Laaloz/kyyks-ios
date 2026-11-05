@@ -29,57 +29,52 @@ avainsanoissa, koska nimi indeksoidaan muutenkin.
 
 ## Kuvat (`screenshots/fi-FI/iphone-6.9/`)
 
-Sama kahdeksan kuvan sarja kahtena kokona. Sovellus on iPhone-only
+Sama seitsemän kuvan sarja kahtena kokona. Sovellus on iPhone-only
 (`TARGETED_DEVICE_FAMILY: "1"`), joten iPad- tai Watch-kuvia ei tarvita.
 
-- `iphone-6.9/` — 1320 × 2868 px, simulaattorista otetut alkuperäiset
-  (iPhone 17 Pro Max, @3x).
-- `iphone-6.5/` — 1284 × 2778 px, skaalattu alkuperäisistä.
+- `iphone-6.9/` — 1320 × 2868 px
+- `iphone-6.5/` — 1284 × 2778 px
 
 **Kumpi kelpaa, riippuu siitä minkä paikan App Store Connect näyttää.**
 Lomakkeen iPhone-välilehti tarjosi 19.8.2026 vain 6.5" -paikkaa
 (1242 × 2688, 2688 × 1242, 1284 × 2778 tai 2778 × 1284) ja hylkäsi 6.9"
 kuvat väärän kokoisina — käytä silloin `iphone-6.5/`-sarjaa. 6.9"
-alkuperäiset voi ladata **View All Sizes in Media Manager** -näkymästä.
+kuvat voi ladata **View All Sizes in Media Manager** -näkymästä.
 
-Skaalaus venyttää kuvaa pystysuunnassa 0,4 % (kuvasuhde 0,4603 → 0,4622).
-Ero on silmällä näkymätön, mutta jos kuvat otetaan joskus uudelleen, ota ne
-suoraan 6.5" simulaattorilla (iPhone 11 Pro Max) niin venytystä ei tule.
+Nykyiset kuvat (5.11.2026, versio 1.0.8) on otettu iPhone 17 Pro
+-simulaattorista (1206 × 2622) ja skaalattu molempiin kokoihin
+(`sips -z 2868 1320` ja `sips -z 2778 1284`). Skaalaus venyttää 6.5"
+kuvaa pystysuunnassa ~0,5 %, mikä ei näy silmällä. Tarkempi tulos syntyy,
+kun kuvat otetaan suoraan iPhone 17 Pro Max -simulaattorilla (6.9").
 
-Uusinta samalle koolle:
+Järjestys App Store Connectiin (kolme ensimmäistä näkyy hakutuloksissa,
+joten vahvin tarina ensin) = tiedostonimen numero:
 
-```bash
-for f in iphone-6.9/*.png; do sips -z 2778 1284 "$f" --out "iphone-6.5/$(basename $f)"; done
-```
-
-Suositeltu järjestys App Store Connectiin (kolme ensimmäistä näkyy
-hakutuloksissa, joten vahvin tarina ensin):
-
-1. `02-treeni.png` — sarjan kirjaus: viime kerran arvot, esitäytetyt
+1. `01-treeni.png` — sarjan kirjaus: viime kerran arvot, esitäytetyt
    toistot ja kuormat sekä lepoajastin
-2. `03-ravinto.png` — päivän energia ja makrot
-3. `08-ai-arvio.png` — tekoälyn tekemä ateria-arvio (Pron kärki)
-4. `01-tanaan.png` — päivän yhteenveto, askeleet ja yöuni
-5. `06-kehitys.png` — kehitys liikkeittäin
-6. `05-keho.png` — paino ja mitat
-7. `04-reseptit.png` — reseptikirjasto
-8. `07-resepti.png` — reseptin makrot ja annoskoko
+2. `02-ravinto.png` — päivän energia ja makrot
+3. `03-ai-arvio.png` — tekoälyn tekemä ateria-arvio (Pron kärki)
+4. `04-reseptit.png` — reseptikirjasto kahdessa sarakkeessa
+5. `05-resepti.png` — reseptin makrot ja annoskoko
+6. `06-kehitys.png` — kehitys liikkeittäin
+7. `07-keho.png` — paino ja mitat
 
-Kuvat on otettu simulaattorista kirjautuneena, ja niissä näkyy oikeaa dataa
-omalta tililtä. Kaksi asiaa on siksi hoidettu erikseen:
+Kuvat on otettu **demotunnuksella** (sama kuin arviointiohjeessa, Pro
+päällä), jotta kauppasivulle ei päädy oikean käyttäjän nimeä tai dataa:
 
-- **Nimi on demonimi.** Tänään-näkymä näyttää `profiles.full_name`-kentän, jota
-  sovelluksessa ei voi muokata. Nimi vaihdettiin kannassa kuvan ajaksi
-  ("Mikko Laine") ja palautettiin heti perään. Jos kuva otetaan uudelleen,
-  tee sama — muuten kauppasivulle päätyy oikea nimi.
-- **Treenikuvan treeni on aloitettu kuvaa varten ja poistettu heti perään.**
-  "Viimeksi"-sarake täyttyy vasta kun treeni on aloitettu ohjelmasta, joten
-  valmiiksi kirjatusta treenistä ei saa kuvaa jossa vertailuarvot näkyvät.
-- **Apple Health -kortti näyttää dataa.** Simulaattorin Health-sovellukseen
-  syötettiin käsin askeleet (8 432) ja yksi yö unta (7 h 1 min). Ilman niitä
-  kortissa lukee "Apple Healthista ei saatu tietoja", mikä lukee kuvassa
-  virheeltä. Data on simulaattorikohtaista: uusi simulaattori tarkoittaa
-  uutta syöttöä (Health → Selaa → Aktiivisuus/Uni → +).
+- **Treenikuvan treeni aloitettiin kuvaa varten ja poistettiin heti
+  perään.** "Viimeksi"-sarake täyttyy vasta kun treeni on aloitettu
+  ohjelmasta.
+- **Ravintopäivälle kirjattiin kolme reseptiä**, ja AI-arvio peruttiin
+  tallentamatta.
+- **Tänään-näkymä puuttuu sarjasta**, koska simulaattorin Apple Health
+  -kortissa lukee "Apple Healthista ei saatu tietoja", mikä näyttää kuvassa
+  virheeltä. Jos se halutaan mukaan: anna Volulle Health-lukuoikeus ja syötä
+  simulaattorin Health-sovellukseen askeleet ja yksi yö unta käsin.
+- Google Playn pre-launch-testi kirjautuu samalla demotunnuksella ja
+  painelee sovellusta (aloittaa treenejä, kuittaa sarjoja, poistaa
+  kirjauksia). Jos demodata muuttuu kesken kuvauksen, syy on todennäköisesti
+  se.
 
 Uusinta: aseta ensin tilapalkki vakioksi, muuten kellonaika ja akku vaihtelevat
 kuvien välillä.
