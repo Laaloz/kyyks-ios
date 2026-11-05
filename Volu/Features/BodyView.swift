@@ -144,7 +144,18 @@ struct BodyView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    // Läpinäkymätön pohja eikä materiaali: Chartsin annotaatiossa
+                    // materiaali ei näe taustaansa, ja vaalealla teemalla kupla
+                    // piirtyi paikoin tummaksi tumman tekstin alle.
+                    .background(
+                        Color(.systemBackground),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color(.separator), lineWidth: 0.5)
+                    )
+                    .shadow(color: .black.opacity(0.08), radius: 4, y: 1)
                 }
             }
         }
